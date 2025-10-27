@@ -2,12 +2,42 @@
 
 Version: v0 (dataset v0; harness v0.1.0)
 Audience: Researchers and engineers implementing and running the benchmark
+Last Updated: 2025-10-27
+Status: Draft
+
+### 0) Executive Summary
+
+Long-Context-Bench is a standardized benchmark designed to evaluate the performance of AI coding agents on real-world, long-context code editing tasks. The benchmark uses 50 recent Elasticsearch pull requests as a representative dataset to measure how well agents can understand, modify, and integrate changes across large, multi-file repositories when given natural-language instructions.
+
+**Key Value Propositions:**
+- **For Researchers**: Provides a reproducible, agent-agnostic benchmark for comparing different AI coding agents
+- **For Engineering Teams**: Enables evidence-based selection of coding agents for production use
+- **For the AI Community**: Establishes standardized metrics for long-context code understanding and generation
+
+**Critical Success Factors:**
+- Reproducible results across different environments and runs
+- Fair comparison between different agent implementations
+- Practical deployment in both local and CI environments
+- Compliance with licensing and copyright requirements
+
+**Investment Required:** Initial development of harness, dataset curation, and ongoing maintenance for new dataset versions
 
 ### 1) Overview
 
 Problem Statement
 - R-1.1 The benchmark shall evaluate long-context code editing capabilities of CLI-based coding agents on real-world GitHub pull requests (PRs).
 - R-1.2 The benchmark shall measure an agent’s ability to understand, modify, and integrate changes across large, multi-file repositories when given natural-language task instructions derived from PR metadata.
+
+**Market Context:**
+Current code generation benchmarks primarily focus on short, isolated coding tasks or single-file modifications. However, real-world software development involves understanding and modifying code across multiple files, dependencies, and contexts. As AI coding agents become more sophisticated, there's a critical need for benchmarks that evaluate their ability to handle complex, long-context scenarios that mirror actual development workflows.
+
+**Technical Gap:**
+Existing benchmarks fail to capture the complexity of:
+- Cross-file dependencies and imports
+- Large codebase navigation and understanding
+- Context-aware code modification
+- Integration of changes across multiple components
+- Adherence to existing code patterns and conventions
 
 Goals
 - R-1.3 Reproducibility: Identical inputs and flags shall yield identical scores and artifacts (excluding timestamps and explicitly volatile fields).
@@ -18,6 +48,49 @@ Non-goals
 - R-1.6 Training models or fine-tuning is out of scope.
 - R-1.7 Modifying upstream PR history or redistributing copyrighted source code is out of scope.
 - R-1.8 Evaluating non-code tasks (e.g., documentation-only PRs) beyond the defined metrics is out of scope.
+
+### 1.1) Stakeholder Analysis
+
+**Primary Stakeholders:**
+- **AI Researchers**: Need standardized metrics to publish comparative studies and advance the field
+- **Engineering Teams**: Require evidence-based data to select appropriate coding agents for their workflows
+- **Tool Vendors**: Want fair comparison mechanisms to demonstrate their agent capabilities
+- **Open Source Community**: Benefits from standardized evaluation of AI contributions to codebases
+
+**Secondary Stakeholders:**
+- **Enterprise Decision Makers**: Need ROI justification for AI coding tool investments
+- **Academic Institutions**: Require teaching materials and research benchmarks
+- **Regulatory Bodies**: Interested in standardized evaluation methods for AI systems
+
+**Stakeholder Needs and Pain Points:**
+- Researchers struggle with reproducible benchmark results across different environments
+- Engineering teams lack objective metrics for comparing agent performance on real tasks
+- Tool vendors face skepticism about marketing claims without independent validation
+- The community needs guardrails against AI systems that might introduce bugs or security issues
+
+### 1.2) Success Metrics
+
+**Benchmark Adoption Metrics:**
+- Number of research papers published using Long-Context-Bench within 12 months
+- Number of unique organizations running the benchmark
+- GitHub stars and forks of the benchmark repository
+- Community contributions and issue reports
+
+**Technical Validity Metrics:**
+- Reproducibility rate: Percentage of runs that produce identical results with identical inputs
+- Discriminative power: Ability to detect meaningful performance differences between agents
+- Correlation with real-world performance: How well benchmark scores predict actual coding productivity
+
+**Operational Metrics:**
+- Average time to complete a full benchmark run
+- Success rate of benchmark pipeline execution
+- Number of supported agent runners and models
+- Documentation completeness score (coverage of use cases)
+
+**Impact Metrics:**
+- Industry adoption of benchmark results in tool selection decisions
+- Influence on agent development priorities (feature roadmap alignment)
+- Citation count in academic and industry publications
 
 ### 2) Dataset Specification
 
@@ -176,12 +249,71 @@ Publishing Guidance
 
 ### 9) Risks and Mitigations
 
+**Technical Risks:**
 - R-9.1 Large repositories / timeouts → Set generous defaults, per-task timeouts, and resume capability; allow increasing `--timeout` and concurrency.
 - R-9.2 GitHub rate limits → Backoff with `Retry-After`, authenticated requests, and caching.
 - R-9.3 Flaky network → Retries with exponential backoff and jitter; verify integrity via commit hashes.
+
+**Operational Risks:**
 - R-9.4 Private PRs/permissions → Validate early; record as skipped with reason; do not fail the entire run.
 - R-9.5 Agent CLI incompatibilities → Adapters provide normalization; require conformance tests per R-4.4–4.7.
 - R-9.6 LLM non-determinism → Deterministic judge mode; fix temperature/top_p and seed for LLM mode; cache judgments by inputs.
+
+**Legal and Compliance Risks:**
+- **Copyright Infringement**: Risk of redistributing proprietary code → Mitigation: Only redistribute URLs and metadata, provide clear guidance on local caching
+- **GitHub Terms of Service Violation**: Automated access might violate ToS → Mitigation: Implement respectful rate limiting, use official APIs, provide user-agent identification
+- **Data Privacy**: PR metadata might contain sensitive information → Mitigation: Filter out personal data, anonymize contributor information where possible
+
+**Adoption and Market Risks:**
+- **Low Adoption**: Benchmark fails to gain traction → Mitigation: Partner with key research institutions, provide compelling demos, ensure ease of use
+- **Gaming the System**: Agents optimize for benchmark rather than real performance → Mitigation: Regular dataset updates, include adversarial examples, monitor for overfitting patterns
+- **Community Fragmentation**: Competing benchmarks emerge → Mitigation: Engage with community early, be open to collaboration, maintain high standards
+
+### 9.1) Implementation Timeline
+
+**Phase 1: MVP Development (Months 1-2)**
+- Core harness implementation with basic runner abstraction
+- Dataset v0 curation and validation
+- Deterministic judge implementation
+- Basic CLI interface and documentation
+
+**Phase 2: Beta Testing (Month 3)**
+- Internal testing with multiple agent runners
+- Community feedback collection
+- Performance optimization and bug fixes
+- Enhanced documentation and examples
+
+**Phase 3: Public Release (Month 4)**
+- Public repository launch
+- Community outreach and partnerships
+- Initial research paper submissions
+- Monitoring and support infrastructure
+
+**Phase 4: Ecosystem Growth (Months 5-6)**
+- Additional runner support based on community demand
+- Dataset v1 planning and development
+- Advanced judge modes and metrics
+- Community contributions and extensions
+
+### 9.2) Dependencies
+
+**External Dependencies:**
+- GitHub API availability and stability
+- Elasticsearch project continuing to host public PRs
+- Community adoption and contribution
+- Academic and industry partner engagement
+
+**Technical Dependencies:**
+- Python ≥3.11 ecosystem stability
+- Git command-line tool availability
+- JSON schema validation libraries
+- CSV processing and reporting libraries
+
+**Resource Dependencies:**
+- Development team with expertise in AI, benchmarking, and software engineering
+- Compute resources for running comprehensive tests
+- Legal review for compliance and licensing
+- Community management and support capacity
 
 ### 10) Acceptance Criteria (Testable)
 
@@ -192,15 +324,24 @@ Publishing Guidance
 - AC-5 Documentation Completeness: Documentation includes minimal working examples for each supported runner and clearly explains required environment variables.
 
 ### Glossary
-- PR: Pull Request on GitHub.
-- Base commit: The commit on the target branch from which the PR diverges.
-- Head commit: The PR’s tip commit containing the proposed changes.
-- Patch (unified diff): Text representation of code changes between two commits.
-- Sample: The benchmark’s representation of a PR task, including instructions and metadata.
-- Edit: The agent’s produced diff against the base commit.
-- Judge: The scoring step that compares an Edit to the PR’s ground truth.
-- Runner: Adapter that interfaces with a specific CLI-based coding agent.
-- Shard: A partition of the corpus processed independently to enable parallelism.
+- **PR**: Pull Request on GitHub.
+- **Base commit**: The commit on the target branch from which the PR diverges.
+- **Head commit**: The PR’s tip commit containing the proposed changes.
+- **Patch (unified diff)**: Text representation of code changes between two commits.
+- **Sample**: The benchmark’s representation of a PR task, including instructions and metadata.
+- **Edit**: The agent’s produced diff against the base commit.
+- **Judge**: The scoring step that compares an Edit to the PR’s ground truth.
+- **Runner**: Adapter that interfaces with a specific CLI-based coding agent.
+- **Shard**: A partition of the corpus processed independently to enable parallelism.
+- **Context Size**: The total amount of code (in bytes) that the agent needs to understand to complete the task.
+- **Deterministic**: Producing the same results given the same inputs, ensuring reproducibility.
+- **CLI**: Command Line Interface, referring to text-based interaction with the agent.
+- **Harness**: The framework that orchestrates the benchmark pipeline.
+- **Adapter**: A plugin that allows the harness to communicate with different coding agents.
+- **Metadata**: Information about the PR (title, description, commit hashes) without the actual code changes.
+- **Unified Diff**: A standard format for showing differences between text files.
+- **Sharding**: Dividing the dataset into smaller pieces for parallel processing.
+- **Caching**: Storing intermediate results to avoid redundant computation.
 
 ### Example End-to-End Flow (Prose)
 1) The operator selects dataset v0 (data/elasticsearch_prs_50.json) and invokes the pipeline with a runner and model. 2) The sampler clones each PR’s repository at the base commit, records metadata, and writes sample.json files with deterministic task_instructions and stats. 3) The edit stage creates isolated workspaces per sample, passes task_instructions to the selected agent via the runner adapter, enforces timeouts, and captures the unified diff from git as edit.json. 4) The judge stage computes the ground-truth PR diff from base→head locally, compares it to the agent diff, and assigns five scores plus an aggregate, writing judge.json. 5) The harness aggregates per-PR results into summary.json and summary.csv and writes a run_manifest.json with full provenance, enabling exact re-runs.
