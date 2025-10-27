@@ -20,7 +20,9 @@ Long-Context-Bench evaluates how well coding agents can understand, modify, and 
 - Python ≥ 3.11
 - Git
 - GitHub token for API access (set as `GITHUB_GIT_TOKEN`)
-- Agent-specific tokens (e.g., `AUGMENT_API_TOKEN` for Auggie)
+- **Agent authentication** (choose one):
+  - **Auggie**: OAuth login (recommended) or API token
+  - **Claude Code**: OAuth login (recommended) or API key
 
 ### Install from source
 
@@ -32,14 +34,33 @@ pip install -e .
 
 ## Quick Start
 
-### 1. Set Environment Variables
+### 1. Authenticate with Agents
+
+**Recommended: Use OAuth (subscription mode)**
+
+For Auggie:
+```bash
+auggie login  # Opens browser for OAuth authentication
+```
+
+For Claude Code:
+```bash
+claude setup-token  # Sets up subscription-based authentication
+```
+
+**Alternative: Use API keys/tokens**
 
 ```bash
 export GITHUB_GIT_TOKEN=your_github_token
-export AUGMENT_API_TOKEN=your_augment_token  # if using Auggie
-# OR
-export ANTHROPIC_API_KEY=your_key  # if using Claude Code or LLM judge
-export OPENAI_API_KEY=your_key     # if using OpenAI models or LLM judge
+
+# For Auggie (if not using OAuth)
+export AUGMENT_API_TOKEN=your_augment_token
+
+# For Claude Code (if not using OAuth)
+export ANTHROPIC_API_KEY=your_key
+
+# For LLM judge (optional)
+export OPENAI_API_KEY=your_key
 ```
 
 ### 2. Run on Full Dataset (v0)
@@ -285,26 +306,46 @@ The benchmark supports multiple CLI coding agents through pluggable adapters:
 Augment's CLI coding agent.
 
 ```bash
+# Recommended: Use OAuth (run 'auggie login' first)
 long-context-bench pipeline \
   --runner auggie \
-  --model claude-sonnet-4 \
-  --agent-binary /path/to/auggie  # Optional, defaults to 'auggie' in PATH
+  --model claude-sonnet-4
+
+# Alternative: Use API token
+export AUGMENT_API_TOKEN=your_token
+long-context-bench pipeline \
+  --runner auggie \
+  --model claude-sonnet-4
 ```
 
-**Environment:** Requires `AUGMENT_API_TOKEN`
+**Authentication:**
+- **Recommended:** OAuth via `auggie login` (uses subscription)
+- **Alternative:** Set `AUGMENT_API_TOKEN` environment variable
+
+**Model aliases:** Use `sonnet`, `opus`, `haiku` or full model names
 
 ### Claude Code
 
 Anthropic's command-line coding agent.
 
 ```bash
+# Recommended: Use OAuth (run 'claude setup-token' first)
 long-context-bench pipeline \
   --runner claude-code \
-  --model claude-sonnet-4 \
-  --agent-binary /path/to/claude  # Optional, defaults to 'claude' in PATH
+  --model sonnet
+
+# Alternative: Use API key
+export ANTHROPIC_API_KEY=your_key
+long-context-bench pipeline \
+  --runner claude-code \
+  --model sonnet
 ```
 
-**Environment:** Requires `ANTHROPIC_API_KEY`
+**Authentication:**
+- **Recommended:** OAuth via `claude setup-token` (uses subscription)
+- **Alternative:** Set `ANTHROPIC_API_KEY` environment variable
+
+**Model aliases:** Use `sonnet`, `opus`, `haiku` or full model names like `claude-sonnet-4`
 
 ### Codex CLI
 

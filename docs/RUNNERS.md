@@ -17,15 +17,28 @@ Long-Context-Bench uses a pluggable adapter system to support different CLI codi
 **Installation:**
 - Contact Augment for access to the Auggie CLI
 
-**Environment Variables:**
-- `AUGMENT_API_TOKEN` (required)
+**Authentication:**
+- **Recommended:** OAuth via `auggie login` (uses subscription)
+- **Alternative:** Set `AUGMENT_API_TOKEN` environment variable
 
-**Example:**
+**Example (OAuth - Recommended):**
+```bash
+# First time: authenticate with OAuth
+auggie login
+
+# Run benchmark (no API token needed)
+long-context-bench edit \
+  --runner auggie \
+  --model sonnet \
+  output/samples/v0
+```
+
+**Example (API Token):**
 ```bash
 export AUGMENT_API_TOKEN=your_token
 long-context-bench edit \
   --runner auggie \
-  --model claude-sonnet-4 \
+  --model sonnet \
   output/samples/v0
 ```
 
@@ -34,6 +47,7 @@ long-context-bench edit \
 - Workspace-aware indexing
 - Configurable retry timeouts
 - JSONL logging
+- Model aliases: `sonnet`, `opus`, `haiku`
 
 ---
 
@@ -46,17 +60,33 @@ long-context-bench edit \
 **Installation:**
 - Follow Anthropic's installation instructions for Claude Code CLI
 
-**Environment Variables:**
-- `ANTHROPIC_API_KEY` (required)
+**Authentication:**
+- **Recommended:** OAuth via `claude setup-token` (uses subscription)
+- **Alternative:** Set `ANTHROPIC_API_KEY` environment variable
 
-**Example:**
+**Example (OAuth - Recommended):**
+```bash
+# First time: set up subscription authentication
+claude setup-token
+
+# Run benchmark (no API key needed)
+long-context-bench edit \
+  --runner claude-code \
+  --model sonnet \
+  output/samples/v0
+```
+
+**Example (API Key):**
 ```bash
 export ANTHROPIC_API_KEY=your_key
 long-context-bench edit \
   --runner claude-code \
-  --model claude-sonnet-4 \
+  --model sonnet \
   output/samples/v0
 ```
+
+**Features:**
+- Model aliases: `sonnet`, `opus`, `haiku`
 
 **Features:**
 - Headless mode with `-p` flag
@@ -261,13 +291,28 @@ If you get "agent not found" errors:
 
 ### Authentication Errors
 
-Ensure the required environment variables are set:
+**For Claude Code:**
 ```bash
-# Check if variable is set
-echo $ANTHROPIC_API_KEY
+# Check if authenticated with OAuth
+claude --version  # Should work without ANTHROPIC_API_KEY
 
-# Set if missing
+# If not authenticated, set up OAuth
+claude setup-token
+
+# Or use API key as fallback
 export ANTHROPIC_API_KEY=your_key
+```
+
+**For Auggie:**
+```bash
+# Check if authenticated with OAuth
+auggie --version  # Should work without AUGMENT_API_TOKEN
+
+# If not authenticated, log in with OAuth
+auggie login
+
+# Or use API token as fallback
+export AUGMENT_API_TOKEN=your_token
 ```
 
 ### Timeout Issues
