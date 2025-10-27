@@ -437,6 +437,7 @@ def run_judge_stage(
     judge_model: Optional[str],
     output_dir: Path,
     edit_run_ids: Optional[List[str]] = None,
+    test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
 ) -> str:
     """Run the judge stage.
@@ -448,6 +449,7 @@ def run_judge_stage(
         judge_model: Optional judge model
         output_dir: Output directory
         edit_run_ids: Optional list of edit run IDs to evaluate (for batch mode)
+        test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
 
     Returns:
@@ -462,6 +464,8 @@ def run_judge_stage(
     console.print(f"  Judge mode: {judge_mode}")
     if judge_model:
         console.print(f"  Judge model: {judge_model}")
+    if test_label:
+        console.print(f"  Test label: {test_label}")
 
     # Collect edit run IDs being evaluated
     evaluated_edit_run_ids = []

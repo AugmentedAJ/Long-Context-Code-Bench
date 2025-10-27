@@ -143,6 +143,7 @@ def run_pipeline(
     shard_index: int,
     judge_mode: str,
     judge_model: Optional[str],
+    test_label: Optional[str],
     github_token: Optional[str],
     disable_retrieval: bool,
     disable_shell: bool,
@@ -165,6 +166,7 @@ def run_pipeline(
         shard_index: Current shard index
         judge_mode: Judge mode
         judge_model: Optional judge model
+        test_label: Optional label for grouping runs for comparison
         github_token: Optional GitHub token
         disable_retrieval: Disable retrieval
         disable_shell: Disable shell
@@ -180,6 +182,8 @@ def run_pipeline(
     console.print(f"  Model: {model}")
     console.print(f"  Dataset: {dataset_version}")
     console.print(f"  Shard: {shard_index + 1}/{total_shards}")
+    if test_label:
+        console.print(f"  Test label: {test_label}")
 
     # Create output directories
     samples_dir = output_dir / "samples"
@@ -287,6 +291,7 @@ def run_pipeline(
         },
         timestamp=datetime.utcnow().isoformat(),
         run_id=run_id,
+        test_label=test_label,
     )
     
     manifest_file = summaries_dir / "run_manifest.json"

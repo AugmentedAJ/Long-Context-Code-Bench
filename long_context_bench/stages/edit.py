@@ -261,6 +261,7 @@ def run_edit_stage(
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
     dataset_version: str = "v0",
+    test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
 ) -> str:
     """Run the edit stage.
@@ -277,6 +278,7 @@ def run_edit_stage(
         disable_shell: Disable shell
         enable_mcp_codebase_qa: Enable MCP codebase QA
         dataset_version: Dataset version
+        test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
 
     Returns:
@@ -290,6 +292,8 @@ def run_edit_stage(
     console.print(f"[bold]Starting edit run {edit_run_id}[/bold]")
     console.print(f"  Runner: {runner}")
     console.print(f"  Model: {model}")
+    if test_label:
+        console.print(f"  Test label: {test_label}")
 
     # Load samples
     samples = []
@@ -321,6 +325,7 @@ def run_edit_stage(
         },
         timestamp=datetime.utcnow().isoformat(),
         edit_run_id=edit_run_id,
+        test_label=test_label,
     )
 
     # Save manifest in the runner/model/run_id directory

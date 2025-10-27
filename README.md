@@ -1,17 +1,19 @@
 # Long-Context-Bench
 
-A benchmark for evaluating long-context code editing capabilities of CLI-based coding agents on real-world GitHub pull requests.
+A benchmark for evaluating and ranking long-context code editing capabilities of CLI-based coding agents on real-world GitHub pull requests from massive codebases.
 
 ## Overview
 
-Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across large, multi-file repositories when given natural-language task instructions derived from PR metadata.
+Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across **massive repositories with tens of thousands of files** when given natural-language task instructions derived from PR metadata. The primary use cases are **generating leaderboards** to rank agent performance and **comparing agents side-by-side** using labeled test runs.
 
 **Key Features:**
-- 📊 Evaluates agents on 50 real Elasticsearch PRs (dataset v0)
-- 🔄 Reproducible: identical inputs yield identical scores
-- 🔌 Agent-agnostic: pluggable adapters for different CLI agents
+- 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
+- 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
+- 📊 Evaluates agents on 50 real Elasticsearch PRs (dataset v0, ~40K files per codebase)
+- 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, etc.)
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
+- 📝 Traceable: complete provenance tracking for all runs
 
 ## Installation
 
@@ -32,7 +34,9 @@ cd Long-Context-Code-Bench
 pip install -e .
 ```
 
-## Quick Start
+## Quick Start: Leaderboard & Comparison
+
+The primary workflows are generating leaderboards to rank agents and comparing specific agents side-by-side using test labels.
 
 ### 1. Authenticate with Agents
 
@@ -63,59 +67,133 @@ export ANTHROPIC_API_KEY=your_key
 export OPENAI_API_KEY=your_key
 ```
 
-### 2. Run on Full Dataset (v0)
+### 2. Generate Samples (One-Time Setup)
 
-Run on all 50 PRs from the built-in v0 dataset:
-
-```bash
-long-context-bench pipeline \
-  --runner auggie \
-  --model claude-sonnet-4
-```
-
-### Run on Specific PRs
-
-Run on specific PR numbers:
+Extract PR metadata and create sample files:
 
 ```bash
-long-context-bench pipeline \
-  --runner auggie \
-  --model claude-sonnet-4 \
-  --pr-numbers "115001,114998,114995"
+long-context-bench sample
 ```
 
-Or run on specific indices (0-based):
+This creates `output/samples/v0/<pr_id>/sample.json` for all 50 PRs in the dataset.
+
+### 3. Run Agents with Test Label
+
+Run each agent you want to compare, using the **same test label**:
 
 ```bash
-long-context-bench pipeline \
+# Run Auggie
+long-context-bench edit output/samples/v0 \
   --runner auggie \
-  --model claude-sonnet-4 \
-  --pr-indices "0,1,2"
+  --model claude-sonnet-4.5 \
+  --test-label "sonnet-4.5-comparison"
+
+# Run Claude Code
+long-context-bench edit output/samples/v0 \
+  --runner claude-code \
+  --model claude-sonnet-4.5 \
+  --test-label "sonnet-4.5-comparison"
 ```
 
-### With Sharding (for parallel execution)
+**Note:** Agent runs are non-deterministic. Running the same agent multiple times will produce different results due to the stochastic nature of LLMs.
 
-Split the workload across 4 shards:
+### 4. Evaluate Results
+
+Judge the agent outputs against ground truth:
 
 ```bash
-# Shard 0
-long-context-bench pipeline \
-  --runner auggie \
-  --model claude-sonnet-4 \
-  --total-shards 4 \
-  --shard-index 0
-
-# Shard 1
-long-context-bench pipeline \
-  --runner auggie \
-  --model claude-sonnet-4 \
-  --total-shards 4 \
-  --shard-index 1
-
-# ... and so on for shards 2 and 3
+long-context-bench judge \
+  --edit-run-ids <run_id_1>,<run_id_2> \
+  --test-label "sonnet-4.5-comparison"
 ```
+
+You can find the edit run IDs in the console output or in `output/edits/<runner>/<model>/` directories.
+
+### 5. Generate Leaderboard or Comparison
+
+**Option A: Generate Leaderboard (Ranked)**
+
+Create a ranked leaderboard of all agents:
+
+```bash
+long-context-bench compare output/ "sonnet-4.5-comparison" \
+  --format leaderboard \
+  --rank-by mean_aggregate \
+  --output-file leaderboard.csv
+```
+
+This displays agents ranked by performance (default: mean aggregate score).
+
+**Option B: Generate Side-by-Side Comparison**
+
+Create a detailed side-by-side comparison:
+
+```bash
+long-context-bench compare output/ "sonnet-4.5-comparison" \
+  --format comparison \
+  --output-file comparison.csv
+```
+
+Both formats support CSV and JSON output.
 
 ## Features
+
+### Leaderboard Generation
+
+Rank multiple agents across standardized benchmarks:
+
+1. **Run agents with a test label**: Execute multiple agents/models with the same test label (e.g., `--test-label "v0-leaderboard"`)
+2. **Generate leaderboard**: Use `compare --format leaderboard` to rank all agents by performance
+3. **Customize ranking**: Use `--rank-by` to rank by different metrics (mean_aggregate, success_rate, tasks_per_hour, etc.)
+4. **Export results**: Save leaderboard as CSV or JSON for sharing
+
+Example command:
+```bash
+long-context-bench compare output/ "v0-leaderboard" \
+  --format leaderboard \
+  --rank-by mean_aggregate \
+  --output-file leaderboard.csv
+```
+
+Example leaderboard output:
+```
+┌──────┬─────────────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+│ Rank │ Agent               │ Success Rate │ Mean Agg     │ Tasks/Hour   │ Total Samples│
+├──────┼─────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
+│  1   │ auggie/sonnet-4.5   │ 88.0%        │ 0.82         │ 85.3         │ 50           │
+│  2   │ claude-code/sonnet  │ 85.0%        │ 0.78         │ 72.1         │ 50           │
+│  3   │ auggie/opus-4       │ 82.0%        │ 0.75         │ 45.2         │ 50           │
+│  4   │ cursor/gpt-4        │ 78.0%        │ 0.71         │ 92.5         │ 50           │
+└──────┴─────────────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+**Ranking Metrics:**
+- `mean_aggregate` (default): Overall performance score
+- `success_rate`: Percentage of successful completions
+- `tasks_per_hour`: Speed/throughput metric
+- `mean_correctness`: Accuracy of changes
+- `mean_completeness`: Coverage of required changes
+
+### Agent Comparison with Test Labels
+
+Compare specific agents side-by-side:
+
+1. **Label your runs**: Add `--test-label "my-comparison"` to edit and judge commands
+2. **Run multiple agents**: Execute different agents/models with the same test label
+3. **Generate comparison**: Use `compare` command to see side-by-side metrics
+
+Example comparison output:
+```
+┌─────────────────────┬──────────────┬──────────────┐
+│ Metric              │ auggie       │ claude-code  │
+├─────────────────────┼──────────────┼──────────────┤
+│ Success Rate        │ 85.0%        │ 82.0%        │
+│ Mean Correctness    │ 0.78         │ 0.75         │
+│ Mean Completeness   │ 0.82         │ 0.79         │
+│ Mean Aggregate      │ 0.78         │ 0.75         │
+│ Tasks/Hour          │ 80.0         │ 69.2         │
+└─────────────────────┴──────────────┴──────────────┘
+```
 
 ### Built-in Dataset
 
@@ -442,9 +520,9 @@ output/
     └── run_manifest.json
 ```
 
-## Reproducibility
+## Reproducibility and Provenance
 
-Per R-3.14-3.15, all runs record complete provenance:
+All runs record complete provenance for traceability:
 
 - Dataset version
 - Harness version
@@ -452,8 +530,14 @@ Per R-3.14-3.15, all runs record complete provenance:
 - OS and Python version
 - All flags and configuration
 - Timestamps
+- Test label (for comparison runs)
 
-Re-running with identical inputs and flags produces identical results (excluding timestamps).
+**Important:** Agent runs are **non-deterministic** due to the stochastic nature of LLMs. Running the same agent with identical inputs will produce different outputs each time. This is why the benchmark uses:
+- **Unique run IDs** for each execution
+- **Test labels** to group related runs for comparison
+- **Complete provenance tracking** to understand what produced each result
+
+The **judge stage** (evaluation) is deterministic when using `--judge-mode deterministic` (default), ensuring consistent scoring of the same agent output.
 
 ## Dataset
 

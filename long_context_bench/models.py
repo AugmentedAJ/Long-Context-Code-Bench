@@ -81,6 +81,7 @@ class EditRunManifest(BaseModel):
     flags: dict
     timestamp: str
     edit_run_id: str
+    test_label: Optional[str] = None  # Optional label for grouping runs for comparison
 
 
 class JudgeRunManifest(BaseModel):
@@ -93,6 +94,7 @@ class JudgeRunManifest(BaseModel):
     python_version: str
     timestamp: str
     judge_run_id: str
+    test_label: Optional[str] = None  # Optional label for grouping runs for comparison
 
 
 class RunManifest(BaseModel):
@@ -134,4 +136,7 @@ class AggregateSummary(BaseModel):
     tasks_per_hour: float
     edit_run_id: Optional[str] = None  # If this summary is for a specific edit run
     judge_run_id: Optional[str] = None  # If this summary is for a specific judge run
+    test_label: Optional[str] = None  # Optional label for grouping runs for comparison
+    runner: Optional[str] = None  # Runner name for comparison reports
+    model: Optional[str] = None  # Model name for comparison reports
 
