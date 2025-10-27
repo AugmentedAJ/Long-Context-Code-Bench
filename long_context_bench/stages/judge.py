@@ -1,15 +1,20 @@
 """Judge stage: Score agent edits against ground truth."""
 
 import json
+import platform
+import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 import difflib
 
 import git
 from rich.console import Console
+import litellm
 
-from long_context_bench.models import Sample, Edit, Judge, Scores
+from long_context_bench import __version__
+from long_context_bench.models import Sample, Edit, Judge, Scores, JudgeRunManifest
 
 console = Console()
 
@@ -166,24 +171,137 @@ def compute_llm_scores(
     judge_model: str,
 ) -> tuple[Scores, str]:
     """Compute scores using LLM judge.
-    
+
     Per R-3.12: LLM-based judge with temperature 0.0, top_p 0, fixed prompt and seed.
-    
+
     Args:
         agent_diff: Agent-produced diff
         ground_truth_diff: Ground truth diff
         task_instructions: Task instructions
         judge_model: Judge model name
-        
+
     Returns:
         Tuple of (Scores, rationale)
     """
-    # TODO: Implement LLM judge
-    # For now, fall back to deterministic
-    console.print("[yellow]LLM judge not yet implemented, using deterministic[/yellow]")
-    scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
-    rationale = "LLM judge not yet implemented"
-    return scores, rationale
+    # Construct the judge prompt
+    prompt = f"""You are an expert code reviewer evaluating an AI coding agent's output against ground truth.
+
+**Task Instructions:**
+{task_instructions}
+
+**Ground Truth Diff (Expected Changes):**
+```diff
+{ground_truth_diff}
+```
+
+**Agent's Diff (Actual Changes):**
+```diff
+{agent_diff}
+```
+
+**Evaluation Criteria:**
+
+Evaluate the agent's diff against the ground truth on the following 5 metrics. Each score must be between -1.0 and 1.0:
+
+1. **Correctness** (-1.0 to 1.0): Does the agent's change implement the intended behavior correctly?
+   - 1.0: Perfectly correct, matches ground truth semantics
+   - 0.0: Partially correct or neutral
+   - -1.0: Incorrect or breaks functionality
+
+2. **Completeness** (-1.0 to 1.0): Does the agent achieve all requested changes?
+   - 1.0: All changes from ground truth are present
+   - 0.0: Some changes present, some missing
+   - -1.0: Most or all changes missing
+
+3. **Code Reuse** (-1.0 to 1.0): Does the agent leverage existing code appropriately?
+   - 1.0: Excellent reuse, minimal duplication
+   - 0.0: Neutral, some duplication
+   - -1.0: Excessive duplication or unnecessary code
+
+4. **Best Practices** (-1.0 to 1.0): Does the code follow style, structure, and idiomatic patterns?
+   - 1.0: Excellent style and practices
+   - 0.0: Acceptable or neutral
+   - -1.0: Poor style, anti-patterns
+
+5. **Unsolicited Documentation** (-1.0 to 1.0): Penalizes documentation added when not requested.
+   - 1.0: No unsolicited documentation
+   - 0.0: Minor documentation additions
+   - -1.0: Significant unsolicited documentation (README, CHANGELOG, etc.)
+
+**Output Format:**
+
+Respond with ONLY a valid JSON object in this exact format (no markdown, no code blocks, no additional text):
+
+{{
+  "correctness": <float between -1.0 and 1.0>,
+  "completeness": <float between -1.0 and 1.0>,
+  "code_reuse": <float between -1.0 and 1.0>,
+  "best_practices": <float between -1.0 and 1.0>,
+  "unsolicited_docs": <float between -1.0 and 1.0>,
+  "rationale": "<brief explanation of your scoring>"
+}}"""
+
+    try:
+        # Call LLM with deterministic settings
+        # Note: Some providers (e.g., Anthropic) don't support seed parameter
+        litellm.drop_params = True  # Drop unsupported params instead of erroring
+        response = litellm.completion(
+            model=judge_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            top_p=0.0,
+            seed=42,  # Fixed seed for reproducibility (dropped if unsupported)
+        )
+
+        # Extract response content
+        content = response.choices[0].message.content.strip()
+
+        # Try to parse JSON from response
+        # Handle cases where LLM wraps JSON in markdown code blocks
+        if content.startswith("```"):
+            # Extract JSON from code block
+            lines = content.split("\n")
+            json_lines = []
+            in_code_block = False
+            for line in lines:
+                if line.strip().startswith("```"):
+                    in_code_block = not in_code_block
+                    continue
+                if in_code_block or (not line.strip().startswith("```")):
+                    json_lines.append(line)
+            content = "\n".join(json_lines).strip()
+
+        # Parse JSON
+        result = json.loads(content)
+
+        # Extract scores with validation
+        scores = Scores(
+            correctness=max(-1.0, min(1.0, float(result.get("correctness", 0.0)))),
+            completeness=max(-1.0, min(1.0, float(result.get("completeness", 0.0)))),
+            code_reuse=max(-1.0, min(1.0, float(result.get("code_reuse", 0.0)))),
+            best_practices=max(-1.0, min(1.0, float(result.get("best_practices", 0.0)))),
+            unsolicited_docs=max(-1.0, min(1.0, float(result.get("unsolicited_docs", 1.0)))),
+        )
+
+        rationale = result.get("rationale", "No rationale provided")
+
+        console.print(f"[green]✓ LLM judge completed[/green]")
+        return scores, rationale
+
+    except json.JSONDecodeError as e:
+        console.print(f"[yellow]Warning: Failed to parse LLM response as JSON: {e}[/yellow]")
+        console.print(f"[yellow]Response content: {content[:200]}...[/yellow]")
+        # Fall back to deterministic
+        scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
+        rationale = f"LLM judge failed (JSON parse error), fell back to deterministic: {str(e)}"
+        return scores, rationale
+
+    except Exception as e:
+        console.print(f"[yellow]Warning: LLM judge failed: {e}[/yellow]")
+        # Fall back to deterministic
+        scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
+        rationale = f"LLM judge failed, fell back to deterministic: {str(e)}"
+        return scores, rationale
 
 
 def judge_edit(
@@ -192,7 +310,7 @@ def judge_edit(
     judge_mode: str,
     judge_model: Optional[str],
     output_dir: Path,
-    run_id: str,
+    judge_run_id: str,
     cache_dir: Optional[Path] = None,
 ) -> Judge:
     """Judge a single edit.
@@ -203,7 +321,7 @@ def judge_edit(
         judge_mode: Judge mode (deterministic|llm)
         judge_model: Optional judge model
         output_dir: Output directory
-        run_id: Run ID
+        judge_run_id: Judge run ID
         cache_dir: Optional cache directory for repositories
 
     Returns:
@@ -214,14 +332,14 @@ def judge_edit(
     console.print(f"[cyan]Judging {pr_id}...[/cyan]")
 
     # Create output directory
-    judge_dir = output_dir / judge_mode / (judge_model or "default") / run_id / pr_id
+    judge_dir = output_dir / judge_mode / (judge_model or "default") / judge_run_id / pr_id
     judge_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         # Get ground truth diff
         console.print(f"  Fetching ground truth diff...")
         ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
-        
+
         # Compute scores
         console.print(f"  Computing scores...")
         if judge_mode == "llm" and judge_model:
@@ -234,7 +352,7 @@ def judge_edit(
         else:
             scores = compute_deterministic_scores(edit.patch_unified, ground_truth_diff)
             rationale = None
-        
+
         # Compute aggregate score
         aggregate = (
             scores.correctness +
@@ -243,7 +361,7 @@ def judge_edit(
             scores.best_practices +
             scores.unsolicited_docs
         ) / 5.0
-        
+
         # Create judge artifact
         judge = Judge(
             repo_url=sample.repo_url,
@@ -255,13 +373,15 @@ def judge_edit(
             scores=scores,
             aggregate=aggregate,
             rationale=rationale,
+            edit_run_id=edit.edit_run_id,
+            judge_run_id=judge_run_id,
         )
-        
+
         # Write judge.json
         judge_file = judge_dir / "judge.json"
         with open(judge_file, "w") as f:
             f.write(judge.model_dump_json(indent=2))
-        
+
         console.print(f"[green]✓ Judged {pr_id} (aggregate: {aggregate:.2f})[/green]")
         return judge
         
@@ -285,6 +405,8 @@ def judge_edit(
             ),
             aggregate=0.0,
             rationale=f"Error: {str(e)}",
+            edit_run_id=edit.edit_run_id,
+            judge_run_id=judge_run_id,
         )
         
         judge_file = judge_dir / "judge.json"
@@ -309,34 +431,132 @@ def load_sample(sample_path: Path) -> Sample:
 
 
 def run_judge_stage(
-    sample_path: Path,
-    edit_path: Path,
+    sample_path: Optional[Path],
+    edit_path: Optional[Path],
     judge_mode: str,
     judge_model: Optional[str],
     output_dir: Path,
-) -> None:
+    edit_run_ids: Optional[List[str]] = None,
+    cache_dir: Optional[Path] = None,
+) -> str:
     """Run the judge stage.
 
     Args:
-        sample_path: Path to sample.json or directory of samples
-        edit_path: Path to edit.json or directory of edits
+        sample_path: Path to sample.json or directory of samples (optional if edit_run_ids provided)
+        edit_path: Path to edit.json or directory of edits (optional if edit_run_ids provided)
         judge_mode: Judge mode
         judge_model: Optional judge model
         output_dir: Output directory
+        edit_run_ids: Optional list of edit run IDs to evaluate (for batch mode)
+        cache_dir: Optional cache directory for repositories
+
+    Returns:
+        Judge run ID
     """
     import uuid
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    run_id = str(uuid.uuid4())[:8]
+    judge_run_id = str(uuid.uuid4())[:8]
 
-    # Load sample and edit
-    if sample_path.is_file() and edit_path.is_file():
-        sample = load_sample(sample_path)
-        edit = load_edit(edit_path)
+    console.print(f"[bold]Starting judge run {judge_run_id}[/bold]")
+    console.print(f"  Judge mode: {judge_mode}")
+    if judge_model:
+        console.print(f"  Judge model: {judge_model}")
 
-        judge_edit(sample, edit, judge_mode, judge_model, output_dir, run_id)
+    # Collect edit run IDs being evaluated
+    evaluated_edit_run_ids = []
+    judges = []
+
+    # Batch mode: evaluate specific edit runs
+    if edit_run_ids:
+        console.print(f"[bold]Evaluating {len(edit_run_ids)} edit run(s)...[/bold]")
+
+        # Find all edits from the specified edit runs
+        edits_dir = output_dir.parent / "edits"
+        samples_dir = output_dir.parent / "samples"
+
+        for edit_run_id in edit_run_ids:
+            console.print(f"\n[cyan]Processing edit run: {edit_run_id}[/cyan]")
+            evaluated_edit_run_ids.append(edit_run_id)
+
+            # Find all edit.json files with this edit_run_id
+            for edit_file in edits_dir.rglob("edit.json"):
+                edit = load_edit(edit_file)
+
+                if edit.edit_run_id != edit_run_id:
+                    continue
+
+                # Find corresponding sample
+                pr_id = f"{edit.repo_url.split('/')[-2]}_{edit.repo_url.split('/')[-1].replace('.git', '')}_pr{edit.pr_number}"
+                sample_file = samples_dir.rglob(f"*/{pr_id}/sample.json")
+                sample_file = next(sample_file, None)
+
+                if not sample_file:
+                    console.print(f"[yellow]Warning: Sample not found for {pr_id}[/yellow]")
+                    continue
+
+                sample = load_sample(sample_file)
+
+                # Judge this edit
+                judge = judge_edit(
+                    sample=sample,
+                    edit=edit,
+                    judge_mode=judge_mode,
+                    judge_model=judge_model,
+                    output_dir=output_dir,
+                    judge_run_id=judge_run_id,
+                    cache_dir=cache_dir,
+                )
+                judges.append(judge)
+
+    # Single file mode
+    elif sample_path and edit_path:
+        if sample_path.is_file() and edit_path.is_file():
+            sample = load_sample(sample_path)
+            edit = load_edit(edit_path)
+
+            if edit.edit_run_id:
+                evaluated_edit_run_ids.append(edit.edit_run_id)
+
+            judge = judge_edit(
+                sample=sample,
+                edit=edit,
+                judge_mode=judge_mode,
+                judge_model=judge_model,
+                output_dir=output_dir,
+                judge_run_id=judge_run_id,
+                cache_dir=cache_dir,
+            )
+            judges.append(judge)
+        else:
+            console.print("[red]Both sample_path and edit_path must be files[/red]")
+            return judge_run_id
     else:
-        console.print("[red]Directory-based judging not yet implemented[/red]")
+        console.print("[red]Must provide either (sample_path and edit_path) or edit_run_ids[/red]")
+        return judge_run_id
 
-    console.print(f"\n[bold]Judge stage complete[/bold]")
+    # Create and save manifest
+    manifest = JudgeRunManifest(
+        harness_version=__version__,
+        judge_mode=judge_mode,
+        judge_model=judge_model,
+        edit_run_ids=evaluated_edit_run_ids,
+        os=platform.system(),
+        python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        timestamp=datetime.utcnow().isoformat(),
+        judge_run_id=judge_run_id,
+    )
+
+    # Save manifest in the judge_mode/model/run_id directory
+    manifest_dir = output_dir / judge_mode / (judge_model or "default") / judge_run_id
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_file = manifest_dir / "judge_run_manifest.json"
+    with open(manifest_file, "w") as f:
+        f.write(manifest.model_dump_json(indent=2))
+
+    console.print(f"\n[bold green]Judge run {judge_run_id} complete![/bold green]")
+    console.print(f"  Evaluated {len(judges)} edit(s)")
+    console.print(f"Results saved to: {manifest_dir}")
+
+    return judge_run_id
 

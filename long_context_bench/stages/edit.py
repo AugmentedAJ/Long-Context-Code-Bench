@@ -1,7 +1,10 @@
 """Edit stage: Run agent on samples and capture diffs."""
 
 import json
+import platform
+import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 import os
@@ -9,7 +12,8 @@ import os
 import git
 from rich.console import Console
 
-from long_context_bench.models import Sample, Edit
+from long_context_bench import __version__
+from long_context_bench.models import Sample, Edit, EditRunManifest
 from long_context_bench.runners import get_runner_adapter
 
 console = Console()
@@ -166,7 +170,12 @@ def run_edit_on_sample(
             # Capture diff
             console.print(f"  Capturing diff...")
             patch_unified = capture_diff(repo, sample.base_commit)
-            
+
+            # Save patch to separate file
+            patch_file = edit_dir / "edit.patch"
+            with open(patch_file, "w") as f:
+                f.write(patch_unified)
+
             # Create edit artifact
             edit = Edit(
                 repo_url=sample.repo_url,
@@ -180,19 +189,29 @@ def run_edit_on_sample(
                 patch_unified=patch_unified,
                 logs_path=str(logs_path.relative_to(output_dir)),
                 errors=result.errors,
+                edit_run_id=run_id,
             )
-            
+
             # Write edit.json
             edit_file = edit_dir / "edit.json"
             with open(edit_file, "w") as f:
                 f.write(edit.model_dump_json(indent=2))
+
+            # Also write a version without the patch for easier reading
+            edit_summary_file = edit_dir / "edit_summary.json"
+            edit_dict = edit.model_dump()
+            edit_dict["patch_file"] = "edit.patch"
+            edit_dict.pop("patch_unified")  # Remove the inline patch
+            with open(edit_summary_file, "w") as f:
+                import json
+                json.dump(edit_dict, f, indent=2)
             
             console.print(f"[green]✓ Edit completed for {pr_id} (status: {result.status})[/green]")
             return edit
             
         except Exception as e:
             console.print(f"[red]✗ Edit failed for {pr_id}: {e}[/red]")
-            
+
             # Create error edit artifact
             edit = Edit(
                 repo_url=sample.repo_url,
@@ -206,12 +225,27 @@ def run_edit_on_sample(
                 patch_unified="",
                 logs_path=str(logs_path.relative_to(output_dir)) if logs_path.exists() else "",
                 errors=[str(e)],
+                edit_run_id=run_id,
             )
-            
+
+            # Create empty patch file for consistency
+            patch_file = edit_dir / "edit.patch"
+            with open(patch_file, "w") as f:
+                f.write("")
+
             edit_file = edit_dir / "edit.json"
             with open(edit_file, "w") as f:
                 f.write(edit.model_dump_json(indent=2))
-            
+
+            # Also write summary version
+            edit_summary_file = edit_dir / "edit_summary.json"
+            edit_dict = edit.model_dump()
+            edit_dict["patch_file"] = "edit.patch"
+            edit_dict.pop("patch_unified")
+            with open(edit_summary_file, "w") as f:
+                import json
+                json.dump(edit_dict, f, indent=2)
+
             return edit
 
 
@@ -226,9 +260,11 @@ def run_edit_stage(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
-) -> None:
+    dataset_version: str = "v0",
+    cache_dir: Optional[Path] = None,
+) -> str:
     """Run the edit stage.
-    
+
     Args:
         sample_path: Path to sample.json or directory of samples
         runner: Runner name
@@ -240,12 +276,21 @@ def run_edit_stage(
         disable_retrieval: Disable retrieval
         disable_shell: Disable shell
         enable_mcp_codebase_qa: Enable MCP codebase QA
+        dataset_version: Dataset version
+        cache_dir: Optional cache directory for repositories
+
+    Returns:
+        Edit run ID
     """
     import uuid
-    
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    run_id = str(uuid.uuid4())[:8]
-    
+    edit_run_id = str(uuid.uuid4())[:8]
+
+    console.print(f"[bold]Starting edit run {edit_run_id}[/bold]")
+    console.print(f"  Runner: {runner}")
+    console.print(f"  Model: {model}")
+
     # Load samples
     samples = []
     if sample_path.is_file():
@@ -253,9 +298,38 @@ def run_edit_stage(
     elif sample_path.is_dir():
         for sample_file in sample_path.rglob("sample.json"):
             samples.append(load_sample(sample_file))
-    
+
     console.print(f"[bold]Running edit stage on {len(samples)} samples...[/bold]")
-    
+
+    # Create manifest
+    manifest = EditRunManifest(
+        dataset_version=dataset_version,
+        harness_version=__version__,
+        runner=runner,
+        runner_version=None,  # TODO: Get from adapter
+        model=model,
+        os=platform.system(),
+        python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        timeout_s=timeout,
+        concurrency=concurrency,
+        total_shards=1,
+        shard_index=0,
+        flags={
+            "disable_retrieval": disable_retrieval,
+            "disable_shell": disable_shell,
+            "enable_mcp_codebase_qa": enable_mcp_codebase_qa,
+        },
+        timestamp=datetime.utcnow().isoformat(),
+        edit_run_id=edit_run_id,
+    )
+
+    # Save manifest in the runner/model/run_id directory
+    manifest_dir = output_dir / runner / model / edit_run_id
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_file = manifest_dir / "edit_run_manifest.json"
+    with open(manifest_file, "w") as f:
+        f.write(manifest.model_dump_json(indent=2))
+
     # For now, run sequentially (concurrency support can be added later)
     for sample in samples:
         run_edit_on_sample(
@@ -268,8 +342,14 @@ def run_edit_stage(
             disable_retrieval=disable_retrieval,
             disable_shell=disable_shell,
             enable_mcp_codebase_qa=enable_mcp_codebase_qa,
-            run_id=run_id,
+            run_id=edit_run_id,
+            cache_dir=cache_dir,
         )
+
+    console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")
+    console.print(f"Results saved to: {manifest_dir}")
+
+    return edit_run_id
     
     console.print(f"\n[bold]Edit stage complete[/bold]")
 

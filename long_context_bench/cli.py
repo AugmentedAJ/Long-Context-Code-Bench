@@ -47,6 +47,8 @@ def sample(input_path: str, output_dir: str, dataset_version: str, github_token:
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
 @click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--dataset-version", default="v0", help="Dataset version")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 def edit(
     sample_path: str,
     runner: str,
@@ -58,12 +60,18 @@ def edit(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
+    dataset_version: str,
+    cache_dir: str,
 ) -> None:
-    """Edit stage: Run agent on samples and capture diffs."""
+    """Edit stage: Run agent on samples and capture diffs.
+
+    Creates a new edit run with a unique ID. All edits from this run will be
+    saved under output/edits/<runner>/<model>/<edit_run_id>/.
+    """
     from long_context_bench.stages.edit import run_edit_stage
-    
+
     click.echo(f"Running edit stage with runner={runner}, model={model}")
-    run_edit_stage(
+    edit_run_id = run_edit_stage(
         sample_path=Path(sample_path),
         runner=runner,
         model=model,
@@ -74,35 +82,64 @@ def edit(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        dataset_version=dataset_version,
+        cache_dir=Path(cache_dir),
     )
-    click.echo("Edit stage completed")
+    click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 
 
 @main.command()
-@click.argument("sample_path", type=click.Path(exists=True))
-@click.argument("edit_path", type=click.Path(exists=True))
+@click.option("--sample-path", type=click.Path(exists=True), help="Path to sample.json (for single file mode)")
+@click.option("--edit-path", type=click.Path(exists=True), help="Path to edit.json (for single file mode)")
+@click.option("--edit-run-ids", help="Comma-separated list of edit run IDs to evaluate (for batch mode)")
 @click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode")
 @click.option("--judge-model", help="Judge model (for LLM mode)")
 @click.option("--output-dir", type=click.Path(), default="output/judges", help="Output directory for judgments")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 def judge(
-    sample_path: str,
-    edit_path: str,
+    sample_path: Optional[str],
+    edit_path: Optional[str],
+    edit_run_ids: Optional[str],
     judge_mode: str,
     judge_model: Optional[str],
     output_dir: str,
+    cache_dir: str,
 ) -> None:
-    """Judge stage: Score agent edits against ground truth."""
+    """Judge stage: Score agent edits against ground truth.
+
+    Two modes:
+    1. Single file mode: Provide --sample-path and --edit-path
+    2. Batch mode: Provide --edit-run-ids to evaluate one or more complete edit runs
+
+    Creates a new judge run with a unique ID. All judgments from this run will be
+    saved under output/judges/<judge_mode>/<judge_model>/<judge_run_id>/.
+    """
     from long_context_bench.stages.judge import run_judge_stage
-    
+
+    # Parse edit run IDs if provided
+    edit_run_id_list = None
+    if edit_run_ids:
+        edit_run_id_list = [rid.strip() for rid in edit_run_ids.split(",")]
+
+    # Validate inputs
+    if not edit_run_id_list and (not sample_path or not edit_path):
+        click.echo("Error: Must provide either --edit-run-ids or both --sample-path and --edit-path")
+        return
+
     click.echo(f"Running judge stage with mode={judge_mode}")
-    run_judge_stage(
-        sample_path=Path(sample_path),
-        edit_path=Path(edit_path),
+    if edit_run_id_list:
+        click.echo(f"Evaluating edit runs: {', '.join(edit_run_id_list)}")
+
+    judge_run_id = run_judge_stage(
+        sample_path=Path(sample_path) if sample_path else None,
+        edit_path=Path(edit_path) if edit_path else None,
         judge_mode=judge_mode,
         judge_model=judge_model,
         output_dir=Path(output_dir),
+        edit_run_ids=edit_run_id_list,
+        cache_dir=Path(cache_dir),
     )
-    click.echo("Judge stage completed")
+    click.echo(f"Judge stage completed. Judge run ID: {judge_run_id}")
 
 
 @main.command()
@@ -181,13 +218,41 @@ def pipeline(
 def stats(results_dir: str, output_file: Optional[str]) -> None:
     """Generate aggregate statistics from results."""
     from long_context_bench.stats import generate_stats
-    
+
     click.echo(f"Generating stats from {results_dir}")
     generate_stats(
         results_dir=Path(results_dir),
         output_file=Path(output_file) if output_file else None,
     )
     click.echo("Stats generation completed")
+
+
+@main.command()
+@click.argument("results_dir", type=click.Path(exists=True))
+@click.option("--edit-run-id", help="Edit run ID to generate summary for")
+@click.option("--judge-run-id", help="Judge run ID to generate summary for")
+@click.option("--output-dir", type=click.Path(), help="Output directory for summary files")
+def summary(
+    results_dir: str,
+    edit_run_id: Optional[str],
+    judge_run_id: Optional[str],
+    output_dir: Optional[str],
+) -> None:
+    """Generate summary for specific edit/judge runs.
+
+    Use --edit-run-id to filter edits by a specific edit run.
+    Use --judge-run-id to filter judges by a specific judge run.
+    """
+    from long_context_bench.stats import generate_summary_for_runs
+
+    click.echo(f"Generating summary from {results_dir}")
+    generate_summary_for_runs(
+        results_dir=Path(results_dir),
+        edit_run_id=edit_run_id,
+        judge_run_id=judge_run_id,
+        output_dir=Path(output_dir) if output_dir else None,
+    )
+    click.echo("Summary generation completed")
 
 
 if __name__ == "__main__":

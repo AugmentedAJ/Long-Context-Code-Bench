@@ -38,6 +38,7 @@ class Edit(BaseModel):
     patch_unified: str
     logs_path: str
     errors: Optional[List[str]] = None
+    edit_run_id: Optional[str] = None  # ID of the edit run that produced this
 
 
 class Scores(BaseModel):
@@ -60,10 +61,42 @@ class Judge(BaseModel):
     scores: Scores
     aggregate: float = Field(ge=-1.0, le=1.0)
     rationale: Optional[str] = None
+    edit_run_id: Optional[str] = None  # ID of the edit run being evaluated
+    judge_run_id: Optional[str] = None  # ID of the judge run that produced this
+
+
+class EditRunManifest(BaseModel):
+    """Manifest for an edit run (attempt generation)."""
+    dataset_version: str
+    harness_version: str
+    runner: str
+    runner_version: Optional[str] = None
+    model: str
+    os: str
+    python_version: str
+    timeout_s: int
+    concurrency: int
+    total_shards: int
+    shard_index: int
+    flags: dict
+    timestamp: str
+    edit_run_id: str
+
+
+class JudgeRunManifest(BaseModel):
+    """Manifest for a judge run (evaluation)."""
+    harness_version: str
+    judge_mode: str
+    judge_model: Optional[str] = None
+    edit_run_ids: List[str]  # Edit runs being evaluated
+    os: str
+    python_version: str
+    timestamp: str
+    judge_run_id: str
 
 
 class RunManifest(BaseModel):
-    """Manifest recording full provenance of a benchmark run."""
+    """Manifest recording full provenance of a benchmark run (legacy/pipeline mode)."""
     dataset_version: str
     harness_version: str
     runner: str
@@ -99,4 +132,6 @@ class AggregateSummary(BaseModel):
     std_aggregate: float
     mean_elapsed_ms: float
     tasks_per_hour: float
+    edit_run_id: Optional[str] = None  # If this summary is for a specific edit run
+    judge_run_id: Optional[str] = None  # If this summary is for a specific judge run
 

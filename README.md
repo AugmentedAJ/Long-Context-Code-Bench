@@ -32,14 +32,21 @@ pip install -e .
 
 ## Quick Start
 
-### Run on Full Dataset (v0)
-
-Run on all 50 PRs from the built-in v0 dataset:
+### 1. Set Environment Variables
 
 ```bash
 export GITHUB_GIT_TOKEN=your_github_token
 export AUGMENT_API_TOKEN=your_augment_token  # if using Auggie
+# OR
+export ANTHROPIC_API_KEY=your_key  # if using Claude Code or LLM judge
+export OPENAI_API_KEY=your_key     # if using OpenAI models or LLM judge
+```
 
+### 2. Run on Full Dataset (v0)
+
+Run on all 50 PRs from the built-in v0 dataset:
+
+```bash
 long-context-bench pipeline \
   --runner auggie \
   --model claude-sonnet-4
@@ -107,9 +114,23 @@ Run specific PRs using:
 
 ## Pipeline Stages
 
-The benchmark consists of three stages:
+The benchmark consists of three stages that can be run together (pipeline mode) or separately (staged mode).
 
-### 1. Sample Stage
+### Pipeline Mode (All Stages Together)
+
+Run all stages in one command:
+
+```bash
+long-context-bench pipeline \
+  --runner auggie \
+  --model claude-sonnet-4
+```
+
+### Staged Mode (Run Stages Separately)
+
+Run stages independently for more control:
+
+#### 1. Sample Stage
 
 Extracts PR metadata and creates sample.json files (uses built-in dataset by default):
 
@@ -121,30 +142,78 @@ long-context-bench sample \
 
 **Output:** `output/samples/v0/<pr_id>/sample.json`
 
-### 2. Edit Stage
+#### 2. Edit Stage
 
-Runs the agent on samples and captures diffs:
+Runs the agent on samples and captures diffs. Each run gets a unique ID:
 
 ```bash
 long-context-bench edit \
   --runner auggie \
   --model claude-sonnet-4 \
-  output/samples/v0/elastic_elasticsearch_pr115001/sample.json
+  --dataset-version v0 \
+  --output-dir output/edits \
+  output/samples/v0
 ```
 
-**Output:** `output/edits/<runner>/<model>/<run_id>/<pr_id>/edit.json`
+**Output:**
+- `output/edits/<runner>/<model>/<edit_run_id>/edit_run_manifest.json` - Run metadata
+- `output/edits/<runner>/<model>/<edit_run_id>/<pr_id>/edit.json` - Full edit data
+- `output/edits/<runner>/<model>/<edit_run_id>/<pr_id>/edit_summary.json` - Clean JSON without inline patch
+- `output/edits/<runner>/<model>/<edit_run_id>/<pr_id>/edit.patch` - Diff patch file
+- `output/edits/<runner>/<model>/<edit_run_id>/<pr_id>/logs.jsonl` - Agent logs
 
-### 3. Judge Stage
+**Returns:** Edit run ID (e.g., `a1b2c3d4`)
 
-Scores agent edits against ground truth:
+#### 3. Judge Stage
+
+Scores agent edits against ground truth. Can evaluate one or more edit runs:
 
 ```bash
+# Evaluate specific edit run(s)
 long-context-bench judge \
-  output/samples/v0/elastic_elasticsearch_pr115001/sample.json \
-  output/edits/auggie/claude-sonnet-4/<run_id>/elastic_elasticsearch_pr115001/edit.json
+  --edit-run-ids a1b2c3d4,b2c3d4e5 \
+  --judge-mode deterministic \
+  --output-dir output/judges
 ```
 
-**Output:** `output/judges/<judge_mode>/<judge_model>/<run_id>/<pr_id>/judge.json`
+**Output:** `output/judges/<judge_mode>/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
+**Returns:** Judge run ID (e.g., `e5f6g7h8`)
+
+#### 4. Summary
+
+Generate aggregate statistics for specific runs:
+
+```bash
+long-context-bench summary \
+  --edit-run-id a1b2c3d4 \
+  --judge-run-id e5f6g7h8 \
+  --output-dir output/summaries/my_run \
+  output
+```
+
+### Staged Execution Use Cases
+
+**Compare Multiple Models:**
+```bash
+# Run two models
+long-context-bench edit --runner auggie --model claude-sonnet-4 output/samples/v0
+# Returns: Edit run ID: aaaa1111
+
+long-context-bench edit --runner auggie --model gpt-4 output/samples/v0
+# Returns: Edit run ID: bbbb2222
+
+# Evaluate both
+long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-mode deterministic
+```
+
+**Re-evaluate with Different Judge:**
+```bash
+# Initial evaluation
+long-context-bench judge --edit-run-ids aaaa1111 --judge-mode deterministic
+
+# Re-evaluate with LLM judge
+long-context-bench judge --edit-run-ids aaaa1111 --judge-mode llm --judge-model gpt-4
+```
 
 ## Evaluation Metrics
 
@@ -158,28 +227,122 @@ Each sample is scored on five primary metrics (range: -1.0 to 1.0):
 
 **Aggregate Score**: Unweighted average of the five metrics
 
+### Judge Modes
+
+The benchmark supports two judge modes:
+
+#### Deterministic Judge (default)
+
+Uses exact-match and overlap heuristics to score diffs:
+- Fast and reproducible
+- No API costs
+- Good baseline for comparison
+
+```bash
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4 \
+  --judge-mode deterministic
+```
+
+#### LLM Judge
+
+Uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
+- More nuanced evaluation
+- Provides rationale for scores
+- Supports any model via LiteLLM (OpenAI, Anthropic, etc.)
+- Deterministic settings (temperature=0.0, seed=42)
+
+```bash
+# Using Claude (via Anthropic)
+export ANTHROPIC_API_KEY=your_key
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4 \
+  --judge-mode llm \
+  --judge-model anthropic/claude-3-5-sonnet-20241022
+
+# Using OpenAI
+export OPENAI_API_KEY=your_key
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4 \
+  --judge-mode llm \
+  --judge-model gpt-4o-mini
+
+# Using any LiteLLM-supported model
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4 \
+  --judge-mode llm \
+  --judge-model bedrock/anthropic.claude-v2
+```
+
+**Note:** LLM judge falls back to deterministic scoring if the API call fails or returns invalid JSON.
+
 ## Supported Runners
 
+The benchmark supports multiple CLI coding agents through pluggable adapters:
+
 ### Auggie
+
+Augment's CLI coding agent.
 
 ```bash
 long-context-bench pipeline \
   --runner auggie \
   --model claude-sonnet-4 \
-  --agent-binary /path/to/auggie \
-  data/elasticsearch_prs_50.json
+  --agent-binary /path/to/auggie  # Optional, defaults to 'auggie' in PATH
 ```
+
+**Environment:** Requires `AUGMENT_API_TOKEN`
+
+### Claude Code
+
+Anthropic's command-line coding agent.
+
+```bash
+long-context-bench pipeline \
+  --runner claude-code \
+  --model claude-sonnet-4 \
+  --agent-binary /path/to/claude  # Optional, defaults to 'claude' in PATH
+```
+
+**Environment:** Requires `ANTHROPIC_API_KEY`
+
+### Codex CLI
+
+OpenAI's command-line coding agent.
+
+```bash
+long-context-bench pipeline \
+  --runner codex \
+  --model gpt-5-codex \
+  --agent-binary /path/to/codex  # Optional, defaults to 'codex' in PATH
+```
+
+**Install:** `npm install -g @openai/codex`
+**Environment:** Requires `OPENAI_API_KEY`
+
+### Aider
+
+Open-source AI pair programming tool.
+
+```bash
+long-context-bench pipeline \
+  --runner aider \
+  --model claude-sonnet-4 \
+  --agent-binary /path/to/aider  # Optional, defaults to 'aider' in PATH
+```
+
+**Install:** `pip install aider-chat`
+**Environment:** Requires API keys for the model provider (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 
 ### Generic CLI Agent
 
-For other CLI agents, use the generic runner:
+For other CLI agents not listed above, use the generic runner:
 
 ```bash
 long-context-bench pipeline \
   --runner generic \
   --model your-model \
-  --agent-binary /path/to/your/agent \
-  data/elasticsearch_prs_50.json
+  --agent-binary /path/to/your/agent
 ```
 
 The generic runner passes task instructions via stdin.

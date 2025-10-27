@@ -254,7 +254,7 @@ def run_pipeline(
                 judge_mode=judge_mode,
                 judge_model=judge_model,
                 output_dir=judges_dir,
-                run_id=run_id,
+                judge_run_id=run_id,
                 cache_dir=cache_dir,
             )
             judges.append(judge)

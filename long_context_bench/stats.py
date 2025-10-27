@@ -19,29 +19,33 @@ def compute_aggregate_summary(
     samples: List[Sample],
     edits: List[Edit],
     judges: List[Judge],
+    edit_run_id: Optional[str] = None,
+    judge_run_id: Optional[str] = None,
 ) -> AggregateSummary:
     """Compute aggregate summary statistics.
-    
+
     Per R-5.6-5.9: Aggregate scores and secondary metrics.
-    
+
     Args:
-        run_id: Run ID
+        run_id: Run ID (for legacy/pipeline mode)
         samples: List of samples
         edits: List of edits
         judges: List of judges
-        
+        edit_run_id: Optional edit run ID (for staged mode)
+        judge_run_id: Optional judge run ID (for staged mode)
+
     Returns:
         AggregateSummary object
     """
     total_samples = len(samples)
-    
+
     # Count successful/failed/skipped
     successful_samples = sum(1 for e in edits if e.status == "success")
     failed_samples = sum(1 for e in edits if e.status in ["error", "timeout"])
     skipped_samples = total_samples - len(edits)
-    
+
     success_rate = successful_samples / total_samples if total_samples > 0 else 0.0
-    
+
     # Compute mean scores
     if judges:
         mean_correctness = statistics.mean(j.scores.correctness for j in judges)
@@ -50,7 +54,7 @@ def compute_aggregate_summary(
         mean_best_practices = statistics.mean(j.scores.best_practices for j in judges)
         mean_unsolicited_docs = statistics.mean(j.scores.unsolicited_docs for j in judges)
         mean_aggregate = statistics.mean(j.aggregate for j in judges)
-        
+
         # Compute standard deviation
         if len(judges) > 1:
             std_aggregate = statistics.stdev(j.aggregate for j in judges)
@@ -64,7 +68,7 @@ def compute_aggregate_summary(
         mean_unsolicited_docs = 0.0
         mean_aggregate = 0.0
         std_aggregate = 0.0
-    
+
     # Compute latency metrics
     if edits:
         mean_elapsed_ms = statistics.mean(e.elapsed_ms for e in edits)
@@ -74,7 +78,7 @@ def compute_aggregate_summary(
     else:
         mean_elapsed_ms = 0.0
         tasks_per_hour = 0.0
-    
+
     return AggregateSummary(
         run_id=run_id,
         total_samples=total_samples,
@@ -91,6 +95,8 @@ def compute_aggregate_summary(
         std_aggregate=std_aggregate,
         mean_elapsed_ms=mean_elapsed_ms,
         tasks_per_hour=tasks_per_hour,
+        edit_run_id=edit_run_id,
+        judge_run_id=judge_run_id,
     )
 
 
@@ -131,37 +137,58 @@ def load_results_from_dir(results_dir: Path) -> tuple[List[Sample], List[Edit], 
     return samples, edits, judges
 
 
-def generate_stats(
+def generate_summary_for_runs(
     results_dir: Path,
-    output_file: Optional[Path] = None,
+    edit_run_id: Optional[str] = None,
+    judge_run_id: Optional[str] = None,
+    output_dir: Optional[Path] = None,
 ) -> None:
-    """Generate aggregate statistics from results.
-    
+    """Generate summary for specific edit/judge runs.
+
     Args:
         results_dir: Results directory
-        output_file: Optional output file for stats
+        edit_run_id: Optional edit run ID to filter by
+        judge_run_id: Optional judge run ID to filter by
+        output_dir: Optional output directory for summary files
     """
-    console.print(f"[bold]Generating statistics from {results_dir}[/bold]")
-    
-    # Load results
-    samples, edits, judges = load_results_from_dir(results_dir)
-    
+    console.print(f"[bold]Generating summary from {results_dir}[/bold]")
+    if edit_run_id:
+        console.print(f"  Edit run ID: {edit_run_id}")
+    if judge_run_id:
+        console.print(f"  Judge run ID: {judge_run_id}")
+
+    # Load all results
+    all_samples, all_edits, all_judges = load_results_from_dir(results_dir)
+
+    # Filter by run IDs
+    samples = all_samples
+    edits = [e for e in all_edits if not edit_run_id or e.edit_run_id == edit_run_id]
+    judges = [j for j in all_judges if not judge_run_id or j.judge_run_id == judge_run_id]
+
     console.print(f"  Loaded {len(samples)} samples")
-    console.print(f"  Loaded {len(edits)} edits")
-    console.print(f"  Loaded {len(judges)} judges")
-    
+    console.print(f"  Filtered to {len(edits)} edits")
+    console.print(f"  Filtered to {len(judges)} judges")
+
     if not samples:
         console.print("[yellow]No samples found[/yellow]")
         return
-    
+
     # Compute summary
-    summary = compute_aggregate_summary("stats", samples, edits, judges)
-    
+    run_id = judge_run_id or edit_run_id or "summary"
+    summary = compute_aggregate_summary(
+        run_id=run_id,
+        samples=samples,
+        edits=edits,
+        judges=judges,
+        edit_run_id=edit_run_id,
+        judge_run_id=judge_run_id,
+    )
+
     # Display table
     table = Table(title="Aggregate Statistics")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Total Samples", str(summary.total_samples))
     table.add_row("Successful", str(summary.successful_samples))
     table.add_row("Failed", str(summary.failed_samples))
@@ -179,33 +206,36 @@ def generate_stats(
     table.add_row("", "")
     table.add_row("Mean Elapsed (ms)", f"{summary.mean_elapsed_ms:.0f}")
     table.add_row("Tasks/Hour", f"{summary.tasks_per_hour:.2f}")
-    
+
     console.print(table)
-    
-    # Write output file
-    if output_file:
-        if output_file.suffix == ".json":
-            with open(output_file, "w") as f:
-                f.write(summary.model_dump_json(indent=2))
-        elif output_file.suffix == ".csv":
-            df = pd.DataFrame([summary.model_dump()])
-            df.to_csv(output_file, index=False)
-        
-        console.print(f"\n[green]Stats written to {output_file}[/green]")
-    
+
+    # Write output files
+    if output_dir:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_file = output_dir / "summary.json"
+        with open(summary_file, "w") as f:
+            f.write(summary.model_dump_json(indent=2))
+
+        csv_file = output_dir / "summary.csv"
+        df = pd.DataFrame([summary.model_dump()])
+        df.to_csv(csv_file, index=False)
+
+        console.print(f"\n[green]Summary written to {output_dir}[/green]")
+
     # Per-PR breakdown
     if judges:
         console.print("\n[bold]Per-PR Scores (Top 10)[/bold]")
-        
+
         pr_table = Table()
         pr_table.add_column("PR", style="cyan")
         pr_table.add_column("Aggregate", style="green")
         pr_table.add_column("Correctness", style="yellow")
         pr_table.add_column("Completeness", style="yellow")
-        
+
         # Sort by aggregate score
         sorted_judges = sorted(judges, key=lambda j: j.aggregate, reverse=True)
-        
+
         for judge in sorted_judges[:10]:
             pr_id = f"PR#{judge.pr_number}"
             pr_table.add_row(
@@ -214,6 +244,93 @@ def generate_stats(
                 f"{judge.scores.correctness:.2f}",
                 f"{judge.scores.completeness:.2f}",
             )
-        
+
+        console.print(pr_table)
+
+
+def generate_stats(
+    results_dir: Path,
+    output_file: Optional[Path] = None,
+) -> None:
+    """Generate aggregate statistics from results.
+
+    Args:
+        results_dir: Results directory
+        output_file: Optional output file for stats
+    """
+    console.print(f"[bold]Generating statistics from {results_dir}[/bold]")
+
+    # Load results
+    samples, edits, judges = load_results_from_dir(results_dir)
+
+    console.print(f"  Loaded {len(samples)} samples")
+    console.print(f"  Loaded {len(edits)} edits")
+    console.print(f"  Loaded {len(judges)} judges")
+
+    if not samples:
+        console.print("[yellow]No samples found[/yellow]")
+        return
+
+    # Compute summary
+    summary = compute_aggregate_summary("stats", samples, edits, judges)
+
+    # Display table
+    table = Table(title="Aggregate Statistics")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+
+    table.add_row("Total Samples", str(summary.total_samples))
+    table.add_row("Successful", str(summary.successful_samples))
+    table.add_row("Failed", str(summary.failed_samples))
+    table.add_row("Skipped", str(summary.skipped_samples))
+    table.add_row("Success Rate", f"{summary.success_rate:.1%}")
+    table.add_row("", "")
+    table.add_row("Mean Correctness", f"{summary.mean_correctness:.2f}")
+    table.add_row("Mean Completeness", f"{summary.mean_completeness:.2f}")
+    table.add_row("Mean Code Reuse", f"{summary.mean_code_reuse:.2f}")
+    table.add_row("Mean Best Practices", f"{summary.mean_best_practices:.2f}")
+    table.add_row("Mean Unsolicited Docs", f"{summary.mean_unsolicited_docs:.2f}")
+    table.add_row("", "")
+    table.add_row("Mean Aggregate Score", f"{summary.mean_aggregate:.2f}")
+    table.add_row("Std Aggregate Score", f"{summary.std_aggregate:.2f}")
+    table.add_row("", "")
+    table.add_row("Mean Elapsed (ms)", f"{summary.mean_elapsed_ms:.0f}")
+    table.add_row("Tasks/Hour", f"{summary.tasks_per_hour:.2f}")
+
+    console.print(table)
+
+    # Write output file
+    if output_file:
+        if output_file.suffix == ".json":
+            with open(output_file, "w") as f:
+                f.write(summary.model_dump_json(indent=2))
+        elif output_file.suffix == ".csv":
+            df = pd.DataFrame([summary.model_dump()])
+            df.to_csv(output_file, index=False)
+
+        console.print(f"\n[green]Stats written to {output_file}[/green]")
+
+    # Per-PR breakdown
+    if judges:
+        console.print("\n[bold]Per-PR Scores (Top 10)[/bold]")
+
+        pr_table = Table()
+        pr_table.add_column("PR", style="cyan")
+        pr_table.add_column("Aggregate", style="green")
+        pr_table.add_column("Correctness", style="yellow")
+        pr_table.add_column("Completeness", style="yellow")
+
+        # Sort by aggregate score
+        sorted_judges = sorted(judges, key=lambda j: j.aggregate, reverse=True)
+
+        for judge in sorted_judges[:10]:
+            pr_id = f"PR#{judge.pr_number}"
+            pr_table.add_row(
+                pr_id,
+                f"{judge.aggregate:.2f}",
+                f"{judge.scores.correctness:.2f}",
+                f"{judge.scores.completeness:.2f}",
+            )
+
         console.print(pr_table)
 
