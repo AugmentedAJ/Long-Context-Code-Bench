@@ -20,46 +20,47 @@ class AuggieAdapter(RunnerAdapter):
         env: Optional[Dict[str, str]] = None,
     ) -> RunnerResult:
         """Run Auggie on a task.
-        
+
         Args:
             workspace_path: Path to workspace
             task_instructions: Task instructions
             logs_path: Path to write logs
             env: Optional environment variables
-            
+
         Returns:
             RunnerResult
         """
         start_time = time.time()
         errors = []
-        
-        # Prepare command
-        cmd = [
-            self.agent_binary or "auggie",
-            "run",
-            "--model", self.model,
-            "--workspace", str(workspace_path),
-            "--timeout", str(self.timeout),
-        ]
-        
-        if self.disable_retrieval:
-            cmd.append("--disable-retrieval")
-        if self.disable_shell:
-            cmd.append("--disable-shell")
-        if self.enable_mcp_codebase_qa:
-            cmd.append("--enable-mcp-codebase-qa")
-        
-        # Prepare environment
-        run_env = env.copy() if env else {}
-        
+
         # Write task instructions to temp file
         task_file = workspace_path / ".auggie_task.txt"
         task_file.write_text(task_instructions)
-        
+
+        # Prepare command using correct auggie flags
+        # Convert timeout to milliseconds for --retry-timeout (1 hour = 3600000 ms)
+        retry_timeout_ms = 3600000  # 1 hour for rate-limit retries
+
+        cmd = [
+            self.agent_binary or "auggie",
+            "--print",  # One-shot mode (non-interactive)
+            "--allow-indexing",  # Skip indexing confirmation prompt
+            "--model", self.model,
+            "--workspace-root", str(workspace_path),
+            "--instruction-file", str(task_file),
+            "--retry-timeout", str(retry_timeout_ms),  # 1 hour for rate-limit retries
+        ]
+
+        if self.disable_retrieval:
+            cmd.append("--ask")  # Ask mode disables non-retrieval tools
+
+        # Prepare environment
+        run_env = env.copy() if env else {}
+
         try:
-            # Run agent
+            # Run agent with timeout
             result = subprocess.run(
-                cmd + ["--task-file", str(task_file)],
+                cmd,
                 cwd=workspace_path,
                 env=run_env,
                 capture_output=True,
