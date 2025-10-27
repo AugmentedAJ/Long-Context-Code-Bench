@@ -1,0 +1,167 @@
+name: Long-Context-Bench Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Agent runner name (e.g., auggie, generic)'
+        required: true
+        default: 'auggie'
+      model:
+        description: 'Model name'
+        required: true
+        default: 'claude-sonnet-4'
+      input_path:
+        description: 'Input path (PR URL or JSON file path)'
+        required: true
+        default: 'data/elasticsearch_prs_50.json'
+      total_shards:
+        description: 'Total number of shards'
+        required: false
+        default: '1'
+      concurrency:
+        description: 'Max concurrent tasks per shard'
+        required: false
+        default: '1'
+      timeout:
+        description: 'Timeout in seconds per task'
+        required: false
+        default: '1800'
+      judge_mode:
+        description: 'Judge mode (deterministic or llm)'
+        required: false
+        default: 'deterministic'
+      disable_retrieval:
+        description: 'Disable retrieval features'
+        required: false
+        type: boolean
+        default: false
+      disable_shell:
+        description: 'Disable shell access'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: ${{ fromJson(format('[{0}]', join(range(0, fromJson(github.event.inputs.total_shards)), ','))) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -e .
+      
+      - name: Run benchmark pipeline
+        env:
+          GITHUB_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUGMENT_API_TOKEN: ${{ secrets.AUGMENT_API_TOKEN }}
+        run: |
+          FLAGS=""
+          if [ "${{ github.event.inputs.disable_retrieval }}" = "true" ]; then
+            FLAGS="$FLAGS --disable-retrieval"
+          fi
+          if [ "${{ github.event.inputs.disable_shell }}" = "true" ]; then
+            FLAGS="$FLAGS --disable-shell"
+          fi
+          
+          long-context-bench pipeline \
+            --runner ${{ github.event.inputs.runner }} \
+            --model ${{ github.event.inputs.model }} \
+            --timeout ${{ github.event.inputs.timeout }} \
+            --concurrency ${{ github.event.inputs.concurrency }} \
+            --total-shards ${{ github.event.inputs.total_shards }} \
+            --shard-index ${{ matrix.shard }} \
+            --judge-mode ${{ github.event.inputs.judge_mode }} \
+            $FLAGS \
+            ${{ github.event.inputs.input_path }}
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results-shard-${{ matrix.shard }}
+          path: output/
+          retention-days: 30
+  
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -e .
+      
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: output/
+          pattern: benchmark-results-shard-*
+          merge-multiple: true
+      
+      - name: Generate aggregate statistics
+        run: |
+          long-context-bench stats output/ --output-file output/aggregate_stats.json
+      
+      - name: Upload aggregate results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-aggregate-results
+          path: |
+            output/aggregate_stats.json
+            output/summaries/
+          retention-days: 90
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const stats = JSON.parse(fs.readFileSync('output/aggregate_stats.json', 'utf8'));
+            
+            const comment = `## Benchmark Results
+            
+            **Runner:** ${{ github.event.inputs.runner }}
+            **Model:** ${{ github.event.inputs.model }}
+            
+            | Metric | Value |
+            |--------|-------|
+            | Total Samples | ${stats.total_samples} |
+            | Success Rate | ${(stats.success_rate * 100).toFixed(1)}% |
+            | Mean Aggregate Score | ${stats.mean_aggregate.toFixed(2)} |
+            | Mean Correctness | ${stats.mean_correctness.toFixed(2)} |
+            | Mean Completeness | ${stats.mean_completeness.toFixed(2)} |
+            | Mean Code Reuse | ${stats.mean_code_reuse.toFixed(2)} |
+            | Mean Best Practices | ${stats.mean_best_practices.toFixed(2)} |
+            | Tasks/Hour | ${stats.tasks_per_hour.toFixed(2)} |
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
