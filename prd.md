@@ -2,6 +2,27 @@
 
 Version: v0 (dataset v0; harness v0.1.0)
 Audience: Researchers and engineers implementing and running the benchmark
+Last Updated: 2025-10-27
+
+### Executive Summary
+
+Long-Context-Bench is a standardized benchmark for evaluating the long-context code editing capabilities of CLI-based coding agents on real-world GitHub pull requests. The benchmark measures how well AI agents can understand, modify, and integrate changes across large, multi-file repositories when given natural-language task instructions derived from PR metadata. This PRD defines the requirements for a reproducible, comparable, and practical evaluation framework that enables fair comparison of different coding agents while addressing the unique challenges of long-context code editing tasks.
+
+### Table of Contents
+
+1. [Overview](#1-overview)
+2. [Dataset Specification](#2-dataset-specification)
+3. [Benchmark Pipeline](#3-benchmark-pipeline-stages-and-required-behaviors)
+4. [Harness Design](#4-harness-design-agent-agnostic)
+5. [Evaluation Metrics and Scoring](#5-evaluation-metrics-and-scoring)
+6. [Reproducibility, Provenance, and Artifact Layout](#6-reproducibility-provenance-and-artifact-layout)
+7. [User Experience and Documentation](#7-user-experience-and-documentation)
+8. [Governance, Licensing, and Versioning](#8-governance-licensing-and-versioning)
+9. [Risks and Mitigations](#9-risks-and-mitigations)
+10. [Acceptance Criteria](#10-acceptance-criteria-testable)
+11. [Resource Requirements and Team](#11-resource-requirements-and-team)
+12. [Glossary](#glossary)
+13. [Example End-to-End Flow](#example-end-to-end-flow-prose)
 
 ### 1) Overview
 
@@ -18,6 +39,20 @@ Non-goals
 - R-1.6 Training models or fine-tuning is out of scope.
 - R-1.7 Modifying upstream PR history or redistributing copyrighted source code is out of scope.
 - R-1.8 Evaluating non-code tasks (e.g., documentation-only PRs) beyond the defined metrics is out of scope.
+
+### 1.1) Target Users and Personas
+
+Primary Users:
+- **AI Researchers**: Evaluate and compare long-context capabilities of different coding agents
+- **Tool Developers**: Benchmark their CLI-based coding agents against competitors
+- **Enterprise Teams**: Assess which coding agents perform best on their specific codebases
+- **Academic Institutions**: Conduct reproducible research on AI code generation capabilities
+
+User Needs:
+- Reproducible evaluation results that can be independently verified
+- Fair comparison framework that eliminates confounding variables
+- Scalable benchmarking that works both locally and in CI environments
+- Clear metrics that correlate with real-world coding performance
 
 ### 2) Dataset Specification
 
@@ -41,6 +76,20 @@ Update Policy and Versioning
 Compliance
 - R-2.10 The benchmark shall redistribute only URLs and metadata (e.g., commit hashes, counts, stats). It shall not redistribute source code blobs or full diffs in the dataset package.
 - R-2.11 Local runs may cache clones/diffs for execution; guidance shall instruct not to republish code artifacts.
+
+### 2.1) Dataset Dependencies and Assumptions
+
+External Dependencies:
+- GitHub API availability and rate limit compliance
+- Git repository accessibility for public repositories
+- Stable internet connectivity for repository cloning
+- Sufficient local storage for repository clones (estimated 20-100GB for full dataset)
+
+Assumptions:
+- PRs remain publicly accessible throughout the evaluation period
+- Repository structures remain stable enough for meaningful comparison
+- Agent runners support the required CLI interface specifications
+- Evaluation environments meet minimum hardware requirements (8GB+ RAM, 10GB+ disk)
 
 ### 3) Benchmark Pipeline (Stages and Required Behaviors)
 
@@ -117,6 +166,20 @@ Secondary Metrics
 Reporting
 - R-5.9 Produce per-PR and aggregate summaries. Export formats: JSON and CSV for aggregates; JSON per-task.
 
+### 5.1) Success Metrics and Validation Strategy
+
+Primary Success Indicators:
+- **Adoption Rate**: Number of research groups and organizations using the benchmark within 6 months
+- **Reproducibility Score**: Percentage of runs that achieve identical results when repeated with same inputs
+- **Coverage**: Percentage of major coding agent platforms that provide official support
+- **Correlation**: Alignment between benchmark scores and real-world performance on similar tasks
+
+Validation Approach:
+- Pilot testing with 3-5 diverse coding agents to verify requirement feasibility
+- Independent verification by external research groups
+- A/B testing to ensure sharding and concurrency don't affect results
+- Longitudinal study to verify benchmark stability over time
+
 ### 6) Reproducibility, Provenance, and Artifact Layout
 
 Recorded Provenance
@@ -174,6 +237,32 @@ Publishing Guidance
 - R-8.3 Dataset metadata (URLs, commit hashes, stats) are redistributed under terms compliant with GitHub ToS.
 - R-8.4 Maintain a CHANGELOG.md for both the harness and dataset; use semantic versioning.
 
+### 8.1) Development Timeline and Milestones
+
+Phase 1 - Foundation (Months 1-2):
+- Implement core sampling pipeline and dataset v0
+- Develop baseline deterministic judge
+- Create initial runner adapters for 2-3 major coding agents
+- Establish artifact schemas and caching mechanisms
+
+Phase 2 - Expansion (Months 3-4):
+- Add LLM-based judge with configurable models
+- Implement full sharding and concurrency support
+- Develop comprehensive CLI interface
+- Create documentation and examples
+
+Phase 3 - Validation (Month 5):
+- Conduct end-to-end testing with all supported runners
+- Perform reproducibility validation across different environments
+- Gather feedback from pilot users and iterate
+- Prepare for public release
+
+Phase 4 - Launch (Month 6):
+- Public release of harness v1.0.0 and dataset v0
+- Publish initial benchmark results for supported agents
+- Establish community feedback channels
+- Plan for dataset v1 based on community input
+
 ### 9) Risks and Mitigations
 
 - R-9.1 Large repositories / timeouts → Set generous defaults, per-task timeouts, and resume capability; allow increasing `--timeout` and concurrency.
@@ -204,4 +293,20 @@ Publishing Guidance
 
 ### Example End-to-End Flow (Prose)
 1) The operator selects dataset v0 (data/elasticsearch_prs_50.json) and invokes the pipeline with a runner and model. 2) The sampler clones each PR’s repository at the base commit, records metadata, and writes sample.json files with deterministic task_instructions and stats. 3) The edit stage creates isolated workspaces per sample, passes task_instructions to the selected agent via the runner adapter, enforces timeouts, and captures the unified diff from git as edit.json. 4) The judge stage computes the ground-truth PR diff from base→head locally, compares it to the agent diff, and assigns five scores plus an aggregate, writing judge.json. 5) The harness aggregates per-PR results into summary.json and summary.csv and writes a run_manifest.json with full provenance, enabling exact re-runs.
+
+### 11) Resource Requirements and Team
+
+Technical Resources:
+- **Compute**: Minimum 8-core CPU, 32GB RAM for concurrent evaluation runs
+- **Storage**: 100GB+ available disk space for repository clones and artifacts
+- **Network**: Stable broadband connection for GitHub API and repository access
+- **Services**: GitHub account with API token, cloud storage for artifact distribution
+
+Human Resources:
+- **Project Lead**: Overall coordination and stakeholder management
+- **Technical Lead**: Architecture decisions and technical implementation
+- **ML Engineer**: Judge implementation and metric design
+- **DevOps Engineer**: CI/CD, sharding, and infrastructure
+- **Technical Writer**: Documentation and user guides
+- **QA Engineer**: Testing and validation of reproducibility requirements
 
