@@ -41,6 +41,7 @@ htmlcov/
 
 # Output directories
 output/
+output_backups/
 results/
 *.log
 
@@ -60,3 +61,4 @@ Thumbs.db
 *.key
 *.pem
 
+run_v1_test.sh

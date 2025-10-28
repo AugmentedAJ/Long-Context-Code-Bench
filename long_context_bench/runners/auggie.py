@@ -38,8 +38,8 @@ class AuggieAdapter(RunnerAdapter):
         task_file.write_text(task_instructions)
 
         # Prepare command using correct auggie flags
-        # Convert timeout to milliseconds for --retry-timeout (1 hour = 3600000 ms)
-        retry_timeout_ms = 3600000  # 1 hour for rate-limit retries
+        # Use the configured timeout for retry-timeout (in seconds)
+        retry_timeout_s = self.timeout
 
         cmd = [
             self.agent_binary or "auggie",
@@ -48,7 +48,7 @@ class AuggieAdapter(RunnerAdapter):
             "--model", self.model,
             "--workspace-root", str(workspace_path),
             "--instruction-file", str(task_file),
-            "--retry-timeout", str(retry_timeout_ms),  # 1 hour for rate-limit retries
+            "--retry-timeout", str(retry_timeout_s),  # Timeout for rate-limit retries
         ]
 
         if self.disable_retrieval:
