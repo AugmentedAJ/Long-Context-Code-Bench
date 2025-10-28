@@ -199,11 +199,25 @@ Example comparison output:
 
 The v0 dataset (50 Elasticsearch PRs) is included in the repository. No need to download or specify file paths!
 
-### Repository Caching
+### Repository Caching & Workspace Isolation
 
-Repositories are cached in `.repo_cache/` to avoid re-cloning on subsequent runs. This significantly speeds up execution:
-- First run: Clones repositories
-- Subsequent runs: Reuses cached repositories
+The benchmark implements strict workspace isolation to ensure valid, unbiased evaluation:
+
+**Workspace Materialization:**
+- Each agent run gets a fresh, isolated workspace initialized at the base commit
+- Shallow fetch (--depth=1) minimizes git history exposure
+- The `.git` directory is hidden from agents during execution to prevent history inspection
+- After agent execution, `.git` is restored to capture accurate diffs
+
+**Cache Usage:**
+- Repositories are cached in `.repo_cache/` for sample/judge stages (not for agent workspaces)
+- Shallow fetches minimize bandwidth and history exposure
+- Cache is used only for fetching commits needed for ground-truth diffs
+
+**Security:**
+- Agents cannot access PR fix commits or full git history
+- No persistent remote configured in agent workspaces
+- Git interactive prompts disabled during execution
 
 ### Selective Execution
 

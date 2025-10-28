@@ -56,6 +56,9 @@ class AuggieAdapter(RunnerAdapter):
 
         # Prepare environment
         run_env = env.copy() if env else {}
+        # Harden against unintended Git network prompts during agent execution
+        run_env.setdefault("GIT_TERMINAL_PROMPT", "0")  # disable interactive prompts
+        run_env.setdefault("GIT_ASKPASS", "true")       # non-interactive askpass
 
         try:
             # Run agent with timeout

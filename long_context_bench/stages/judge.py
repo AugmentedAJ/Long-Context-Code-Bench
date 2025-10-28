@@ -53,10 +53,11 @@ def get_ground_truth_diff(sample: Sample, cache_dir: Optional[Path] = None) -> s
             console.print(f"  Using cached repository for ground truth")
             repo = git.Repo(cache_path)
             try:
-                repo.git.fetch("origin", sample.base_commit)
-                repo.git.fetch("origin", sample.head_commit)
+                # Shallow fetch just the required commits (no history, no tags)
+                repo.git.fetch("--no-tags", "--depth=1", "origin", sample.base_commit)
+                repo.git.fetch("--no-tags", "--depth=1", "origin", sample.head_commit)
             except Exception as e:
-                console.print(f"  [yellow]Warning: Failed to fetch commits: {e}[/yellow]")
+                console.print(f"  [yellow]Warning: Failed to shallow-fetch commits: {e}[/yellow]")
         else:
             console.print(f"  Cloning repository for ground truth...")
             cache_path.mkdir(parents=True, exist_ok=True)
@@ -72,8 +73,9 @@ def get_ground_truth_diff(sample: Sample, cache_dir: Optional[Path] = None) -> s
     else:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = git.Repo.clone_from(sample.repo_url, tmpdir)
-            repo.git.fetch("origin", sample.base_commit)
-            repo.git.fetch("origin", sample.head_commit)
+            # Shallow fetch just the required commits (no history, no tags)
+            repo.git.fetch("--no-tags", "--depth=1", "origin", sample.base_commit)
+            repo.git.fetch("--no-tags", "--depth=1", "origin", sample.head_commit)
 
             diff = repo.git.diff(sample.base_commit, sample.head_commit, unified=True)
             return diff

@@ -42,39 +42,57 @@ def materialize_workspace(
 
     Per R-3.7: Create workspace at base commit with read/write permissions.
 
+    IMPORTANT: Do NOT expose full git history to the agent. We initialize a fresh
+    repo and fetch only the base commit by SHA (shallow, no tags, no remote).
+
     Args:
         sample: Sample object
         workspace_path: Path to workspace directory
-        cache_dir: Optional cache directory for repositories
+        cache_dir: Optional cache directory for repositories (unused for workspace materialization)
 
     Returns:
-        Git repository object
+        Git repository object rooted at base commit with minimal history
     """
-    if cache_dir:
-        # Extract repo name from URL
-        repo_name = sample.repo_url.rstrip("/").split("/")[-1].replace(".git", "")
-        owner = sample.repo_url.rstrip("/").split("/")[-2]
-        cache_path = cache_dir / f"{owner}_{repo_name}"
+    # Ensure workspace directory exists and is empty
+    workspace_path.mkdir(parents=True, exist_ok=True)
 
-        if cache_path.exists():
-            console.print(f"  Copying from cache to workspace...")
-            import shutil
-            shutil.copytree(cache_path, workspace_path, symlinks=True)
-            repo = git.Repo(workspace_path)
-            # Fetch to ensure we have the commit
-            try:
-                repo.git.fetch("origin", sample.base_commit)
-            except Exception as e:
-                console.print(f"  [yellow]Warning: Failed to fetch commit: {e}[/yellow]")
-        else:
-            console.print(f"  Cloning repository to workspace...")
-            repo = git.Repo.clone_from(sample.repo_url, workspace_path)
-    else:
-        console.print(f"  Cloning repository to workspace...")
+    # Initialize an empty repo and fetch only the base commit by SHA directly
+    # from the remote URL (avoids creating a persistent remote like 'origin').
+    try:
+        repo = git.Repo.init(workspace_path)
+        console.print(f"  Fetching base commit (shallow)...")
+        # Equivalent to: git fetch --no-tags --depth=1 <url> <sha>
+        repo.git.fetch("--no-tags", "--depth=1", sample.repo_url, sample.base_commit)
+    except Exception as e:
+        # Fallback: do a shallow clone then fetch the specific commit
+        console.print(f"  [yellow]Shallow fetch by SHA failed, falling back to shallow clone: {e}[/yellow]")
+        import shutil
+        # Clean up any partial init
+        try:
+            if workspace_path.exists():
+                shutil.rmtree(workspace_path)
+        except Exception:
+            pass
+        console.print(f"  Cloning repository (shallow)...")
         repo = git.Repo.clone_from(sample.repo_url, workspace_path)
+        # Try to reduce history exposure as much as possible
+        try:
+            repo.git.fetch("--no-tags", "--depth=1", "origin", sample.base_commit)
+        except Exception as e2:
+            console.print(f"  [yellow]Warning: Shallow fetch after clone failed: {e2}[/yellow]")
 
-    console.print(f"  Checking out base commit {sample.base_commit[:8]}...")
+    console.print(f"  Checking out base commit {sample.base_commit[:8]} (detached)...")
     repo.git.checkout(sample.base_commit, detach=True)
+
+    # Do not leave a persistent remote to avoid additional history fetches by agents
+    # (we didn't create one above when fetching by URL). If a remote exists (from
+    # fallback clone), remove it.
+    try:
+        if any(r.name == "origin" for r in repo.remotes):
+            repo.delete_remote("origin")
+    except Exception:
+        # Non-fatal if remote removal fails
+        pass
 
     return repo
 
@@ -157,7 +175,18 @@ def run_edit_on_sample(
 
         try:
             repo = materialize_workspace(sample, workspace_path, cache_dir)
-            
+
+            # Hide .git from the agent to prevent history inspection
+            import shutil
+            git_dir = workspace_path / ".git"
+            hidden_git_dir = Path(tmpdir) / ".git_hidden"
+            if git_dir.exists():
+                try:
+                    shutil.move(str(git_dir), str(hidden_git_dir))
+                    console.print("  .git hidden from agent during execution")
+                except Exception as e:
+                    console.print(f"  [yellow]Warning: Failed to hide .git: {e}[/yellow]")
+
             # Run agent
             console.print(f"  Running agent...")
             result = adapter.run(
@@ -166,7 +195,17 @@ def run_edit_on_sample(
                 logs_path=logs_path,
                 env=os.environ.copy(),
             )
-            
+
+            # Restore .git after agent run
+            if hidden_git_dir.exists() and not git_dir.exists():
+                try:
+                    shutil.move(str(hidden_git_dir), str(git_dir))
+                    console.print("  .git restored after agent execution")
+                    # Reopen repo after restoring .git
+                    repo = git.Repo(workspace_path)
+                except Exception as e:
+                    console.print(f"  [yellow]Warning: Failed to restore .git: {e}[/yellow]")
+
             # Capture diff
             console.print(f"  Capturing diff...")
             patch_unified = capture_diff(repo, sample.base_commit)

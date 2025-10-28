@@ -241,9 +241,9 @@ def sample_pr(
         # Get or clone repository
         git_repo = get_or_clone_repo(repo_url, cache_dir)
 
-        # Fetch commits
-        git_repo.git.fetch("origin", base_sha)
-        git_repo.git.fetch("origin", head_sha)
+        # Fetch commits (shallow, no tags) to minimize history exposure and bandwidth
+        git_repo.git.fetch("--no-tags", "--depth=1", "origin", base_sha)
+        git_repo.git.fetch("--no-tags", "--depth=1", "origin", head_sha)
 
         # Compute statistics
         console.print(f"  Computing statistics...")
