@@ -238,6 +238,11 @@ def generate_summary_for_runs(
 
         console.print(f"\n[green]Summary written to {output_dir}[/green]")
 
+        # Update web app (find the root output directory)
+        # output_dir is typically output/summaries/<run_id>, so go up 2 levels
+        root_output_dir = output_dir.parent.parent
+        update_web_app(root_output_dir)
+
     # Per-PR breakdown
     if judges:
         console.print("\n[bold]Per-PR Scores (Top 10)[/bold]")
@@ -375,6 +380,9 @@ def generate_comparison(
             df.to_csv(output_file, index=False)
 
         console.print(f"\n[green]Comparison written to {output_file}[/green]")
+
+    # Update web app
+    update_web_app(results_dir)
 
 
 def _display_leaderboard(summaries: dict, test_label: str, rank_by: str) -> None:
@@ -538,6 +546,9 @@ def generate_stats(
 
         console.print(f"\n[green]Stats written to {output_file}[/green]")
 
+    # Update web app
+    update_web_app(results_dir)
+
     # Per-PR breakdown
     if judges:
         console.print("\n[bold]Per-PR Scores (Top 10)[/bold]")
@@ -562,3 +573,163 @@ def generate_stats(
 
         console.print(pr_table)
 
+
+def deploy_web_app(output_dir: Path) -> None:
+    """Deploy the web app to the output directory.
+
+    Copies the web app files from the package to output/web/ if they don't exist.
+
+    Args:
+        output_dir: Output directory (e.g., 'output/')
+    """
+    import shutil
+    import pkg_resources
+
+    web_dir = output_dir / "web"
+
+    # Get the source web directory from the package
+    try:
+        package_web_dir = Path(pkg_resources.resource_filename('long_context_bench', 'web'))
+    except Exception:
+        # Fallback: try relative path from this file
+        package_web_dir = Path(__file__).parent / "web"
+
+    if not package_web_dir.exists():
+        console.print("[yellow]Warning: Web app source directory not found, skipping deployment[/yellow]")
+        return
+
+    # Create web directory if it doesn't exist
+    web_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy files if they don't exist or are outdated
+    files_to_copy = [
+        'index.html',
+        'summary.html',
+        'comparison.html',
+        'styles.css',
+        'data-loader.js',
+        'charts.js',
+        'app.js',
+        'lib/chart.min.js',
+        'package.json',
+        'server.js',
+    ]
+
+    for file_path in files_to_copy:
+        src = package_web_dir / file_path
+        dst = web_dir / file_path
+
+        if src.exists():
+            # Create parent directory if needed
+            dst.parent.mkdir(parents=True, exist_ok=True)
+
+            # Copy file (overwrite to ensure latest version)
+            shutil.copy2(src, dst)
+
+    console.print(f"[green]✓ Web app deployed to {web_dir}[/green]")
+
+
+def generate_index_manifest(output_dir: Path) -> None:
+    """Generate index.json manifest for the web app.
+
+    Scans the output directory and creates an index of all runs.
+
+    Args:
+        output_dir: Output directory (e.g., 'output/')
+    """
+    from datetime import datetime
+
+    index = {
+        "runs": [],
+        "test_labels": set(),
+        "runners": set(),
+        "models": set(),
+        "last_updated": datetime.utcnow().isoformat()
+    }
+
+    # Scan summaries directory
+    summaries_dir = output_dir / "summaries"
+    if summaries_dir.exists():
+        for summary_file in summaries_dir.rglob("summary.json"):
+            try:
+                with open(summary_file) as f:
+                    summary = json.load(f)
+
+                run_id = summary.get("run_id")
+                if not run_id:
+                    continue
+
+                # Get PR IDs from edits directory
+                pr_ids = []
+                edit_run_id = summary.get("edit_run_id")
+                runner = summary.get("runner")
+                model = summary.get("model")
+
+                if edit_run_id and runner and model:
+                    edit_dir = output_dir / "edits" / runner / model / edit_run_id
+                    if edit_dir.exists():
+                        for pr_dir in edit_dir.iterdir():
+                            if pr_dir.is_dir():
+                                pr_ids.append(pr_dir.name)
+
+                run_info = {
+                    "run_id": run_id,
+                    "edit_run_id": summary.get("edit_run_id"),
+                    "judge_run_id": summary.get("judge_run_id"),
+                    "test_label": summary.get("test_label"),
+                    "runner": runner,
+                    "model": model,
+                    "judge_mode": None,  # Will be populated if we scan judge manifests
+                    "judge_model": None,
+                    "summary_path": str(summary_file.relative_to(output_dir)),
+                    "pr_ids": pr_ids,
+                    "total_samples": summary.get("total_samples", 0),
+                    "success_rate": summary.get("success_rate", 0),
+                    "mean_aggregate": summary.get("mean_aggregate", 0)
+                }
+
+                index["runs"].append(run_info)
+
+                if summary.get("test_label"):
+                    index["test_labels"].add(summary.get("test_label"))
+                if runner:
+                    index["runners"].add(runner)
+                if model:
+                    index["models"].add(model)
+
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to process {summary_file}: {e}[/yellow]")
+
+    # Convert sets to sorted lists
+    index["test_labels"] = sorted(list(index["test_labels"]))
+    index["runners"] = sorted(list(index["runners"]))
+    index["models"] = sorted(list(index["models"]))
+
+    # Write index.json
+    index_file = output_dir / "index.json"
+    with open(index_file, "w") as f:
+        json.dump(index, f, indent=2)
+
+    console.print(f"[green]✓ Index manifest generated: {index_file}[/green]")
+    console.print(f"  Found {len(index['runs'])} runs")
+
+
+def update_web_app(output_dir: Path) -> None:
+    """Deploy web app and update index manifest.
+
+    This should be called after generating summaries to ensure the web app
+    is up to date.
+
+    Args:
+        output_dir: Output directory (e.g., 'output/')
+    """
+    deploy_web_app(output_dir)
+    generate_index_manifest(output_dir)
+
+    web_dir = output_dir / "web"
+    console.print(f"\n[bold green]Web app ready![/bold green]")
+    console.print(f"\nTo view the dashboard:")
+    console.print(f"  1. cd {web_dir}")
+    console.print(f"  2. npm install  (first time only)")
+    console.print(f"  3. npm start")
+    console.print(f"  4. Open http://localhost:3000 in your browser")

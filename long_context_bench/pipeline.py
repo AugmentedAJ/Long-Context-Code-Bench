@@ -300,8 +300,16 @@ def run_pipeline(
     
     # Compute aggregate statistics
     from long_context_bench.stats import compute_aggregate_summary
-    
-    summary = compute_aggregate_summary(run_id, samples, edits, judges)
+
+    summary = compute_aggregate_summary(
+        run_id=run_id,
+        samples=samples,
+        edits=edits,
+        judges=judges,
+        test_label=test_label,
+        runner=runner,
+        model=model,
+    )
     
     summary_file = summaries_dir / "summary.json"
     with open(summary_file, "w") as f:
@@ -312,7 +320,11 @@ def run_pipeline(
     df = pd.DataFrame([summary.model_dump()])
     csv_file = summaries_dir / "summary.csv"
     df.to_csv(csv_file, index=False)
-    
+
+    # Update web app
+    from long_context_bench.stats import update_web_app
+    update_web_app(output_dir)
+
     console.print(f"\n[bold green]Pipeline complete![/bold green]")
     console.print(f"  Run ID: {run_id}")
     console.print(f"  Samples: {len(samples)}")

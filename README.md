@@ -491,7 +491,35 @@ The generic runner passes task instructions via stdin.
 
 ## Viewing Results
 
-### Generate Statistics
+### Web Dashboard (Recommended)
+
+The benchmark automatically generates an interactive web dashboard for visualizing results.
+
+#### Starting the Web Server
+
+After running any benchmark command, start the web server:
+
+```bash
+cd output/web
+npm install  # First time only
+npm start
+```
+
+Then open http://localhost:3000 in your browser.
+
+The web app provides:
+- **Leaderboard**: Compare all runs with filtering and sorting
+- **Run Details**: Deep dive into individual run metrics and per-PR results
+- **Agent Comparison**: Side-by-side comparison with interactive charts
+- **Real-time Updates**: Refresh to see latest results
+
+The web app is automatically deployed and updated when you run:
+- `long-context-bench pipeline`
+- `long-context-bench summary`
+- `long-context-bench stats`
+- `long-context-bench compare`
+
+### Generate Statistics (CLI)
 
 ```bash
 long-context-bench stats output/
@@ -509,6 +537,11 @@ Results are saved in the following structure:
 
 ```
 output/
+├── web/                          # Interactive web dashboard
+│   ├── index.html               # Leaderboard view
+│   ├── summary.html             # Run details view
+│   └── comparison.html          # Agent comparison view
+├── index.json                   # Manifest for web app
 ├── samples/v0/<pr_id>/sample.json
 ├── edits/<runner>/<model>/<run_id>/<pr_id>/
 │   ├── edit.json

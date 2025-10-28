@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long-Context-Bench - Leaderboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Long-Context-Bench</h1>
+            <nav>
+                <a href="index.html" class="active">Leaderboard</a>
+                <a href="summary.html">Run Details</a>
+                <a href="comparison.html">Compare</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="controls">
+                <div class="control-group">
+                    <label for="filter-runner">Runner:</label>
+                    <select id="filter-runner">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="filter-model">Model:</label>
+                    <select id="filter-model">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="filter-label">Test Label:</label>
+                    <select id="filter-label">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button id="refresh-btn">Refresh Data</button>
+                </div>
+            </section>
+
+            <section class="stats-overview">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-runs">-</div>
+                    <div class="stat-label">Total Runs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-agents">-</div>
+                    <div class="stat-label">Agents Tested</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-samples">-</div>
+                    <div class="stat-label">Total Samples</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-success-rate">-</div>
+                    <div class="stat-label">Avg Success Rate</div>
+                </div>
+            </section>
+
+            <section class="leaderboard">
+                <h2>Leaderboard</h2>
+                <div class="table-container">
+                    <table id="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="rank">Rank</th>
+                                <th class="sortable" data-sort="runner">Runner</th>
+                                <th class="sortable" data-sort="model">Model</th>
+                                <th class="sortable" data-sort="test_label">Test Label</th>
+                                <th class="sortable" data-sort="mean_aggregate">Aggregate Score</th>
+                                <th class="sortable" data-sort="success_rate">Success Rate</th>
+                                <th class="sortable" data-sort="mean_correctness">Correctness</th>
+                                <th class="sortable" data-sort="mean_completeness">Completeness</th>
+                                <th class="sortable" data-sort="mean_code_reuse">Code Reuse</th>
+                                <th class="sortable" data-sort="mean_best_practices">Best Practices</th>
+                                <th class="sortable" data-sort="tasks_per_hour">Tasks/Hour</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <tr>
+                                <td colspan="12" class="loading">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="charts">
+                <div class="chart-container">
+                    <h3>Score Distribution</h3>
+                    <canvas id="score-distribution-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Success Rate by Agent</h3>
+                    <canvas id="success-rate-chart"></canvas>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Last updated: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+    <script src="lib/chart.min.js"></script>
+    <script src="data-loader.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Initialize leaderboard page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadLeaderboard();
+        });
+
+        document.getElementById('refresh-btn').addEventListener('click', async () => {
+            await loadLeaderboard();
+        });
+
+        // Filter handlers
+        ['filter-runner', 'filter-model', 'filter-label'].forEach(id => {
+            document.getElementById(id).addEventListener('change', filterLeaderboard);
+        });
+    </script>
+</body>
+</html>
+
