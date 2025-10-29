@@ -88,6 +88,19 @@ long-context-bench edit \
 **Features:**
 - Model aliases: `sonnet`, `opus`, `haiku`
 
+
+**Auth modes & visibility:**
+
+The harness supports explicit Claude auth selection via `LCB_CLAUDE_AUTH`:
+- `auto` (default): use API key if `ANTHROPIC_API_KEY` is set, else use subscription
+- `subscription`: force subscription; harness strips `ANTHROPIC_*` env vars for the run
+- `api-key`: force API key; requires `ANTHROPIC_API_KEY`
+
+At runtime the edit stage prints a line such as:
+`Claude auth: subscription (mode=auto, ANTHROPIC_API_KEY=absent)`
+
+Additionally, `logs.jsonl` includes an `auth_info` record with fields `auth_mode`, `used_auth`, and `anthropic_api_key_present`.
+
 **Features:**
 - Headless mode with `-p` flag
 - Structured JSON output
@@ -224,7 +237,7 @@ class RunnerAdapter(ABC):
         **kwargs: Any,
     ):
         ...
-    
+
     @abstractmethod
     def run(
         self,
@@ -262,10 +275,10 @@ class YourAgentAdapter(RunnerAdapter):
     def run(self, workspace_path, task_instructions, logs_path, env):
         # Build command
         cmd = [self.agent_binary or "your-agent", ...]
-        
+
         # Run agent
         result = subprocess.run(cmd, ...)
-        
+
         # Return result
         return RunnerResult(status="success", elapsed_ms=..., errors=None)
 ```

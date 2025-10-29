@@ -4,7 +4,7 @@ A benchmark for evaluating and ranking long-context code editing capabilities of
 
 ## Overview
 
-Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across **massive repositories with tens of thousands of files** when given natural-language task instructions derived from PR metadata. The primary use cases are **generating leaderboards** to rank agent performance and **comparing agents side-by-side** using labeled test runs.
+Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across **massive repositories with tens of thousands of files** when given natural-language task instructions derived from PR metadata. Primary use case: **side-by-side agent comparison using test labels** for reproducible, apples-to-apples runs across enterprise-scale repositories. Leaderboards are supported as a secondary workflow.
 
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
@@ -14,6 +14,11 @@ Long-Context-Bench evaluates how well coding agents can understand, modify, and 
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
 - 📝 Traceable: complete provenance tracking for all runs
+
+### Vision & RFC
+
+For the broader vision, competitive landscape, GTM, and roadmap, see:
+- docs/rfcs/0001-enterprise-standard-for-ai-coding-agents.md
 
 ## Installation
 
@@ -439,6 +444,36 @@ long-context-bench pipeline \
 
 **Model aliases:** Use `sonnet`, `opus`, `haiku` or full model names like `claude-sonnet-4`
 
+#### Claude Code authentication modes and visibility
+
+By default, the harness selects Claude authentication automatically (uses API key if `ANTHROPIC_API_KEY` is set, otherwise uses your Claude subscription token from `claude setup-token`). You can override this with `LCB_CLAUDE_AUTH`:
+
+- `LCB_CLAUDE_AUTH=auto` (default): prefer API key if present, else subscription
+- `LCB_CLAUDE_AUTH=subscription`: force subscription; the harness strips `ANTHROPIC_*` env vars for the Claude run
+- `LCB_CLAUDE_AUTH=api-key`: force API key; requires `ANTHROPIC_API_KEY`
+
+Visibility:
+- The edit stage prints a clear line to stdout, for example:
+  `Claude auth: subscription (mode=auto, ANTHROPIC_API_KEY=absent)`
+- Each PR's `logs.jsonl` also records an `auth_info` event with fields `auth_mode`, `used_auth`, and `anthropic_api_key_present`.
+
+Examples:
+```bash
+# Force subscription (ignore any Anthropic env vars for Claude runs)
+export LCB_CLAUDE_AUTH=subscription
+long-context-bench edit --runner claude-code --model sonnet output/samples/v0
+
+# Force API key
+export ANTHROPIC_API_KEY=sk-...
+export LCB_CLAUDE_AUTH=api-key
+long-context-bench edit --runner claude-code --model sonnet output/samples/v0
+
+# Default auto (use API key if set, else subscription)
+unset LCB_CLAUDE_AUTH
+long-context-bench edit --runner claude-code --model sonnet output/samples/v0
+```
+
+
 ### Codex CLI
 
 OpenAI's command-line coding agent.
@@ -588,8 +623,8 @@ The **judge stage** (evaluation) is deterministic when using `--judge-mode deter
 
 ## Dataset
 
-**Version:** v0  
-**Size:** 50 PRs from elastic/elasticsearch  
+**Version:** v0
+**Size:** 50 PRs from elastic/elasticsearch
 **File:** `data/elasticsearch_prs_50.json`
 
 The v0 dataset is frozen. Future versions may rotate or expand PRs with semantic versioning.
