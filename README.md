@@ -627,7 +627,7 @@ The **judge stage** (evaluation) is deterministic when using `--judge-mode deter
 
 **Version:** v0 (PR Recreation Methodology)
 
-**Size:** 51 entries from elastic/elasticsearch
+**Size:** 42 validated PRs from elastic/elasticsearch
 **File:** `data/elasticsearch_prs_50.json`
 
 ### Methodology
@@ -643,7 +643,15 @@ This tests an agent's ability to:
 2. Navigate and modify a massive codebase (~40K files)
 3. Produce changes that match the actual implementation
 
-**Note:** Some entries in v0 are GitHub issue numbers rather than PR numbers. These will cause 404 errors during sampling and should be filtered out or mapped to their closing PRs. A future dataset version (v2) on a separate branch addresses this by mapping issues to PRs and using issue descriptions as task instructions.
+### Dataset Curation
+
+The v0 dataset has been validated to remove GitHub issue numbers that would cause 404 errors when fetched as PRs. The original dataset contained 50 entries, of which 8 were issue numbers (not PRs). These have been filtered out, leaving **42 validated PRs**.
+
+**Removed issue numbers:** 114968, 114962, 114956, 114947, 114941, 114926, 114902, 114893
+
+The original uncurated dataset is preserved as `data/elasticsearch_prs_50_original.json` for reference. The curation script is available at `scripts/make_v0_valid_from_known_issues.py`.
+
+**Note:** A future dataset version (v2) on the `feature/v2-issue-based-dataset` branch uses a different methodology: mapping issues to their closing PRs and using issue descriptions (the problem) as task instructions instead of PR descriptions (the solution).
 
 The v0 dataset is frozen. Future versions may rotate or expand PRs with semantic versioning.
 
