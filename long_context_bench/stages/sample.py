@@ -73,23 +73,32 @@ def fetch_pr_metadata(
 
 def create_task_instructions(pr_metadata: dict) -> str:
     """Create task instructions from PR metadata.
-    
+
     Per R-3.4: Use PR title followed by PR body, truncated to 10,000 characters.
-    
+    Enhanced with context to clarify this is a code editing task.
+
     Args:
         pr_metadata: PR metadata from GitHub API
-        
+
     Returns:
         Task instructions string
     """
     title = pr_metadata.get("title", "")
     body = pr_metadata.get("body") or ""
-    
-    instructions = f"{title}\n\n{body}"
-    
+
+    # Build the core task description
+    task_description = f"{title}\n\n{body}" if body else title
+
+    # Wrap with context to make it clear this is a code editing task
+    instructions = f"""You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:
+
+{task_description}
+
+Please make all necessary code changes to complete this task."""
+
     if len(instructions) > 10000:
         instructions = instructions[:10000] + "\n[truncated]"
-    
+
     return instructions
 
 

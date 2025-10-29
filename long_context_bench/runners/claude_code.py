@@ -83,8 +83,17 @@ class ClaudeCodeAdapter(RunnerAdapter):
         # Emit a clear stdout line and write an auth_info record into logs
         print(f"  Claude auth: {used_auth} (mode={auth_mode}, ANTHROPIC_API_KEY={'present' if api_key_present else 'absent'})")
         try:
-            # Write auth info early
-            with open(logs_path, "a") as f:
+            # Write command info and auth info to logs first
+            with open(logs_path, "w") as f:
+                f.write(json.dumps({
+                    "timestamp": time.time(),
+                    "event": "agent_start",
+                    "runner": "claude-code",
+                    "model": self.model,
+                    "command": cmd,
+                    "workspace": str(workspace_path),
+                    "timeout_s": self.timeout,
+                }) + "\n")
                 f.write(json.dumps({
                     "timestamp": time.time(),
                     "event": "auth_info",
@@ -103,7 +112,7 @@ class ClaudeCodeAdapter(RunnerAdapter):
                 text=True,
             )
 
-            # Write run logs
+            # Write comprehensive run logs
             with open(logs_path, "a") as f:
                 log_entry = {
                     "timestamp": time.time(),
@@ -113,6 +122,28 @@ class ClaudeCodeAdapter(RunnerAdapter):
                     "returncode": result.returncode,
                 }
                 f.write(json.dumps(log_entry) + "\n")
+
+            # Also write human-readable logs
+            readable_log_path = logs_path.parent / "logs_readable.txt"
+            with open(readable_log_path, "w") as f:
+                f.write("=" * 80 + "\n")
+                f.write("CLAUDE CODE RUN LOG\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Model: {self.model}\n")
+                f.write(f"Auth Mode: {used_auth} (config={auth_mode})\n")
+                f.write(f"API Key Present: {api_key_present}\n")
+                f.write(f"Command: {' '.join(cmd)}\n")
+                f.write(f"Workspace: {workspace_path}\n")
+                f.write(f"Timeout: {self.timeout}s\n")
+                f.write(f"Return Code: {result.returncode}\n\n")
+                f.write("=" * 80 + "\n")
+                f.write("STDOUT\n")
+                f.write("=" * 80 + "\n")
+                f.write(result.stdout or "(empty)\n\n")
+                f.write("=" * 80 + "\n")
+                f.write("STDERR\n")
+                f.write("=" * 80 + "\n")
+                f.write(result.stderr or "(empty)\n")
 
             elapsed_ms = int((time.time() - start_time) * 1000)
 

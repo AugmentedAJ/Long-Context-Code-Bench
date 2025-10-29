@@ -61,6 +61,19 @@ class AuggieAdapter(RunnerAdapter):
         run_env.setdefault("GIT_ASKPASS", "true")       # non-interactive askpass
 
         try:
+            # Write command info to logs first
+            with open(logs_path, "w") as f:
+                log_entry = {
+                    "timestamp": time.time(),
+                    "event": "agent_start",
+                    "runner": "auggie",
+                    "model": self.model,
+                    "command": cmd,
+                    "workspace": str(workspace_path),
+                    "timeout_s": self.timeout,
+                }
+                f.write(json.dumps(log_entry) + "\n")
+
             # Run agent with timeout
             result = subprocess.run(
                 cmd,
@@ -70,9 +83,9 @@ class AuggieAdapter(RunnerAdapter):
                 timeout=self.timeout,
                 text=True,
             )
-            
-            # Write logs
-            with open(logs_path, "w") as f:
+
+            # Write comprehensive logs
+            with open(logs_path, "a") as f:
                 log_entry = {
                     "timestamp": time.time(),
                     "event": "agent_run",
@@ -81,6 +94,26 @@ class AuggieAdapter(RunnerAdapter):
                     "returncode": result.returncode,
                 }
                 f.write(json.dumps(log_entry) + "\n")
+
+            # Also write human-readable logs
+            readable_log_path = logs_path.parent / "logs_readable.txt"
+            with open(readable_log_path, "w") as f:
+                f.write("=" * 80 + "\n")
+                f.write("AUGGIE RUN LOG\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Model: {self.model}\n")
+                f.write(f"Command: {' '.join(cmd)}\n")
+                f.write(f"Workspace: {workspace_path}\n")
+                f.write(f"Timeout: {self.timeout}s\n")
+                f.write(f"Return Code: {result.returncode}\n\n")
+                f.write("=" * 80 + "\n")
+                f.write("STDOUT\n")
+                f.write("=" * 80 + "\n")
+                f.write(result.stdout or "(empty)\n\n")
+                f.write("=" * 80 + "\n")
+                f.write("STDERR\n")
+                f.write("=" * 80 + "\n")
+                f.write(result.stderr or "(empty)\n")
             
             elapsed_ms = int((time.time() - start_time) * 1000)
             
