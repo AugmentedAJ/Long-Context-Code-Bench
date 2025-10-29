@@ -3,7 +3,6 @@
 Status: Draft
 Author: AJ (@techfren)
 Date: 2025-10-28
-Reviewers: Engineering Lead, Research, Product
 
 ### 1) Summary
 
@@ -13,18 +12,13 @@ I propose to position Long-Context-Code-Bench (LCB) as the industry standard for
 
 **The Benchmark Marketing Machine Problem**
 
-SWE-bench and T-bench have become powerful marketing machines for frontier AI labs. Every major model release from OpenAI, Anthropic, Google, and others now prominently features SWE-bench charts showing incremental improvements. T-bench has similarly positioned itself as the go-to benchmark for terminal and systems tasks. These benchmarks have successfully captured mindshare and become the de facto standards that labs optimize for and showcase in their release notes.
+SWE-bench and Terminal bench have become powerful marketing machines for companies like Augment Code and Factory. Every major model release from OpenAI, Anthropic, Google, and others now prominently features SWE-bench charts showing incremental improvements. T-bench has similarly positioned itself as the go-to benchmark for terminal and systems tasks. These benchmarks have successfully captured mindshare and become the de facto standards that labs optimize for and showcase in their release notes.
 
 However, **these benchmarks don't measure what matters most for enterprise adoption**: the ability to work effectively in massive, real-world codebases with tens of thousands of files. SWE-bench focuses on relatively small Python repositories (typically <5k files) with isolated issues. T-bench evaluates terminal tasks, not repository-scale code editing. Neither benchmark stresses the context engines and retrieval systems that are critical for enterprise-scale development.
 
 **Augment Code's Market Leadership in Large Codebases**
 
-Augment Code is the market leader in handling large codebases. Our context engine and retrieval technology are specifically designed for enterprise-scale repositories with 40,000+ files—the real-world environments where most professional software development happens. We have:
-
-- **Proprietary context engine**: World-class retrieval and embedding models optimized for massive repositories
-- **Real-time indexing**: Maintains up-to-date understanding across tens of thousands of files
-- **Enterprise customers**: Proven track record with companies running large monorepos and mission-critical services
-- **Multi-language support**: Handles polyglot codebases that span multiple languages and frameworks
+Augment Code is the market leader in handling large codebases. Our context engine and retrieval technology are specifically designed for enterprise-scale repositories with 40,000+ files—the real-world environments where most professional software development happens.
 
 **The Opportunity**
 
@@ -53,128 +47,225 @@ When labs release new models, they should include LCB results and charts (via ou
 - **Reproducible judging**: Deterministic judge baseline plus optional LLM judge (seeded) with full provenance; comparisons organized by test labels.
 - **Agent-agnostic harness**: Pluggable runners (Auggie, Claude Code, Codex CLI, Aider, Generic) with a uniform contract.
 
-### 4) Competitive Landscape (selected)
+### 4) Technical Overview (Current State)
 
-**SWE-bench (and SWE-bench Verified)**
-- Real GitHub issues across 12 Python repos; Verified subset (500) is human-validated for solvability
-- **Repository size**: Typically <5k files per repo (e.g., django, flask, requests)
-- **Strength**: Excellent issue-resolution benchmark with strong adoption by frontier labs
-- **Gap**: Not focused on repository-scale PR editing (40k+ files) or isolation constraints for enterprise settings
-- Links: https://github.com/SWE-bench/SWE-bench • https://www.swebench.com/
+**Repository**: https://github.com/AugmentedAJ/Long-Context-Code-Bench
 
-**Terminal-Bench (T-bench)**
-- Evaluates agent capability on diverse terminal tasks end-to-end
-- **Strength**: Great for systems/prod tasks; strong marketing presence
-- **Gap**: Orthogonal to repository-scale PR editing and code understanding
-- Link: https://www.tbench.ai/
+**Architecture**
 
-**LiveCodeBench**
-- Contamination-aware, continuously updated coding tasks
-- **Strength**: Strong stance on temporal integrity
-- **Gap**: Not directly repo-scale PR editing
-- Link: https://arxiv.org/abs/2403.07974
+The benchmark is built as a Python CLI tool with a staged pipeline architecture:
 
-**RepoBench**
-- Repository-level code auto-completion
-- **Gap**: Focuses on completion rather than end-to-end PR editing and judging
-- Links: https://arxiv.org/abs/2306.03091 • https://github.com/Leolty/repobench
+1. **Sample Stage**: Extracts PR metadata from GitHub and creates sample.json files
+   - Stores PR URL, title, body, base commit SHA, head commit SHA
+   - No source code stored—only metadata and URLs
+   - v0 dataset: 50 PRs from elastic/elasticsearch (~40,000 files)
 
-**CodeRAG-Bench**
-- Retrieval-augmented code generation tasks across heterogeneous sources
-- **Gap**: Adjacent but not PR-edit centric
-- Link: https://code-rag-bench.github.io/
+2. **Edit Stage**: Runs agents on samples and captures their code changes
+   - Clones repository at base commit
+   - Hides `.git` directory to prevent ground truth leakage
+   - Provides PR title + body as instructions to the agent
+   - Captures all file changes made by the agent
+   - Supports multiple runners: Auggie, Claude Code, Codex CLI, Aider, Generic (stdin-based)
+   - Each run gets a unique run ID and manifest with full provenance
 
-**LCB's Unique Position**: None of these benchmarks directly target enterprise repo editing at scale (40k+ files) or emphasize context engine performance in massive codebases. This is the gap LCB fills and where Augment Code's technology leadership shines.
+3. **Judge Stage**: Evaluates agent edits against ground truth PR diff
+   - Five primary metrics: correctness, completeness, code reuse, best practices, unsolicited docs
+   - Aggregate score computed from weighted metrics
+   - Two judge modes:
+     - **Deterministic** (default): Rule-based evaluation using diff analysis
+     - **LLM-based**: Uses LiteLLM with seeded temperature for reproducibility
+   - Outputs detailed scores per sample and aggregate summary
 
-### 5) Users and Primary Scenarios
+**Test Labels and Comparison**
 
-- Model labs: Publish LCB comparison charts in release notes; track regressions/improvements by model and agent variants.
-- Enterprise engineering leaders: Compare agents under realistic constraints before pilot/rollout; run staged evaluations on internal repos.
-- Researchers: Study retrieval, context windows, and agent tool-use under repository-scale constraints.
+- **Test labels**: Optional string labels for grouping runs (e.g., "sonnet-4.5-comparison")
+- **Primary workflow**: Run multiple agents with the same test label, then generate comparison reports
+- **Comparison formats**:
+  - Side-by-side comparison (agents as columns, metrics as rows)
+  - Leaderboard (ranked by configurable metric: aggregate score, success rate, tasks/hour, etc.)
+- **Export**: CSV and JSON formats for further analysis
 
-Primary workflow: test-label comparison. Teams run multiple agents/models with the same test label, judge them deterministically (or with a seeded LLM judge), and review side-by-side comparisons in the web dashboard.
+**Web Dashboard**
 
-### 6) Technical Overview (current state)
+- Node.js web app (not static HTML to avoid CORS issues)
+- Reads JSON result files dynamically
+- Features:
+  - Leaderboard view with rankings
+  - Run details and per-sample breakdowns
+  - Agent comparison charts
+  - Uses Chart.js for visualizations
+  - Modern, minimalist, data-dense design
 
-- **Dataset v0**: 50 PRs from elastic/elasticsearch (~40,000 files) (frozen). Artifacts store URLs and metadata only.
-- **Pipeline**: sample → edit → judge (staged or pipeline mode). Full provenance via run manifests; caching and sharding supported.
-- **Runners**: Adapters for Auggie, Claude Code, Codex CLI, Aider, and a Generic stdin-based runner.
-- **Judging**: Five primary metrics (correctness, completeness, code reuse, best practices, unsolicited docs), aggregate score; deterministic baseline and optional seeded LLM judge (via LiteLLM).
-- **Web dashboard**: Node-based web app reading JSON outputs for leaderboards, run details, and agent comparisons.
-- **Test labels**: Organize runs for apples-to-apples comparison; primary workflow for reproducible evaluation.
+**Current Capabilities**
 
-### 7) Enterprise Readiness Requirements (roadmap highlights)
+✅ Fully functional CLI with sample, edit, judge, and pipeline commands
+✅ Support for 5 different agent runners
+✅ Deterministic and LLM-based judging
+✅ Test label system for organizing comparisons
+✅ Leaderboard and comparison report generation
+✅ CSV/JSON export
+✅ Comprehensive test coverage (21 tests passing)
+✅ v0 dataset: 50 Elasticsearch PRs (~40k file codebase)
 
-- **Dataset scale-out**: v1+ to expand beyond a single repository (multi-repo, multi-language, all 40k+ files), with semantic versioning and changelogs. Target diverse enterprise environments: Java monorepos, TypeScript/React frontends, Go microservices, etc.
-- **Submission API and Leaderboard governance**: Documented format and validation for third-party submissions; lightweight review and anti-gaming checks. Make it easy for labs to submit runs and get featured on the leaderboard.
-- **Strong contamination posture**: Document release dates, temporal cutoffs, and suggested practices for labs; guidance for internal enterprise datasets.
-- **Expanded metrics**: Add safety/regression checks (e.g., tests pass/fail if available), compile/build checks, and repo policy adherence.
-- **CI/Cloud recipes**: Reference GitHub Actions and cloud runners; cost-aware sharding and concurrency; resumable runs.
-- **Agent capability flags**: Standardize flags for retrieval/shell/tools to enable fair comparisons across agents.
-- **Security and privacy**: Clear guidance on tokens, network access, and artifact hygiene; reinforce no redistribution of source blobs.
+**What's Not Yet Built**
 
-### 8) Go-To-Market (GTM) and Community
+❌ Web dashboard (Node app structure defined but not implemented)
+❌ Public leaderboard hosting
+❌ Submission API for third-party runs
+❌ Multi-repo dataset (v1+)
+❌ Automated compile/test validation
+❌ CI/CD recipes for cloud runners
 
-**Phase 1: Establish the Standard (Months 1-3)**
-- **Labs partnership program**: Reach out to OpenAI, Anthropic, Google, and other frontier labs. Co-design initial public comparisons; ensure LCB charts appear in their next model release notes alongside SWE-bench.
-- **Public leaderboard launch**: Maintain a public leaderboard with curated, reproducible runs; highlight comparison runs organized by test label (primary scenario). Make it visually compelling and shareable.
-- **Positioning**: "The Enterprise Standard for AI Coding Agents" - emphasize 40k+ file codebases, context engine performance, and Augment's leadership.
 
-**Phase 2: Build Momentum (Months 4-6)**
-- **Academic/industry presence**: Publish a whitepaper/tech report; submit to relevant venues (NeurIPS, ICML, ICLR workshops); release periodic benchmark reports showing trends.
-- **Community contributions**: Accept new runners, datasets, and evaluators via RFCs; document adapter conformance tests.
-- **Media and awareness**: Blog posts, conference talks, social media campaigns highlighting how LCB measures what SWE-bench doesn't.
+### 5) Opportunities
 
-**Phase 3: Ecosystem Growth (Months 7-12)**
-- **Third-party submissions**: Open submission API for labs and researchers to submit runs
-- **Enterprise adoption**: Work with 5-10 enterprise customers to run LCB on their internal repos
-- **Benchmark reports**: Quarterly "State of AI Coding Agents" reports showing performance trends across models and agents
+**Market Timing**
 
-### 9) Success Metrics
+The timing is perfect for LCB to become the enterprise standard:
 
-**Market Adoption (Primary)**
-- **Model release inclusion**: # of frontier lab model releases citing LCB charts (target: 3+ labs within 6 months)
-- **Leaderboard submissions**: # of labs regularly submitting runs (target: 5+ labs within 12 months)
-- **Enterprise pilots**: # of enterprises running LCB on internal repos (target: 10+ within 12 months)
-- **Media mentions**: # of articles, blog posts, and social media mentions positioning LCB as the enterprise standard
+1. **AI coding agents are exploding**: Every major lab (OpenAI, Anthropic, Google, Meta) is investing heavily in coding agents. New models are released every few months with coding improvements as a headline feature.
 
-**Benchmark Usage**
-- Monthly unique runs; # of comparison runs (test labels) created; web dashboard views
-- GitHub stars, forks, and community contributions
+2. **Enterprise adoption is accelerating**: Companies are moving from experimentation to production deployment of AI coding tools. They need benchmarks that reflect their actual environments (40k+ file codebases).
 
-**Technical Outcomes**
-- Reduction in edit timeouts; improvement in aggregate scores over time; variance reduction between reruns
-- Diversity of repos in dataset (target: 10+ repos with 40k+ files by v2)
+3. **Benchmark fatigue with SWE-bench**: While SWE-bench is valuable, it's becoming saturated. Labs are hitting 50%+ solve rates on SWE-bench Verified. The community is looking for new, harder, more realistic benchmarks.
 
-### 10) Risks and Mitigations
+4. **Context window wars**: Labs are competing on context window size (100k, 200k, 1M+ tokens). LCB directly measures whether these larger context windows translate to better performance on real-world tasks.
 
-- Adoption risk: Provide easy on-ramps (built-in dataset, one-line pipeline, web dashboard). Partner early with 2–3 labs for launch.
-- Cost/time risk: Sharding, concurrency controls, resumable runs, and caching to control runtime and spend.
-- Non-determinism: Treat comparison as primary; deterministic judge by default; LLM judge seeded with temperature 0.
-- Data/licensing: Distribute URLs/metadata only; enforce guidance not to republish code artifacts.
+**Strategic Advantages**
 
-### 11) Open Questions for Review
+1. **First-mover advantage**: No existing benchmark focuses on 40k+ file repositories. We can define the standard before competitors emerge.
 
-- **Dataset expansion**: What additional enterprise repos with 40k+ files should be prioritized for v1? Target language diversity (Java, TypeScript, Go, Rust), build systems, test suites.
-- **Validation steps**: Do we require an automated compile/test step for some repos to complement diff-based judging?
-- **Submission process**: What external submission/verification process is acceptable (fully automated vs. curated)? How do we prevent gaming?
-- **Leaderboard transparency**: What is the minimal metadata to include in public leaderboards to balance transparency and privacy/security?
-- **Lab partnerships**: Which 2-3 frontier labs should we prioritize for initial partnerships? OpenAI, Anthropic, Google?
-- **Timing**: When should we launch the public leaderboard to maximize impact? Coordinate with a major model release?
+2. **Augment's technical moat**: Our context engine and retrieval technology are specifically built for this use case. LCB showcases our core strengths.
 
-### 12) References (selected)
+3. **Dataset control**: We control the dataset, evaluation criteria, and infrastructure. We can evolve the benchmark to stay relevant and challenging.
 
-- SWE-bench: https://github.com/SWE-bench/SWE-bench • Leaderboard: https://www.swebench.com/
-- SWE-bench Verified: https://openai.com/index/introducing-swe-bench-verified/ • HF dataset: https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified
-- Terminal-Bench: https://www.tbench.ai/
-- LiveCodeBench (paper): https://arxiv.org/abs/2403.07974
-- RepoBench: https://arxiv.org/abs/2306.03091 • Code: https://github.com/Leolty/repobench
-- CodeRAG-Bench: https://code-rag-bench.github.io/
+4. **Community building**: Open-sourcing the benchmark builds goodwill and positions Augment as a thought leader in enterprise AI coding.
+
+**Revenue and Growth Opportunities**
+
+1. **Enterprise sales**: LCB results become a key part of sales conversations. "Our agent scores X% on LCB, the industry standard for enterprise codebases."
+
+2. **Partnerships with labs**: Co-marketing opportunities with frontier labs when they release new models with LCB results.
+
+3. **Consulting and services**: Help enterprises run LCB on their internal repositories; offer custom benchmark development.
+
+4. **Premium features**: Offer hosted leaderboard, private benchmarks, advanced analytics as paid features.
+
+**Technical and Research Opportunities**
+
+1. **Dataset expansion**: Build v1+ with diverse repos (Java, TypeScript, Go, Rust) to cover more enterprise environments.
+
+2. **New evaluation dimensions**: Add compile/test validation, security checks, performance regression detection.
+
+3. **Academic partnerships**: Collaborate with universities on research papers, workshops, and competitions.
+
+4. **Open source contributions**: Attract community contributions for new runners, datasets, and evaluation methods.
+
+### 6) Weaknesses and Risks
+
+**Technical Risks**
+
+1. **Cost and runtime**: Running agents on 40k+ file repositories is expensive and time-consuming. Each run can take hours and cost $10-50 in API fees.
+   - *Mitigation*: Implement aggressive caching, sharding, and concurrency controls. Provide cost estimates upfront.
+
+2. **Non-determinism**: LLM agents are inherently non-deterministic. Same inputs can produce different outputs.
+   - *Mitigation*: Emphasize test labels for comparison (not absolute reproducibility). Use deterministic judge by default. Seed LLM judge with temperature 0.
+
+3. **Dataset contamination**: Risk that training data includes our benchmark PRs, inflating scores.
+   - *Mitigation*: Document release dates and temporal cutoffs. Use recent PRs. Encourage labs to report training data cutoff dates.
+
+4. **Gaming and overfitting**: Labs might optimize specifically for LCB, reducing its value as a general benchmark.
+   - *Mitigation*: Regularly update dataset. Add new repos and tasks. Keep some test sets private.
+
+**Adoption Risks**
+
+1. **Chicken-and-egg problem**: Labs won't care about LCB until it's widely recognized. It won't be widely recognized until labs use it.
+   - *Mitigation*: Partner with 2-3 friendly labs early. Get initial results published. Build momentum through marketing.
+
+2. **Complexity barrier**: Running LCB is more complex than SWE-bench (larger repos, longer runtimes, more infrastructure).
+   - *Mitigation*: Provide excellent documentation, one-line setup commands, cloud runner recipes, and cost calculators.
+
+3. **Competitive benchmarks**: Other companies might launch competing enterprise-scale benchmarks.
+   - *Mitigation*: Move fast. Build community. Establish LCB as the standard before competitors emerge.
+
+**Business Risks**
+
+1. **Resource commitment**: Building and maintaining a benchmark requires ongoing engineering, research, and marketing resources.
+   - *Mitigation*: Start lean. Focus on v0 adoption before expanding. Seek community contributions.
+
+2. **Perception risk**: If Augment's own agent doesn't perform well on LCB, it could backfire.
+   - *Mitigation*: Ensure Auggie is competitive before public launch. Use LCB internally to drive improvements.
+
+3. **Open source vs. proprietary tension**: Open-sourcing the benchmark means competitors can use it too.
+   - *Mitigation*: This is a feature, not a bug. Industry standards must be open. We benefit from being the creator and maintainer.
+
+**Data and Legal Risks**
+
+1. **Licensing and redistribution**: We can't redistribute source code from GitHub repos.
+   - *Mitigation*: Store only URLs and metadata. Users clone repos themselves. Clear documentation on licensing.
+
+2. **Privacy and security**: Benchmark runs might expose sensitive patterns or vulnerabilities.
+   - *Mitigation*: Clear guidance on what metadata to include in public submissions. Support private benchmarks for enterprises.
+
+### 7) Request for Feedback
+
+I'm seeking feedback on the following questions:
+
+**Strategic Direction**
+
+1. **Is this the right positioning?** Should LCB be "the enterprise standard" or should we position it differently (e.g., "the context engine benchmark", "the large codebase benchmark")?
+
+2. **What's the right launch strategy?** Should we:
+   - Launch publicly immediately and build in the open?
+   - Partner with 2-3 labs first, get initial results, then launch publicly?
+   - Run internal Auggie benchmarks first, optimize performance, then launch?
+
+3. **How aggressive should we be?** Should we directly call out SWE-bench's limitations or take a more collaborative tone?
+
+**Technical Priorities**
+
+4. **What should v1 dataset include?** Which repos and languages should we prioritize?
+   - Java monorepos (e.g., Spring Framework, Kafka)?
+   - TypeScript/React (e.g., VS Code, Next.js)?
+   - Go microservices (e.g., Kubernetes, Docker)?
+   - Rust systems (e.g., Servo, Tokio)?
+
+5. **Should we add compile/test validation?** Is diff-based judging sufficient or should we require that changes compile and tests pass?
+
+6. **What's the right balance between deterministic and LLM judging?** Should we default to deterministic, LLM, or offer both equally?
+
+**Go-to-Market**
+
+7. **Which labs should we partner with first?** OpenAI? Anthropic? Google? Meta? Smaller labs?
+
+8. **What's the right timing for public launch?** Should we coordinate with a major model release or launch independently?
+
+9. **How should we handle the web dashboard?** Build it ourselves, partner with a visualization company, or keep it minimal (just CSV/JSON exports)?
+
+**Resource Allocation**
+
+10. **What's the minimum viable team?** How many engineers, researchers, and marketing people do we need to make this successful?
+
+11. **What's the timeline?** Should we aim for public launch in 3 months, 6 months, 12 months?
+
+12. **What are the success criteria?** How do we measure whether LCB is achieving its goals?
+
+**Open Questions**
+
+13. **Am I missing any major risks or opportunities?**
+
+14. **Are there any fatal flaws in this proposal that would prevent LCB from becoming the enterprise standard?**
+
+15. **What would make you excited about this project? What would make you skeptical?**
 
 ---
 
-Appendix A: Alignment with current PRD
-- Primary flow (sample → edit → judge) with provenance and determinism is already implemented (see prd.md).
-- Test-label comparison is supported and will be presented as the primary evaluation mode in docs.
-- Web dashboard is already a Node app that reads JSON results; we will continue to invest here for shareable charts.
+**Please provide feedback by**: [Date TBD]
 
+**Feedback channels**:
+- Comment directly on this RFC document
+- Slack: #long-context-bench (if channel exists)
+- Email: aj47@users.noreply.github.com
+- GitHub Issues: https://github.com/AugmentedAJ/Long-Context-Code-Bench/issues
+
+Thank you for your time and input!
