@@ -4,12 +4,14 @@ A benchmark for evaluating and ranking long-context code editing capabilities of
 
 ## Overview
 
-Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across **massive repositories with tens of thousands of files** when given natural-language task instructions derived from PR metadata. Primary use case: **side-by-side agent comparison using test labels** for reproducible, apples-to-apples runs across enterprise-scale repositories. Leaderboards are supported as a secondary workflow.
+Long-Context-Bench evaluates how well coding agents can understand, modify, and integrate changes across **massive repositories with tens of thousands of files** when given natural-language task instructions. The benchmark uses real GitHub PRs from enterprise-scale codebases, with agents tasked to **recreate the PR changes given only the PR description** (title + body).
+
+Primary use case: **side-by-side agent comparison using test labels** for reproducible, apples-to-apples runs across enterprise-scale repositories. Leaderboards are supported as a secondary workflow.
 
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
-- 📊 Evaluates agents on 50 real Elasticsearch PRs (dataset v0, ~40K files per codebase)
+- 📊 Evaluates agents on 51 real Elasticsearch PRs (dataset v0, ~40K files per codebase)
 - 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, etc.)
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
@@ -623,9 +625,25 @@ The **judge stage** (evaluation) is deterministic when using `--judge-mode deter
 
 ## Dataset
 
-**Version:** v0
-**Size:** 50 PRs from elastic/elasticsearch
+**Version:** v0 (PR Recreation Methodology)
+
+**Size:** 51 entries from elastic/elasticsearch
 **File:** `data/elasticsearch_prs_50.json`
+
+### Methodology
+
+The v0 dataset evaluates agents on **recreating a PR given its description**:
+
+- **Task Instructions:** PR title + PR body (what the developer described they would do)
+- **Ground Truth:** The actual PR diff (what the developer actually did)
+- **Evaluation:** How well can the agent recreate the solution given the PR description?
+
+This tests an agent's ability to:
+1. Understand a developer's intended changes from their PR description
+2. Navigate and modify a massive codebase (~40K files)
+3. Produce changes that match the actual implementation
+
+**Note:** Some entries in v0 are GitHub issue numbers rather than PR numbers. These will cause 404 errors during sampling and should be filtered out or mapped to their closing PRs. A future dataset version (v2) on a separate branch addresses this by mapping issues to PRs and using issue descriptions as task instructions.
 
 The v0 dataset is frozen. Future versions may rotate or expand PRs with semantic versioning.
 
