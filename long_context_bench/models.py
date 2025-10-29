@@ -115,6 +115,7 @@ class RunManifest(BaseModel):
     flags: dict
     timestamp: str
     run_id: str
+    test_label: Optional[str] = None  # Optional label for grouping runs for comparison
 
 
 class AggregateSummary(BaseModel):

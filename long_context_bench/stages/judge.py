@@ -14,7 +14,7 @@ from rich.console import Console
 import litellm
 
 from long_context_bench import __version__
-from long_context_bench.models import Sample, Edit, Judge, Scores, JudgeRunManifest
+from long_context_bench.models import Sample, Edit, Judge, Scores, JudgeRunManifest, RunManifest
 
 console = Console()
 
@@ -314,6 +314,8 @@ def judge_edit(
     output_dir: Path,
     judge_run_id: str,
     cache_dir: Optional[Path] = None,
+    force: bool = False,
+    test_label: Optional[str] = None,
 ) -> Judge:
     """Judge a single edit.
 
@@ -325,17 +327,75 @@ def judge_edit(
         output_dir: Output directory
         judge_run_id: Judge run ID
         cache_dir: Optional cache directory for repositories
+        force: If True, re-judge even if judge.json already exists
+        test_label: Optional test label for grouping runs
 
     Returns:
         Judge object
     """
     pr_id = f"{sample.repo_url.split('/')[-2]}_{sample.repo_url.split('/')[-1].replace('.git', '')}_pr{sample.pr_number}"
 
-    console.print(f"[cyan]Judging {pr_id}...[/cyan]")
-
     # Create output directory
     judge_dir = output_dir / judge_mode / (judge_model or "default") / judge_run_id / pr_id
     judge_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if judge already exists (current run)
+    judge_file = judge_dir / "judge.json"
+
+    if judge_file.exists() and not force:
+        console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in this run)[/yellow]")
+        # Load and return existing judge
+        with open(judge_file) as f:
+            judge_data = json.load(f)
+            return Judge(**judge_data)
+
+    # If test_label is provided, check if this PR was already judged in any run with the same test_label
+    if test_label and not force:
+        # Check in staged mode (judge_run_manifest.json in judge_mode/model/run_id/)
+        judge_mode_dir = output_dir / judge_mode / (judge_model or "default")
+        if judge_mode_dir.exists():
+            for other_run_dir in judge_mode_dir.iterdir():
+                if not other_run_dir.is_dir() or other_run_dir.name == judge_run_id:
+                    continue
+
+                # Check if this run has the same test_label
+                manifest_file = other_run_dir / "judge_run_manifest.json"
+                if manifest_file.exists():
+                    with open(manifest_file) as f:
+                        manifest = JudgeRunManifest(**json.load(f))
+                        if manifest.test_label == test_label:
+                            # Check if this PR was judged in that run
+                            other_judge_file = other_run_dir / pr_id / "judge.json"
+                            if other_judge_file.exists():
+                                console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                # Load and return existing judge
+                                with open(other_judge_file) as f:
+                                    judge_data = json.load(f)
+                                    return Judge(**judge_data)
+
+        # Check in pipeline mode (run_manifest.json in summaries/run_id/)
+        summaries_dir = output_dir.parent / "summaries"
+        if summaries_dir.exists():
+            for other_run_dir in summaries_dir.iterdir():
+                if not other_run_dir.is_dir() or other_run_dir.name == judge_run_id:
+                    continue
+
+                # Check if this run has the same test_label
+                manifest_file = other_run_dir / "run_manifest.json"
+                if manifest_file.exists():
+                    with open(manifest_file) as f:
+                        manifest = RunManifest(**json.load(f))
+                        if manifest.test_label == test_label and manifest.judge_mode == judge_mode:
+                            # Check if this PR was judged in that run
+                            other_judge_file = output_dir / judge_mode / (judge_model or "default") / other_run_dir.name / pr_id / "judge.json"
+                            if other_judge_file.exists():
+                                console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                # Load and return existing judge
+                                with open(other_judge_file) as f:
+                                    judge_data = json.load(f)
+                                    return Judge(**judge_data)
+
+    console.print(f"[cyan]Judging {pr_id}...[/cyan]")
 
     try:
         # Get ground truth diff
@@ -441,6 +501,7 @@ def run_judge_stage(
     edit_run_ids: Optional[List[str]] = None,
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
+    force: bool = False,
 ) -> str:
     """Run the judge stage.
 
@@ -453,6 +514,7 @@ def run_judge_stage(
         edit_run_ids: Optional list of edit run IDs to evaluate (for batch mode)
         test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
+        force: If True, re-judge even if judge.json already exists
 
     Returns:
         Judge run ID
@@ -512,6 +574,8 @@ def run_judge_stage(
                     output_dir=output_dir,
                     judge_run_id=judge_run_id,
                     cache_dir=cache_dir,
+                    force=force,
+                    test_label=test_label,
                 )
                 judges.append(judge)
 
@@ -532,6 +596,8 @@ def run_judge_stage(
                 output_dir=output_dir,
                 judge_run_id=judge_run_id,
                 cache_dir=cache_dir,
+                force=force,
+                test_label=test_label,
             )
             judges.append(judge)
         else:

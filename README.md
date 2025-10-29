@@ -232,6 +232,40 @@ Run specific PRs using:
 - `--pr-numbers`: Filter by PR number (e.g., `--pr-numbers "115001,114998"`)
 - `--pr-indices`: Filter by index in dataset (e.g., `--pr-indices "0,1,2"`)
 
+### Resuming Interrupted Runs
+
+**The pipeline automatically resumes interrupted runs.** If a run is stopped mid-way (e.g., due to timeout, crash, or manual interruption), simply re-run the same command and it will:
+
+- ✅ **Skip completed PRs** - Checks for existing `sample.json`, `edit_summary.json`, and `judge.json` files
+- ✅ **Continue from where it left off** - Only processes PRs that haven't been completed
+- ✅ **Preserve existing results** - Does not overwrite or re-run completed work
+
+**Example:**
+```bash
+# Initial run (interrupted after 10 PRs)
+long-context-bench pipeline \
+  --runner auggie \
+  --model sonnet4.5 \
+  --test-label v0-auggie-sonnet45
+
+# Resume run (skips the 10 completed PRs, continues with remaining)
+long-context-bench pipeline \
+  --runner auggie \
+  --model sonnet4.5 \
+  --test-label v0-auggie-sonnet45
+```
+
+**Force re-run:** Use `--force` to re-run all stages regardless of existing outputs:
+```bash
+long-context-bench pipeline \
+  --runner auggie \
+  --model sonnet4.5 \
+  --test-label v0-auggie-sonnet45 \
+  --force
+```
+
+**Note:** The `--force` flag is also available for individual stages (`sample`, `edit`, `judge`).
+
 ## Pipeline Stages
 
 The benchmark consists of three stages that can be run together (pipeline mode) or separately (staged mode).

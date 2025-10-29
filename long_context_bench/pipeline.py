@@ -151,6 +151,7 @@ def run_pipeline(
     pr_numbers: Optional[str],
     pr_indices: Optional[str],
     cache_dir: Path,
+    force: bool = False,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
 
@@ -174,6 +175,7 @@ def run_pipeline(
         pr_numbers: Comma-separated PR numbers to run
         pr_indices: Comma-separated PR indices to run
         cache_dir: Directory for caching cloned repositories
+        force: If True, re-run all stages even if outputs already exist
     """
     run_id = str(uuid.uuid4())[:8]
 
@@ -228,7 +230,7 @@ def run_pipeline(
         try:
             # Sample stage
             console.print(f"\n[bold cyan]═══ Sample Stage ═══[/bold cyan]")
-            sample = sample_pr(pr_url, samples_dir, dataset_version, github_token, cache_dir)
+            sample = sample_pr(pr_url, samples_dir, dataset_version, github_token, cache_dir, force=force)
             if not sample:
                 continue
             samples.append(sample)
@@ -247,9 +249,11 @@ def run_pipeline(
                 enable_mcp_codebase_qa=enable_mcp_codebase_qa,
                 run_id=run_id,
                 cache_dir=cache_dir,
+                force=force,
+                test_label=test_label,
             )
             edits.append(edit)
-            
+
             # Judge stage
             console.print(f"\n[bold cyan]═══ Judge Stage ═══[/bold cyan]")
             judge = judge_edit(
@@ -260,11 +264,15 @@ def run_pipeline(
                 output_dir=judges_dir,
                 judge_run_id=run_id,
                 cache_dir=cache_dir,
+                force=force,
+                test_label=test_label,
             )
             judges.append(judge)
             
         except Exception as e:
+            import traceback
             console.print(f"[red]✗ Pipeline failed for {pr_url}: {e}[/red]")
+            console.print(f"[red]{traceback.format_exc()}[/red]")
     
     # Generate summary
     console.print(f"\n[bold cyan]═══ Generating Summary ═══[/bold cyan]")

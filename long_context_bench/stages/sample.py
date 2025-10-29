@@ -221,6 +221,7 @@ def sample_pr(
     dataset_version: str,
     github_token: Optional[str] = None,
     cache_dir: Optional[Path] = None,
+    force: bool = False,
 ) -> Optional[Sample]:
     """Sample a single PR and create sample.json.
 
@@ -230,6 +231,7 @@ def sample_pr(
         dataset_version: Dataset version string
         github_token: Optional GitHub token
         cache_dir: Optional cache directory for repositories
+        force: If True, re-sample even if sample.json already exists
 
     Returns:
         Sample object if successful, None if failed
@@ -237,6 +239,17 @@ def sample_pr(
     try:
         owner, repo, pr_number = parse_pr_url(pr_url)
         pr_id = get_pr_id(owner, repo, pr_number)
+
+        # Check if sample already exists
+        sample_dir = output_dir / dataset_version / pr_id
+        sample_file = sample_dir / "sample.json"
+
+        if sample_file.exists() and not force:
+            console.print(f"[yellow]⊙ Skipping {pr_id} (already sampled)[/yellow]")
+            # Load and return existing sample
+            with open(sample_file) as f:
+                sample_data = json.load(f)
+                return Sample(**sample_data)
 
         console.print(f"[cyan]Sampling {pr_id}...[/cyan]")
 
@@ -305,14 +318,16 @@ def run_sample_stage(
     output_dir: Path,
     dataset_version: str,
     github_token: Optional[str] = None,
+    force: bool = False,
 ) -> None:
     """Run the sample stage.
-    
+
     Args:
         input_path: PR URL, JSON file with URLs, or directory of samples
         output_dir: Output directory for samples
         dataset_version: Dataset version
         github_token: Optional GitHub token
+        force: If True, re-sample even if sample.json already exists
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -331,17 +346,24 @@ def run_sample_stage(
         return
     
     console.print(f"[bold]Sampling {len(pr_urls)} PRs...[/bold]")
-    
+
     successful = 0
     failed = 0
-    
+    skipped = 0
+
     for pr_url in pr_urls:
-        result = sample_pr(pr_url, output_dir, dataset_version, github_token)
+        result = sample_pr(pr_url, output_dir, dataset_version, github_token, force=force)
         if result:
+            # Check if it was skipped (file existed before)
+            owner, repo, pr_number = parse_pr_url(pr_url)
+            pr_id = get_pr_id(owner, repo, pr_number)
+            sample_file = output_dir / dataset_version / pr_id / "sample.json"
+            # If force=False and file existed, it was loaded (not re-sampled)
+            # We can't easily distinguish, so just count as successful
             successful += 1
         else:
             failed += 1
-    
+
     console.print(f"\n[bold]Sample stage complete:[/bold]")
     console.print(f"  Successful: {successful}")
     console.print(f"  Failed: {failed}")

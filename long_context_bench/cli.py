@@ -19,19 +19,23 @@ def main() -> None:
 @click.option("--output-dir", type=click.Path(), default="output/samples", help="Output directory for samples")
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token for API access")
-def sample(input_path: str, output_dir: str, dataset_version: str, github_token: Optional[str]) -> None:
+@click.option("--force", is_flag=True, help="Re-sample even if sample.json already exists")
+def sample(input_path: str, output_dir: str, dataset_version: str, github_token: Optional[str], force: bool) -> None:
     """Sample stage: Extract PR metadata and create sample.json files.
-    
+
     INPUT_PATH can be a PR URL, JSON file with PR URLs, or directory of samples.
+
+    By default, skips PRs that have already been sampled. Use --force to re-sample.
     """
     from long_context_bench.stages.sample import run_sample_stage
-    
+
     click.echo(f"Running sample stage on {input_path}")
     run_sample_stage(
         input_path=input_path,
         output_dir=Path(output_dir),
         dataset_version=dataset_version,
         github_token=github_token,
+        force=force,
     )
     click.echo("Sample stage completed")
 
@@ -50,6 +54,7 @@ def sample(input_path: str, output_dir: str, dataset_version: str, github_token:
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-run even if edit_summary.json already exists")
 def edit(
     sample_path: str,
     runner: str,
@@ -64,11 +69,14 @@ def edit(
     dataset_version: str,
     test_label: Optional[str],
     cache_dir: str,
+    force: bool,
 ) -> None:
     """Edit stage: Run agent on samples and capture diffs.
 
     Creates a new edit run with a unique ID. All edits from this run will be
     saved under output/edits/<runner>/<model>/<edit_run_id>/.
+
+    By default, skips PRs that have already been edited. Use --force to re-run.
     """
     from long_context_bench.stages.edit import run_edit_stage
 
@@ -89,6 +97,7 @@ def edit(
         dataset_version=dataset_version,
         test_label=test_label,
         cache_dir=Path(cache_dir),
+        force=force,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 
@@ -102,6 +111,7 @@ def edit(
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--output-dir", type=click.Path(), default="output/judges", help="Output directory for judgments")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-judge even if judge.json already exists")
 def judge(
     sample_path: Optional[str],
     edit_path: Optional[str],
@@ -111,6 +121,7 @@ def judge(
     test_label: Optional[str],
     output_dir: str,
     cache_dir: str,
+    force: bool,
 ) -> None:
     """Judge stage: Score agent edits against ground truth.
 
@@ -120,6 +131,8 @@ def judge(
 
     Creates a new judge run with a unique ID. All judgments from this run will be
     saved under output/judges/<judge_mode>/<judge_model>/<judge_run_id>/.
+
+    By default, skips PRs that have already been judged. Use --force to re-judge.
     """
     from long_context_bench.stages.judge import run_judge_stage
 
@@ -148,6 +161,7 @@ def judge(
         edit_run_ids=edit_run_id_list,
         test_label=test_label,
         cache_dir=Path(cache_dir),
+        force=force,
     )
     click.echo(f"Judge stage completed. Judge run ID: {judge_run_id}")
 
@@ -172,6 +186,7 @@ def judge(
 @click.option("--pr-numbers", help="Comma-separated list of PR numbers to run (e.g., '115001,114998')")
 @click.option("--pr-indices", help="Comma-separated list of PR indices to run (0-based, e.g., '0,1,2')")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-run all stages even if outputs already exist")
 def pipeline(
     runner: str,
     model: str,
@@ -192,11 +207,15 @@ def pipeline(
     pr_numbers: Optional[str],
     pr_indices: Optional[str],
     cache_dir: str,
+    force: bool,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
 
-    By default, runs on the full v0 dataset (50 Elasticsearch PRs).
+    By default, runs on the full v0 dataset (42 Elasticsearch PRs).
     Use --pr-numbers or --pr-indices to run on specific PRs only.
+
+    The pipeline automatically resumes interrupted runs by skipping PRs that have
+    already been processed. Use --force to re-run all stages regardless.
     """
     from long_context_bench.pipeline import run_pipeline
 
@@ -223,6 +242,7 @@ def pipeline(
         pr_numbers=pr_numbers,
         pr_indices=pr_indices,
         cache_dir=Path(cache_dir),
+        force=force,
     )
     click.echo("Pipeline completed")
 

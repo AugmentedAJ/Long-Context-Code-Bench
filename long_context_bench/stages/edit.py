@@ -13,7 +13,7 @@ import git
 from rich.console import Console
 
 from long_context_bench import __version__
-from long_context_bench.models import Sample, Edit, EditRunManifest
+from long_context_bench.models import Sample, Edit, EditRunManifest, RunManifest
 from long_context_bench.runners import get_runner_adapter
 
 console = Console()
@@ -129,6 +129,8 @@ def run_edit_on_sample(
     enable_mcp_codebase_qa: bool,
     run_id: str,
     cache_dir: Optional[Path] = None,
+    force: bool = False,
+    test_label: Optional[str] = None,
 ) -> Edit:
     """Run edit stage on a single sample.
 
@@ -144,17 +146,96 @@ def run_edit_on_sample(
         enable_mcp_codebase_qa: Enable MCP codebase QA
         run_id: Run ID
         cache_dir: Optional cache directory for repositories
+        force: If True, re-run even if edit_summary.json already exists
+        test_label: Optional test label for grouping runs
 
     Returns:
         Edit object
     """
     pr_id = f"{sample.repo_url.split('/')[-2]}_{sample.repo_url.split('/')[-1].replace('.git', '')}_pr{sample.pr_number}"
-    
-    console.print(f"[cyan]Running edit on {pr_id}...[/cyan]")
-    
+
     # Create output directory
     edit_dir = output_dir / runner / model / run_id / pr_id
     edit_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if edit already exists (current run)
+    edit_summary_file = edit_dir / "edit_summary.json"
+
+    if edit_summary_file.exists() and not force:
+        console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in this run)[/yellow]")
+        # Load and return existing edit
+        with open(edit_summary_file) as f:
+            edit_data = json.load(f)
+            # Load patch from separate file
+            patch_file = edit_dir / "edit.patch"
+            if patch_file.exists():
+                with open(patch_file) as pf:
+                    edit_data["patch_unified"] = pf.read()
+            else:
+                edit_data["patch_unified"] = ""
+            return Edit(**edit_data)
+
+    # If test_label is provided, check if this PR was already edited in any run with the same test_label
+    if test_label and not force:
+        # Check in staged mode (edit_run_manifest.json in runner/model/run_id/)
+        runner_model_dir = output_dir / runner / model
+        if runner_model_dir.exists():
+            for other_run_dir in runner_model_dir.iterdir():
+                if not other_run_dir.is_dir() or other_run_dir.name == run_id:
+                    continue
+
+                # Check if this run has the same test_label
+                manifest_file = other_run_dir / "edit_run_manifest.json"
+                if manifest_file.exists():
+                    with open(manifest_file) as f:
+                        manifest = EditRunManifest(**json.load(f))
+                        if manifest.test_label == test_label:
+                            # Check if this PR was edited in that run
+                            other_edit_file = other_run_dir / pr_id / "edit_summary.json"
+                            if other_edit_file.exists():
+                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                # Load and return existing edit
+                                with open(other_edit_file) as f:
+                                    edit_data = json.load(f)
+                                    # Load patch from separate file
+                                    patch_file = other_run_dir / pr_id / "edit.patch"
+                                    if patch_file.exists():
+                                        with open(patch_file) as pf:
+                                            edit_data["patch_unified"] = pf.read()
+                                    else:
+                                        edit_data["patch_unified"] = ""
+                                    return Edit(**edit_data)
+
+        # Check in pipeline mode (run_manifest.json in summaries/run_id/)
+        summaries_dir = output_dir.parent / "summaries"
+        if summaries_dir.exists():
+            for other_run_dir in summaries_dir.iterdir():
+                if not other_run_dir.is_dir() or other_run_dir.name == run_id:
+                    continue
+
+                # Check if this run has the same test_label
+                manifest_file = other_run_dir / "run_manifest.json"
+                if manifest_file.exists():
+                    with open(manifest_file) as f:
+                        manifest = RunManifest(**json.load(f))
+                        if manifest.test_label == test_label and manifest.runner == runner and manifest.model == model:
+                            # Check if this PR was edited in that run
+                            other_edit_file = output_dir / runner / model / other_run_dir.name / pr_id / "edit_summary.json"
+                            if other_edit_file.exists():
+                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                # Load and return existing edit
+                                with open(other_edit_file) as f:
+                                    edit_data = json.load(f)
+                                    # Load patch from separate file
+                                    patch_file = output_dir / runner / model / other_run_dir.name / pr_id / "edit.patch"
+                                    if patch_file.exists():
+                                        with open(patch_file) as pf:
+                                            edit_data["patch_unified"] = pf.read()
+                                    else:
+                                        edit_data["patch_unified"] = ""
+                                    return Edit(**edit_data)
+
+    console.print(f"[cyan]Running edit on {pr_id}...[/cyan]")
     
     logs_path = edit_dir / "logs.jsonl"
     
@@ -242,7 +323,6 @@ def run_edit_on_sample(
             edit_dict["patch_file"] = "edit.patch"
             edit_dict.pop("patch_unified")  # Remove the inline patch
             with open(edit_summary_file, "w") as f:
-                import json
                 json.dump(edit_dict, f, indent=2)
             
             console.print(f"[green]✓ Edit completed for {pr_id} (status: {result.status})[/green]")
@@ -282,7 +362,6 @@ def run_edit_on_sample(
             edit_dict["patch_file"] = "edit.patch"
             edit_dict.pop("patch_unified")
             with open(edit_summary_file, "w") as f:
-                import json
                 json.dump(edit_dict, f, indent=2)
 
             return edit
@@ -302,6 +381,7 @@ def run_edit_stage(
     dataset_version: str = "v0",
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
+    force: bool = False,
 ) -> str:
     """Run the edit stage.
 
@@ -319,6 +399,7 @@ def run_edit_stage(
         dataset_version: Dataset version
         test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
+        force: If True, re-run even if edit_summary.json already exists
 
     Returns:
         Edit run ID
@@ -388,6 +469,8 @@ def run_edit_stage(
             enable_mcp_codebase_qa=enable_mcp_codebase_qa,
             run_id=edit_run_id,
             cache_dir=cache_dir,
+            force=force,
+            test_label=test_label,
         )
 
     console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")
