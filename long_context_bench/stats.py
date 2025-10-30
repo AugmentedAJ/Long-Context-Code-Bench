@@ -188,6 +188,31 @@ def generate_summary_for_runs(
         console.print("[yellow]No samples found[/yellow]")
         return
 
+    # Extract test_label from edit run manifest if available
+    test_label = None
+    if edit_run_id:
+        from long_context_bench.models import EditRunManifest
+        edits_dir = results_dir / "edits"
+        if edits_dir.exists():
+            for manifest_file in edits_dir.rglob("edit_run_manifest.json"):
+                with open(manifest_file) as f:
+                    manifest = EditRunManifest(**json.load(f))
+                    if manifest.edit_run_id == edit_run_id:
+                        test_label = manifest.test_label
+                        break
+
+    # Extract test_label from judge run manifest if available
+    if judge_run_id and not test_label:
+        from long_context_bench.models import JudgeRunManifest
+        judges_dir = results_dir / "judges"
+        if judges_dir.exists():
+            for manifest_file in judges_dir.rglob("judge_run_manifest.json"):
+                with open(manifest_file) as f:
+                    manifest = JudgeRunManifest(**json.load(f))
+                    if manifest.judge_run_id == judge_run_id:
+                        test_label = manifest.test_label
+                        break
+
     # Compute summary
     run_id = judge_run_id or edit_run_id or "summary"
     summary = compute_aggregate_summary(
@@ -197,6 +222,7 @@ def generate_summary_for_runs(
         judges=judges,
         edit_run_id=edit_run_id,
         judge_run_id=judge_run_id,
+        test_label=test_label,
     )
 
     # Display table
