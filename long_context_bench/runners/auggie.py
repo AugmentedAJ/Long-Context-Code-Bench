@@ -43,8 +43,7 @@ class AuggieAdapter(RunnerAdapter):
 
         cmd = [
             self.agent_binary or "auggie",
-            "--print",  # One-shot mode (non-interactive)
-            "--allow-indexing",  # Skip indexing confirmation prompt
+            "--print",  # One-shot mode (non-interactive, auto-skips indexing confirmation)
             "--model", self.model,
             "--workspace-root", str(workspace_path),
             "--instruction-file", str(task_file),

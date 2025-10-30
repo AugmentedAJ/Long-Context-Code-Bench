@@ -263,10 +263,12 @@ def run_edit_on_sample(
             import shutil
             git_dir = workspace_path / ".git"
             hidden_git_dir = Path(tmpdir) / ".git_hidden"
+            git_was_hidden = False
             if git_dir.exists():
                 try:
                     shutil.move(str(git_dir), str(hidden_git_dir))
                     console.print("  .git hidden from agent during execution")
+                    git_was_hidden = True
                 except Exception as e:
                     console.print(f"  [yellow]Warning: Failed to hide .git: {e}[/yellow]")
 
@@ -289,8 +291,8 @@ def run_edit_on_sample(
                 env=os.environ.copy(),
             )
 
-            # Restore .git after agent run
-            if hidden_git_dir.exists() and not git_dir.exists():
+            # Restore .git after agent run (only if it was hidden)
+            if git_was_hidden and hidden_git_dir.exists() and not git_dir.exists():
                 try:
                     shutil.move(str(hidden_git_dir), str(git_dir))
                     console.print("  .git restored after agent execution")
