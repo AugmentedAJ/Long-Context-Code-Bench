@@ -132,6 +132,7 @@ def run_edit_on_sample(
     force: bool = False,
     test_label: Optional[str] = None,
     use_synthesized: bool = False,
+    stream_output: bool = False,
 ) -> Edit:
     """Run edit stage on a single sample.
 
@@ -150,6 +151,7 @@ def run_edit_on_sample(
         force: If True, re-run even if edit_summary.json already exists
         test_label: Optional test label for grouping runs
         use_synthesized: If True, use synthesized task instructions instead of template-based
+        stream_output: If True, stream agent output to console in real-time
 
     Returns:
         Edit object
@@ -250,6 +252,7 @@ def run_edit_on_sample(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        stream_output=stream_output,
     )
     
     # Materialize workspace
@@ -397,6 +400,7 @@ def run_edit_stage(
     cache_dir: Optional[Path] = None,
     force: bool = False,
     use_synthesized: bool = False,
+    stream_output: bool = False,
 ) -> str:
     """Run the edit stage.
 
@@ -416,6 +420,7 @@ def run_edit_stage(
         cache_dir: Optional cache directory for repositories
         force: If True, re-run even if edit_summary.json already exists
         use_synthesized: If True, use synthesized task instructions instead of template-based
+        stream_output: If True, stream agent output to console in real-time
 
     Returns:
         Edit run ID
@@ -488,6 +493,7 @@ def run_edit_stage(
             force=force,
             test_label=test_label,
             use_synthesized=use_synthesized,
+            stream_output=stream_output,
         )
 
     console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")

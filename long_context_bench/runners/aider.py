@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 from long_context_bench.runners.base import RunnerAdapter, RunnerResult
+from long_context_bench.runners.stream_utils import run_with_streaming
 
 
 class AiderAdapter(RunnerAdapter):
@@ -65,42 +66,42 @@ class AiderAdapter(RunnerAdapter):
         run_env = env.copy() if env else {}
 
         try:
-            # Run agent with timeout
-            result = subprocess.run(
-                cmd,
-                cwd=workspace_path,
+            # Run agent with optional streaming
+            returncode, stdout = run_with_streaming(
+                cmd=cmd,
+                cwd=str(workspace_path),
                 env=run_env,
-                capture_output=True,
                 timeout=self.timeout,
-                text=True,
+                stream_output=self.stream_output,
             )
-            
-            # Write logs - combine stdout/stderr and LLM history
+
+            # Write logs - combine stdout and LLM history
             with open(logs_path, "w") as f:
                 log_entry = {
                     "timestamp": time.time(),
                     "event": "agent_run",
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "returncode": result.returncode,
+                    "stdout": stdout,
+                    "stderr": "",  # Merged into stdout when streaming
+                    "returncode": returncode,
                 }
                 f.write(json.dumps(log_entry) + "\n")
-                
+
                 # Append LLM history if it exists
                 if llm_history.exists():
                     with open(llm_history, "r") as llm_f:
                         for line in llm_f:
                             f.write(line)
-            
+
             elapsed_ms = int((time.time() - start_time) * 1000)
-            
-            if result.returncode == 0:
+
+            if returncode == 0:
                 status = "success"
             else:
                 status = "error"
-                errors.append(f"Agent exited with code {result.returncode}")
-                if result.stderr:
-                    errors.append(result.stderr)
+                errors.append(f"Agent exited with code {returncode}")
+                # Extract error from stdout if present
+                if "error" in stdout.lower() or "failed" in stdout.lower():
+                    errors.append(stdout[-500:])  # Last 500 chars for context
             
             return RunnerResult(
                 status=status,

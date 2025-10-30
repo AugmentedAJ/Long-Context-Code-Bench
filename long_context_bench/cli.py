@@ -79,6 +79,7 @@ def sample(
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-run even if edit_summary.json already exists")
 @click.option("--use-synthesized", is_flag=True, help="Use synthesized task instructions instead of template-based")
+@click.option("--stream-output", is_flag=True, help="Stream agent output to console in real-time")
 def edit(
     sample_path: str,
     runner: str,
@@ -95,6 +96,7 @@ def edit(
     cache_dir: str,
     force: bool,
     use_synthesized: bool,
+    stream_output: bool,
 ) -> None:
     """Edit stage: Run agent on samples and capture diffs.
 
@@ -104,6 +106,8 @@ def edit(
     By default, skips PRs that have already been edited. Use --force to re-run.
 
     Use --use-synthesized to use LLM-generated task instructions (if available in samples).
+
+    Use --stream-output to see agent output in real-time during execution.
     """
     from long_context_bench.stages.edit import run_edit_stage
 
@@ -112,6 +116,8 @@ def edit(
         click.echo(f"Test label: {test_label}")
     if use_synthesized:
         click.echo("Using synthesized task instructions")
+    if stream_output:
+        click.echo("Streaming agent output enabled")
     edit_run_id = run_edit_stage(
         sample_path=Path(sample_path),
         runner=runner,
@@ -128,6 +134,7 @@ def edit(
         cache_dir=Path(cache_dir),
         force=force,
         use_synthesized=use_synthesized,
+        stream_output=stream_output,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 

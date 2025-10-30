@@ -384,6 +384,24 @@ long-context-bench edit data/samples/v0 \
 
 **Returns:** Edit run ID (e.g., `a1b2c3d4`)
 
+**Monitoring Agent Output:**
+
+By default, agent output is captured to log files. To see agent output in real-time during execution, use the `--stream-output` flag:
+
+```bash
+long-context-bench edit data/samples/v0 \
+  --runner auggie \
+  --model claude-sonnet-4 \
+  --stream-output
+```
+
+This is useful for:
+- Monitoring long-running agent executions
+- Debugging agent behavior in real-time
+- Observing agent progress on complex tasks
+
+The output is still saved to log files even when streaming is enabled.
+
 #### 3. Judge Stage
 
 Scores agent edits against ground truth. Can evaluate one or more edit runs:
