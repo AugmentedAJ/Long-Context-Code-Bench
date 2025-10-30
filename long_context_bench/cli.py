@@ -285,6 +285,111 @@ def pipeline(
 
 
 @main.command()
+@click.option("--agents", required=True, help="Agent configurations in format 'runner:model[:binary],runner:model[:binary],...' (e.g., 'auggie:claude-sonnet-4.5,claude-code:claude-sonnet-4.5')")
+@click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
+@click.option("--dataset-version", default="v0", help="Dataset version")
+@click.option("--timeout", type=int, default=1800, help="Timeout in seconds per task")
+@click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
+@click.option("--total-shards", type=int, default=1, help="Total number of shards")
+@click.option("--shard-index", type=int, default=0, help="Current shard index (0-based)")
+@click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode")
+@click.option("--judge-model", help="Judge model (for LLM mode)")
+@click.option("--test-label", help="Optional label for grouping runs for comparison")
+@click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token")
+@click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
+@click.option("--disable-shell", is_flag=True, help="Disable shell access")
+@click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--pr-numbers", help="Comma-separated list of PR numbers to run (e.g., '115001,114998')")
+@click.option("--pr-indices", help="Comma-separated list of PR indices to run (0-based, e.g., '0,1,2')")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-run all stages even if outputs already exist")
+def pipeline_parallel(
+    agents: str,
+    output_dir: str,
+    dataset_version: str,
+    timeout: int,
+    concurrency: int,
+    total_shards: int,
+    shard_index: int,
+    judge_mode: str,
+    judge_model: Optional[str],
+    test_label: Optional[str],
+    github_token: Optional[str],
+    disable_retrieval: bool,
+    disable_shell: bool,
+    enable_mcp_codebase_qa: bool,
+    pr_numbers: Optional[str],
+    pr_indices: Optional[str],
+    cache_dir: str,
+    force: bool,
+) -> None:
+    """Run pipeline with multiple agents in parallel.
+
+    This command allows you to run multiple agents (e.g., Auggie and Claude Code)
+    in parallel on the same dataset for easy comparison.
+
+    Example:
+        long-context-bench pipeline-parallel \\
+            --agents "auggie:claude-sonnet-4.5,claude-code:claude-sonnet-4.5" \\
+            --pr-indices "0,1,2"
+
+    Each agent runs in its own isolated workspace and writes to separate output directories.
+    The sample stage is shared (run once), but edit and judge stages run in parallel per agent.
+    """
+    from long_context_bench.pipeline import run_pipeline
+
+    # Parse agent configurations
+    agent_configs = []
+    for agent_spec in agents.split(","):
+        parts = agent_spec.strip().split(":")
+        if len(parts) < 2:
+            click.echo(f"Error: Invalid agent spec '{agent_spec}'. Expected format: 'runner:model[:binary]'", err=True)
+            return
+
+        config = {
+            "runner": parts[0],
+            "model": parts[1],
+        }
+        if len(parts) >= 3:
+            config["agent_binary"] = parts[2]
+
+        agent_configs.append(config)
+
+    click.echo(f"Running pipeline with {len(agent_configs)} agents in parallel:")
+    for i, cfg in enumerate(agent_configs, 1):
+        binary_info = f" (binary: {cfg['agent_binary']})" if "agent_binary" in cfg else ""
+        click.echo(f"  {i}. {cfg['runner']} / {cfg['model']}{binary_info}")
+
+    if test_label:
+        click.echo(f"Test label: {test_label}")
+
+    run_pipeline(
+        runner=None,  # Not used when agent_configs is provided
+        model=None,   # Not used when agent_configs is provided
+        agent_binary=None,  # Not used when agent_configs is provided
+        output_dir=Path(output_dir),
+        dataset_version=dataset_version,
+        timeout=timeout,
+        concurrency=concurrency,
+        total_shards=total_shards,
+        shard_index=shard_index,
+        judge_mode=judge_mode,
+        judge_model=judge_model,
+        test_label=test_label,
+        github_token=github_token,
+        disable_retrieval=disable_retrieval,
+        disable_shell=disable_shell,
+        enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        pr_numbers=pr_numbers,
+        pr_indices=pr_indices,
+        cache_dir=Path(cache_dir),
+        force=force,
+        agent_configs=agent_configs,
+    )
+    click.echo("Pipeline completed")
+
+
+@main.command()
 @click.argument("results_dir", type=click.Path(exists=True))
 @click.option("--output-file", type=click.Path(), help="Output file for stats")
 def stats(results_dir: str, output_file: Optional[str]) -> None:

@@ -1,7 +1,7 @@
 """Tests for pipeline utilities."""
 
 import pytest
-from long_context_bench.pipeline import compute_shard_hash, should_process_in_shard
+from long_context_bench.pipeline import compute_shard_hash, should_process_in_shard, _run_single_agent
 
 
 def test_compute_shard_hash():
@@ -49,4 +49,33 @@ def test_should_process_in_shard():
     # No shard should have more than 2x the average
     avg = len(pr_numbers) / total_shards
     assert all(count < 2 * avg for count in shard_counts)
+
+
+def test_agent_config_parsing():
+    """Test agent configuration parsing for parallel execution."""
+    # Test single agent config
+    agent_configs = [{
+        "runner": "auggie",
+        "model": "claude-sonnet-4.5",
+    }]
+    assert len(agent_configs) == 1
+    assert agent_configs[0]["runner"] == "auggie"
+    assert agent_configs[0]["model"] == "claude-sonnet-4.5"
+
+    # Test multiple agent configs
+    agent_configs = [
+        {"runner": "auggie", "model": "claude-sonnet-4.5"},
+        {"runner": "claude-code", "model": "claude-sonnet-4.5"},
+    ]
+    assert len(agent_configs) == 2
+    assert agent_configs[0]["runner"] == "auggie"
+    assert agent_configs[1]["runner"] == "claude-code"
+
+    # Test with custom binary
+    agent_configs = [{
+        "runner": "auggie",
+        "model": "claude-sonnet-4.5",
+        "agent_binary": "/usr/local/bin/auggie",
+    }]
+    assert agent_configs[0]["agent_binary"] == "/usr/local/bin/auggie"
 

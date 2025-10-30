@@ -47,7 +47,20 @@ async function loadSummary(runId) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/summaries/${runId}/summary.json`);
+        // First, try to find the summary_path from the index
+        const index = dataCache.index || await loadIndex();
+        const run = index.runs.find(r => r.run_id === runId);
+
+        let summaryPath;
+        if (run && run.summary_path) {
+            // Use the summary_path from the index
+            summaryPath = `${API_BASE}/${run.summary_path}`;
+        } else {
+            // Fallback to the old path format
+            summaryPath = `${API_BASE}/summaries/${runId}/summary.json`;
+        }
+
+        const response = await fetch(summaryPath);
         if (!response.ok) {
             throw new Error(`Failed to load summary for ${runId}`);
         }
@@ -206,15 +219,29 @@ async function loadRunDetails(runId) {
 async function getSummariesByTestLabel(testLabel) {
     const index = dataCache.index || await loadIndex();
     const runs = index.runs.filter(r => r.test_label === testLabel);
-    
+
     const summaries = [];
     for (const run of runs) {
-        const summary = await loadSummary(run.run_id);
-        if (summary) {
-            summaries.push(summary);
+        // Load summary directly from the summary_path if available
+        if (run.summary_path) {
+            try {
+                const response = await fetch(`${API_BASE}/${run.summary_path}`);
+                if (response.ok) {
+                    const summary = await response.json();
+                    summaries.push(summary);
+                }
+            } catch (error) {
+                console.error(`Error loading summary from ${run.summary_path}:`, error);
+            }
+        } else {
+            // Fallback to loadSummary for backward compatibility
+            const summary = await loadSummary(run.run_id);
+            if (summary) {
+                summaries.push(summary);
+            }
         }
     }
-    
+
     return summaries;
 }
 

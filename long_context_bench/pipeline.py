@@ -5,9 +5,10 @@ import hashlib
 import platform
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from rich.console import Console
 
@@ -131,6 +132,108 @@ def filter_pr_urls(
     return pr_urls
 
 
+def _run_single_agent(
+    runner: str,
+    model: str,
+    agent_binary: Optional[str],
+    samples: List[Any],
+    output_dir: Path,
+    timeout: int,
+    disable_retrieval: bool,
+    disable_shell: bool,
+    enable_mcp_codebase_qa: bool,
+    run_id: str,
+    cache_dir: Path,
+    force: bool,
+    test_label: Optional[str],
+    judge_mode: str,
+    judge_model: Optional[str],
+    dataset_version: str,
+) -> Dict[str, Any]:
+    """Run a single agent configuration on all samples.
+
+    This function is designed to be run in parallel with other agents.
+    Each agent writes to its own isolated directory structure.
+
+    Args:
+        runner: Agent runner name
+        model: Model name
+        agent_binary: Optional agent binary path
+        samples: List of samples to process
+        output_dir: Output root directory
+        timeout: Timeout in seconds
+        disable_retrieval: Disable retrieval
+        disable_shell: Disable shell
+        enable_mcp_codebase_qa: Enable MCP codebase QA
+        run_id: Run ID
+        cache_dir: Cache directory
+        force: Force re-run
+        test_label: Test label
+        judge_mode: Judge mode
+        judge_model: Judge model
+        dataset_version: Dataset version
+
+    Returns:
+        Dict with agent results including edits, judges, and summary
+    """
+    edits = []
+    judges = []
+
+    # Create agent-specific output directories
+    edits_dir = output_dir / "edits"
+    judges_dir = output_dir / "judges"
+
+    console.print(f"\n[bold magenta]Running agent: {runner} with model {model}[/bold magenta]")
+
+    for sample in samples:
+        try:
+            # Edit stage
+            console.print(f"\n[bold cyan]═══ Edit Stage ({runner}/{model}) ═══[/bold cyan]")
+            edit = run_edit_on_sample(
+                sample=sample,
+                runner=runner,
+                model=model,
+                agent_binary=agent_binary,
+                output_dir=edits_dir,
+                timeout=timeout,
+                disable_retrieval=disable_retrieval,
+                disable_shell=disable_shell,
+                enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+                run_id=run_id,
+                cache_dir=cache_dir,
+                force=force,
+                test_label=test_label,
+            )
+            edits.append(edit)
+
+            # Judge stage
+            console.print(f"\n[bold cyan]═══ Judge Stage ({runner}/{model}) ═══[/bold cyan]")
+            judge = judge_edit(
+                sample=sample,
+                edit=edit,
+                judge_mode=judge_mode,
+                judge_model=judge_model,
+                output_dir=judges_dir,
+                judge_run_id=run_id,
+                cache_dir=cache_dir,
+                force=force,
+                test_label=test_label,
+            )
+            judges.append(judge)
+
+        except Exception as e:
+            import traceback
+            console.print(f"[red]✗ Pipeline failed for {sample.pr_url} ({runner}/{model}): {e}[/red]")
+            console.print(f"[red]{traceback.format_exc()}[/red]")
+
+    return {
+        "runner": runner,
+        "model": model,
+        "edits": edits,
+        "judges": judges,
+    }
+
+
 def run_pipeline(
     runner: str,
     model: str,
@@ -152,13 +255,14 @@ def run_pipeline(
     pr_indices: Optional[str],
     cache_dir: Path,
     force: bool = False,
+    agent_configs: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
 
     Args:
-        runner: Runner name
-        model: Model name
-        agent_binary: Optional agent binary path
+        runner: Runner name (used if agent_configs is None)
+        model: Model name (used if agent_configs is None)
+        agent_binary: Optional agent binary path (used if agent_configs is None)
         output_dir: Output root directory
         dataset_version: Dataset version
         timeout: Timeout in seconds
@@ -176,14 +280,27 @@ def run_pipeline(
         pr_indices: Comma-separated PR indices to run
         cache_dir: Directory for caching cloned repositories
         force: If True, re-run all stages even if outputs already exist
+        agent_configs: Optional list of agent configurations for parallel execution.
+            Each config is a dict with keys: runner, model, agent_binary (optional).
+            If provided, runner/model/agent_binary args are ignored.
     """
     run_id = str(uuid.uuid4())[:8]
 
+    # Determine agent configurations
+    if agent_configs is None:
+        # Single agent mode (backward compatible)
+        agent_configs = [{
+            "runner": runner,
+            "model": model,
+            "agent_binary": agent_binary,
+        }]
+
     console.print(f"[bold]Starting pipeline run {run_id}[/bold]")
-    console.print(f"  Runner: {runner}")
-    console.print(f"  Model: {model}")
     console.print(f"  Dataset: {dataset_version}")
     console.print(f"  Shard: {shard_index + 1}/{total_shards}")
+    console.print(f"  Agents: {len(agent_configs)}")
+    for i, cfg in enumerate(agent_configs, 1):
+        console.print(f"    {i}. {cfg['runner']} / {cfg['model']}")
     if test_label:
         console.print(f"  Test label: {test_label}")
 
@@ -205,7 +322,7 @@ def run_pipeline(
     pr_urls = filter_pr_urls(all_pr_urls, pr_numbers, pr_indices)
     if pr_numbers or pr_indices:
         console.print(f"  Filtered to {len(pr_urls)} PRs based on selection")
-    
+
     # Filter by shard
     filtered_urls = []
     for url in pr_urls:
@@ -217,117 +334,176 @@ def run_pipeline(
                 filtered_urls.append(url)
         except Exception as e:
             console.print(f"[yellow]Warning: Failed to parse {url}: {e}[/yellow]")
-    
+
     console.print(f"[bold]Processing {len(filtered_urls)} PRs in this shard[/bold]\n")
-    
-    # Track results
+
+    # Sample stage (shared across all agents)
     samples = []
-    edits = []
-    judges = []
-    
-    # Process each PR
+    console.print(f"\n[bold cyan]═══ Sample Stage (shared) ═══[/bold cyan]")
     for pr_url in filtered_urls:
         try:
-            # Sample stage
-            console.print(f"\n[bold cyan]═══ Sample Stage ═══[/bold cyan]")
             sample = sample_pr(pr_url, samples_dir, dataset_version, github_token, cache_dir, force=force)
-            if not sample:
-                continue
-            samples.append(sample)
-
-            # Edit stage
-            console.print(f"\n[bold cyan]═══ Edit Stage ═══[/bold cyan]")
-            edit = run_edit_on_sample(
-                sample=sample,
-                runner=runner,
-                model=model,
-                agent_binary=agent_binary,
-                output_dir=edits_dir,
-                timeout=timeout,
-                disable_retrieval=disable_retrieval,
-                disable_shell=disable_shell,
-                enable_mcp_codebase_qa=enable_mcp_codebase_qa,
-                run_id=run_id,
-                cache_dir=cache_dir,
-                force=force,
-                test_label=test_label,
-            )
-            edits.append(edit)
-
-            # Judge stage
-            console.print(f"\n[bold cyan]═══ Judge Stage ═══[/bold cyan]")
-            judge = judge_edit(
-                sample=sample,
-                edit=edit,
-                judge_mode=judge_mode,
-                judge_model=judge_model,
-                output_dir=judges_dir,
-                judge_run_id=run_id,
-                cache_dir=cache_dir,
-                force=force,
-                test_label=test_label,
-            )
-            judges.append(judge)
-            
+            if sample:
+                samples.append(sample)
         except Exception as e:
             import traceback
-            console.print(f"[red]✗ Pipeline failed for {pr_url}: {e}[/red]")
+            console.print(f"[red]✗ Sample failed for {pr_url}: {e}[/red]")
             console.print(f"[red]{traceback.format_exc()}[/red]")
-    
-    # Generate summary
-    console.print(f"\n[bold cyan]═══ Generating Summary ═══[/bold cyan]")
-    
-    # Create run manifest
-    manifest = RunManifest(
-        dataset_version=dataset_version,
-        harness_version=__version__,
-        runner=runner,
-        runner_version=None,  # TODO: Get from adapter
-        model=model,
-        judge_mode=judge_mode,
-        judge_model=judge_model,
-        os=platform.system(),
-        python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        timeout_s=timeout,
-        concurrency=concurrency,
-        total_shards=total_shards,
-        shard_index=shard_index,
-        flags={
-            "disable_retrieval": disable_retrieval,
-            "disable_shell": disable_shell,
-            "enable_mcp_codebase_qa": enable_mcp_codebase_qa,
-        },
-        timestamp=datetime.utcnow().isoformat(),
-        run_id=run_id,
-        test_label=test_label,
-    )
-    
-    manifest_file = summaries_dir / "run_manifest.json"
-    with open(manifest_file, "w") as f:
-        f.write(manifest.model_dump_json(indent=2))
-    
-    # Compute aggregate statistics
-    from long_context_bench.stats import compute_aggregate_summary
 
-    summary = compute_aggregate_summary(
-        run_id=run_id,
-        samples=samples,
-        edits=edits,
-        judges=judges,
-        test_label=test_label,
-        runner=runner,
-        model=model,
-    )
-    
-    summary_file = summaries_dir / "summary.json"
-    with open(summary_file, "w") as f:
-        f.write(summary.model_dump_json(indent=2))
-    
-    # Write CSV
+    if not samples:
+        console.print("[yellow]No samples to process[/yellow]")
+        return
+
+    console.print(f"[bold green]Sampled {len(samples)} PRs[/bold green]")
+
+    # Run agents in parallel
+    all_agent_results = []
+
+    if len(agent_configs) == 1:
+        # Single agent - no parallelization needed
+        cfg = agent_configs[0]
+        result = _run_single_agent(
+            runner=cfg["runner"],
+            model=cfg["model"],
+            agent_binary=cfg.get("agent_binary"),
+            samples=samples,
+            output_dir=output_dir,
+            timeout=timeout,
+            disable_retrieval=disable_retrieval,
+            disable_shell=disable_shell,
+            enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+            run_id=run_id,
+            cache_dir=cache_dir,
+            force=force,
+            test_label=test_label,
+            judge_mode=judge_mode,
+            judge_model=judge_model,
+            dataset_version=dataset_version,
+        )
+        all_agent_results.append(result)
+    else:
+        # Multiple agents - run in parallel
+        console.print(f"\n[bold magenta]Running {len(agent_configs)} agents in parallel[/bold magenta]")
+
+        with ThreadPoolExecutor(max_workers=len(agent_configs)) as executor:
+            futures = {}
+            for cfg in agent_configs:
+                future = executor.submit(
+                    _run_single_agent,
+                    runner=cfg["runner"],
+                    model=cfg["model"],
+                    agent_binary=cfg.get("agent_binary"),
+                    samples=samples,
+                    output_dir=output_dir,
+                    timeout=timeout,
+                    disable_retrieval=disable_retrieval,
+                    disable_shell=disable_shell,
+                    enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+                    run_id=run_id,
+                    cache_dir=cache_dir,
+                    force=force,
+                    test_label=test_label,
+                    judge_mode=judge_mode,
+                    judge_model=judge_model,
+                    dataset_version=dataset_version,
+                )
+                futures[future] = f"{cfg['runner']}/{cfg['model']}"
+
+            # Wait for all agents to complete
+            for future in as_completed(futures):
+                agent_name = futures[future]
+                try:
+                    result = future.result()
+                    all_agent_results.append(result)
+                    console.print(f"[bold green]✓ Agent {agent_name} completed[/bold green]")
+                except Exception as e:
+                    import traceback
+                    console.print(f"[red]✗ Agent {agent_name} failed: {e}[/red]")
+                    console.print(f"[red]{traceback.format_exc()}[/red]")
+
+    # Collect all edits and judges from all agents
+    edits = []
+    judges = []
+    for result in all_agent_results:
+        edits.extend(result["edits"])
+        judges.extend(result["judges"])
+
+    # Generate summary for each agent
+    console.print(f"\n[bold cyan]═══ Generating Summaries ═══[/bold cyan]")
+
+    from long_context_bench.stats import compute_aggregate_summary
     import pandas as pd
-    df = pd.DataFrame([summary.model_dump()])
+
+    all_summaries = []
+
+    for result in all_agent_results:
+        agent_runner = result["runner"]
+        agent_model = result["model"]
+        agent_edits = result["edits"]
+        agent_judges = result["judges"]
+
+        # Create run manifest for this agent
+        manifest = RunManifest(
+            dataset_version=dataset_version,
+            harness_version=__version__,
+            runner=agent_runner,
+            runner_version=None,  # TODO: Get from adapter
+            model=agent_model,
+            judge_mode=judge_mode,
+            judge_model=judge_model,
+            os=platform.system(),
+            python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            timeout_s=timeout,
+            concurrency=concurrency,
+            total_shards=total_shards,
+            shard_index=shard_index,
+            flags={
+                "disable_retrieval": disable_retrieval,
+                "disable_shell": disable_shell,
+                "enable_mcp_codebase_qa": enable_mcp_codebase_qa,
+            },
+            timestamp=datetime.utcnow().isoformat(),
+            run_id=run_id,
+            test_label=test_label,
+        )
+
+        manifest_file = summaries_dir / f"run_manifest_{agent_runner}_{agent_model}.json"
+        with open(manifest_file, "w") as f:
+            f.write(manifest.model_dump_json(indent=2))
+
+        # Compute aggregate statistics for this agent
+        summary = compute_aggregate_summary(
+            run_id=run_id,
+            samples=samples,
+            edits=agent_edits,
+            judges=agent_judges,
+            test_label=test_label,
+            runner=agent_runner,
+            model=agent_model,
+        )
+
+        summary_file = summaries_dir / f"summary_{agent_runner}_{agent_model}.json"
+        with open(summary_file, "w") as f:
+            f.write(summary.model_dump_json(indent=2))
+
+        all_summaries.append(summary)
+
+        console.print(f"  {agent_runner}/{agent_model}: {summary.success_rate:.1%} success, {summary.mean_aggregate:.2f} mean score")
+
+    # Write combined CSV
+    df = pd.DataFrame([s.model_dump() for s in all_summaries])
     csv_file = summaries_dir / "summary.csv"
     df.to_csv(csv_file, index=False)
+
+    # For each agent, also create a separate run directory with summary.json
+    # so it shows up in the web dashboard
+    for summary in all_summaries:
+        agent_run_dir = summaries_dir.parent / f"{run_id}_{summary.runner}_{summary.model}"
+        agent_run_dir.mkdir(parents=True, exist_ok=True)
+
+        agent_summary_file = agent_run_dir / "summary.json"
+        with open(agent_summary_file, "w") as f:
+            f.write(summary.model_dump_json(indent=2))
 
     # Update web app
     from long_context_bench.stats import update_web_app
@@ -336,7 +512,6 @@ def run_pipeline(
     console.print(f"\n[bold green]Pipeline complete![/bold green]")
     console.print(f"  Run ID: {run_id}")
     console.print(f"  Samples: {len(samples)}")
-    console.print(f"  Success rate: {summary.success_rate:.1%}")
-    console.print(f"  Mean aggregate score: {summary.mean_aggregate:.2f}")
+    console.print(f"  Agents: {len(all_agent_results)}")
     console.print(f"\nResults saved to: {summaries_dir}")
 

@@ -39,14 +39,15 @@ app.get('/api/index.json', (req, res) => {
 });
 
 // API endpoint to get summary data
-app.get('/api/summaries/:runId/summary.json', (req, res) => {
+// Support both simple runId and runId_runner_model format
+app.get('/api/summaries/:runId(*)/summary.json', (req, res) => {
     const { runId } = req.params;
     const summaryPath = path.join(OUTPUT_DIR, 'summaries', runId, 'summary.json');
-    
+
     if (!fs.existsSync(summaryPath)) {
         return res.status(404).json({ error: `Summary not found for run ${runId}` });
     }
-    
+
     res.sendFile(summaryPath);
 });
 
