@@ -15,8 +15,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Determine the output directory
+// When running from long_context_bench/web/, output is at ../../output
 // When deployed to output/web/, data is at ../
-const OUTPUT_DIR = path.join(__dirname, '..');
+const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', 'output');
 
 console.log('Long-Context-Bench Web Server');
 console.log('==============================');
@@ -77,17 +78,20 @@ app.get('/api/judges/:judgeMode/:judgeModel/:judgeRunId/:prId/judge.json', (req,
 app.get('/api/samples/:version/:prId/sample.json', (req, res) => {
     const { version, prId } = req.params;
     const samplePath = path.join(OUTPUT_DIR, 'samples', version, prId, 'sample.json');
-    
+
     if (!fs.existsSync(samplePath)) {
         return res.status(404).json({ error: `Sample not found` });
     }
-    
+
     res.sendFile(samplePath);
 });
 
+// Serve data files directly (for task detail page)
+app.use('/data', express.static(OUTPUT_DIR));
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.json({ 
+    res.json({
         status: 'ok',
         outputDir: OUTPUT_DIR,
         indexExists: fs.existsSync(path.join(OUTPUT_DIR, 'index.json'))
@@ -106,6 +110,7 @@ app.listen(PORT, () => {
     console.log(`  - Leaderboard:  http://localhost:${PORT}/`);
     console.log(`  - Summary:      http://localhost:${PORT}/summary.html`);
     console.log(`  - Comparison:   http://localhost:${PORT}/comparison.html`);
+    console.log(`  - Task Detail:  http://localhost:${PORT}/task.html`);
     console.log(`\nPress Ctrl+C to stop the server\n`);
 });
 

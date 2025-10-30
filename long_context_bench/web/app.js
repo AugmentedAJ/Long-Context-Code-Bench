@@ -260,6 +260,10 @@ function displayPRResults(edits, judges, samples) {
         const judge = judges.find(j => j.pr_number === edit.pr_number);
         const sample = samples.find(s => s.pr_number === edit.pr_number);
 
+        // Get run_id from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const runId = urlParams.get('run_id') || document.getElementById('run-selector')?.value;
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${edit.pr_number}</td>
@@ -272,7 +276,7 @@ function displayPRResults(edits, judges, samples) {
             <td>${judge ? formatScore(judge.scores.best_practices) : '-'}</td>
             <td>${judge ? formatScore(judge.scores.unsolicited_docs) : '-'}</td>
             <td>${edit.elapsed_ms || '-'}</td>
-            <td>-</td>
+            <td><a href="task.html?run_id=${runId}&pr_number=${edit.pr_number}">View</a></td>
         `;
         tbody.appendChild(row);
     });

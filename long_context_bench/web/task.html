@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long-Context-Bench - Task Details</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Long-Context-Bench</h1>
+            <nav>
+                <a href="index.html">Leaderboard</a>
+                <a href="summary.html">Run Details</a>
+                <a href="comparison.html">Compare</a>
+                <a href="task.html" class="active">Task Details</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="controls">
+                <div class="control-group">
+                    <button id="back-btn" onclick="history.back()">← Back</button>
+                </div>
+            </section>
+
+            <section class="task-header">
+                <h2 id="task-title">Loading...</h2>
+                <div class="task-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Repository:</span>
+                        <span class="meta-value" id="task-repo">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">PR Number:</span>
+                        <span class="meta-value" id="task-pr-number">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Agent:</span>
+                        <span class="meta-value" id="task-agent">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Model:</span>
+                        <span class="meta-value" id="task-model">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Status:</span>
+                        <span class="meta-value" id="task-status">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Elapsed Time:</span>
+                        <span class="meta-value" id="task-elapsed">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="task-scores">
+                <h3>Evaluation Scores</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-aggregate">-</div>
+                        <div class="metric-label">Aggregate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-correctness">-</div>
+                        <div class="metric-label">Correctness</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-completeness">-</div>
+                        <div class="metric-label">Completeness</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-code-reuse">-</div>
+                        <div class="metric-label">Code Reuse</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-best-practices">-</div>
+                        <div class="metric-label">Best Practices</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="score-unsolicited-docs">-</div>
+                        <div class="metric-label">Unsolicited Docs</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="task-instructions">
+                <h3>Task Instructions</h3>
+                <pre id="task-instructions-content" class="code-block">Loading...</pre>
+            </section>
+
+            <section class="task-stats">
+                <h3>Task Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Files Changed:</span>
+                        <span class="stat-value" id="stat-files-changed">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Lines Added:</span>
+                        <span class="stat-value" id="stat-lines-added">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Lines Deleted:</span>
+                        <span class="stat-value" id="stat-lines-deleted">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Diff Hunks:</span>
+                        <span class="stat-value" id="stat-diff-hunks">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Context Size:</span>
+                        <span class="stat-value" id="stat-context-size">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Base Commit:</span>
+                        <span class="stat-value" id="stat-base-commit">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Head Commit:</span>
+                        <span class="stat-value" id="stat-head-commit">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="diff-viewer">
+                <h3>Diffs</h3>
+                <div class="diff-tabs">
+                    <button class="tab-btn active" data-tab="ground-truth">Ground Truth Diff</button>
+                    <button class="tab-btn" data-tab="submission">Agent Submission Diff</button>
+                    <button class="tab-btn" data-tab="side-by-side">Side-by-Side</button>
+                </div>
+                <div class="diff-content">
+                    <div id="ground-truth-diff" class="diff-panel active">
+                        <pre class="code-block diff-block">Loading...</pre>
+                    </div>
+                    <div id="submission-diff" class="diff-panel">
+                        <pre class="code-block diff-block">Loading...</pre>
+                    </div>
+                    <div id="side-by-side-diff" class="diff-panel">
+                        <div class="side-by-side-container">
+                            <div class="diff-column">
+                                <h4>Ground Truth</h4>
+                                <pre class="code-block diff-block">Loading...</pre>
+                            </div>
+                            <div class="diff-column">
+                                <h4>Agent Submission</h4>
+                                <pre class="code-block diff-block">Loading...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="logs-viewer">
+                <h3>Agent Logs</h3>
+                <div class="logs-controls">
+                    <label>
+                        <input type="checkbox" id="show-all-logs" checked>
+                        Show all events
+                    </label>
+                    <label>
+                        <input type="checkbox" id="show-stdout" checked>
+                        Show stdout
+                    </label>
+                    <button id="download-logs-btn">Download Logs</button>
+                </div>
+                <div id="logs-content" class="logs-container">
+                    <p class="loading">Loading logs...</p>
+                </div>
+            </section>
+
+            <section class="judge-rationale" id="judge-rationale-section" style="display: none;">
+                <h3>Judge Rationale</h3>
+                <pre id="judge-rationale-content" class="code-block">-</pre>
+            </section>
+        </main>
+
+        <footer>
+            <p>Last updated: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+    <script src="data-loader.js"></script>
+    <script src="task.js"></script>
+    <script>
+        // Initialize task detail page
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const runId = urlParams.get('run_id');
+            const prNumber = urlParams.get('pr_number');
+            
+            if (runId && prNumber) {
+                await loadTaskDetails(runId, prNumber);
+            } else {
+                document.getElementById('task-title').textContent = 'Error: Missing parameters';
+                alert('Missing run_id or pr_number parameter');
+            }
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                // Update active tab button
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update active panel
+                document.querySelectorAll('.diff-panel').forEach(p => p.classList.remove('active'));
+                document.getElementById(tab + '-diff').classList.add('active');
+            });
+        });
+
+        // Logs filtering
+        document.getElementById('show-all-logs').addEventListener('change', filterLogs);
+        document.getElementById('show-stdout').addEventListener('change', filterLogs);
+        
+        function filterLogs() {
+            // This will be implemented in task.js
+            if (window.currentLogs) {
+                displayLogs(window.currentLogs);
+            }
+        }
+
+        // Download logs
+        document.getElementById('download-logs-btn').addEventListener('click', () => {
+            if (window.currentLogsRaw) {
+                const blob = new Blob([window.currentLogsRaw], { type: 'application/x-ndjson' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `logs_${new URLSearchParams(window.location.search).get('pr_number')}.jsonl`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        });
+    </script>
+</body>
+</html>
+
