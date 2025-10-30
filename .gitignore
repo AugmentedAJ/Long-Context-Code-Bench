@@ -46,7 +46,7 @@ ENV/
 htmlcov/
 .tox/
 
-# Output directories
+# Output directories (runtime artifacts only)
 output/
 output_backups/
 backups/

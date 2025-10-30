@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114977,
+  "base_commit": "91e1e02edcd877e7b347156f5f9ef39e62bce211",
+  "head_commit": "50dfaab6eca27eaa4eac9c65098df714eca404ee",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.16][ML] Temporarily ignore inference index (#114928)\n\nManual backport of #114928\r\n\r\nUntil we can figure out where in the tests the index is being created, temporarily ignore deleting it along with the other system indices.\r\n\r\nRelates #114748\r\n\r\n\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 2,
+    "lines_deleted": 0,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 115996,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Temporarily ignore the inference index when deleting system indices in the test framework until we can determine where it's being created in the tests.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:51:31.385573Z"
+}

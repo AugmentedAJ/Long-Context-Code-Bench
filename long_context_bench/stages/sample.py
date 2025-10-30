@@ -13,6 +13,11 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from long_context_bench.models import Sample, SampleStats
+from long_context_bench.synthesis import (
+    synthesize_task_instructions,
+    synthesize_with_auggie,
+    get_synthesis_timestamp,
+)
 
 console = Console()
 
@@ -222,6 +227,8 @@ def sample_pr(
     github_token: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    synthesize: bool = False,
+    synthesis_model: str = "claude-3-7-sonnet-20250219",
 ) -> Optional[Sample]:
     """Sample a single PR and create sample.json.
 
@@ -232,6 +239,8 @@ def sample_pr(
         github_token: Optional GitHub token
         cache_dir: Optional cache directory for repositories
         force: If True, re-sample even if sample.json already exists
+        synthesize: If True, generate synthesized task instructions using LLM
+        synthesis_model: LiteLLM model identifier for synthesis
 
     Returns:
         Sample object if successful, None if failed
@@ -274,8 +283,41 @@ def sample_pr(
         )
         context_size_bytes, truncated = compute_context_size(git_repo, base_sha, head_sha)
 
-        # Create task instructions
+        # Create task instructions (template-based)
         task_instructions = create_task_instructions(pr_metadata)
+
+        # Optionally synthesize task instructions using LLM
+        synthesized_instructions = None
+        synthesis_model_used = None
+        synthesis_ts = None
+
+        if synthesize:
+            console.print(f"  Synthesizing task instructions...")
+            # Get PR diff for synthesis
+            pr_diff = git_repo.git.diff(base_sha, head_sha)
+
+            # Choose synthesis method based on model
+            if synthesis_model.startswith("auggie/"):
+                # Use Auggie CLI for synthesis
+                auggie_model = synthesis_model.replace("auggie/", "")
+                synthesized_instructions = synthesize_with_auggie(
+                    pr_title=pr_metadata.get("title", ""),
+                    pr_body=pr_metadata.get("body") or "",
+                    pr_diff=pr_diff,
+                    model=auggie_model,
+                )
+            else:
+                # Use LiteLLM for synthesis
+                synthesized_instructions = synthesize_task_instructions(
+                    pr_title=pr_metadata.get("title", ""),
+                    pr_body=pr_metadata.get("body") or "",
+                    pr_diff=pr_diff,
+                    model=synthesis_model,
+                )
+
+            if synthesized_instructions:
+                synthesis_model_used = synthesis_model
+                synthesis_ts = get_synthesis_timestamp()
 
         # Create sample
         stats = SampleStats(
@@ -295,6 +337,9 @@ def sample_pr(
             head_commit=head_sha,
             task_instructions=task_instructions,
             stats=stats,
+            synthesized_task_instructions=synthesized_instructions,
+            synthesis_model=synthesis_model_used,
+            synthesis_timestamp=synthesis_ts,
         )
 
         # Write sample.json
@@ -319,6 +364,9 @@ def run_sample_stage(
     dataset_version: str,
     github_token: Optional[str] = None,
     force: bool = False,
+    synthesize: bool = False,
+    synthesis_model: str = "claude-3-7-sonnet-20250219",
+    cache_dir: Optional[Path] = None,
 ) -> None:
     """Run the sample stage.
 
@@ -328,6 +376,9 @@ def run_sample_stage(
         dataset_version: Dataset version
         github_token: Optional GitHub token
         force: If True, re-sample even if sample.json already exists
+        synthesize: If True, generate synthesized task instructions using LLM
+        synthesis_model: LiteLLM model identifier for synthesis
+        cache_dir: Optional cache directory for repositories
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -352,7 +403,16 @@ def run_sample_stage(
     skipped = 0
 
     for pr_url in pr_urls:
-        result = sample_pr(pr_url, output_dir, dataset_version, github_token, force=force)
+        result = sample_pr(
+            pr_url,
+            output_dir,
+            dataset_version,
+            github_token,
+            cache_dir=cache_dir,
+            force=force,
+            synthesize=synthesize,
+            synthesis_model=synthesis_model,
+        )
         if result:
             # Check if it was skipped (file existed before)
             owner, repo, pr_number = parse_pr_url(pr_url)

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114869,
+  "base_commit": "2aec12c17383de5da35664d9160904b668944364",
+  "head_commit": "5964c569ec8c5dd2e492db6db87556c160cfad7a",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nStandardize error code when bulk body is invalid\n\nCurrently the incremental and non-incremental bulk variations will\r\nreturn different error codes when the json body provided is invalid.\r\nThis commit ensures both version return status code 400. Additionally,\r\nthis renames the incremental rest tests to bulk tests and ensures that\r\nall tests work with both bulk api versions. We set these tests to\r\nrandomize which version of the api we test each run.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 65,
+    "lines_deleted": 25,
+    "total_diff_hunks": 26,
+    "context_size_bytes": 12792,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Standardize error code when bulk body is invalid to return 400 for both incremental and non-incremental bulk variations, and rename incremental rest tests to bulk tests with randomized API version testing.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:59:22.471638Z"
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114866,
+  "base_commit": "d3ab379df5b5fb588e9071923ff0d4b6c20096af",
+  "head_commit": "5714edca310450303e932f8a5fa0d843ad83f438",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Allow synthetic source and disabled source for standard indices (#114817)\n\n# Backport\n\nThis is an automatic backport to `8.x` of:\n - #114817\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sqren/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 240,
+    "lines_deleted": 24,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 70100,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Backport the changes from PR #114817 to allow synthetic source and disabled source for standard indices in the 8.x branch",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:59:39.042483Z"
+}

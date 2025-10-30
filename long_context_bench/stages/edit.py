@@ -131,6 +131,7 @@ def run_edit_on_sample(
     cache_dir: Optional[Path] = None,
     force: bool = False,
     test_label: Optional[str] = None,
+    use_synthesized: bool = False,
 ) -> Edit:
     """Run edit stage on a single sample.
 
@@ -148,6 +149,7 @@ def run_edit_on_sample(
         cache_dir: Optional cache directory for repositories
         force: If True, re-run even if edit_summary.json already exists
         test_label: Optional test label for grouping runs
+        use_synthesized: If True, use synthesized task instructions instead of template-based
 
     Returns:
         Edit object
@@ -268,11 +270,21 @@ def run_edit_on_sample(
                 except Exception as e:
                     console.print(f"  [yellow]Warning: Failed to hide .git: {e}[/yellow]")
 
+            # Choose which task instructions to use
+            if use_synthesized and sample.synthesized_task_instructions:
+                task_instructions = sample.synthesized_task_instructions
+                console.print(f"  Using synthesized task instructions")
+            elif use_synthesized and not sample.synthesized_task_instructions:
+                console.print(f"  [yellow]Warning: --use-synthesized specified but no synthesized instructions available, using template-based[/yellow]")
+                task_instructions = sample.task_instructions
+            else:
+                task_instructions = sample.task_instructions
+
             # Run agent
             console.print(f"  Running agent...")
             result = adapter.run(
                 workspace_path=workspace_path,
-                task_instructions=sample.task_instructions,
+                task_instructions=task_instructions,
                 logs_path=logs_path,
                 env=os.environ.copy(),
             )
@@ -382,6 +394,7 @@ def run_edit_stage(
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    use_synthesized: bool = False,
 ) -> str:
     """Run the edit stage.
 
@@ -400,6 +413,7 @@ def run_edit_stage(
         test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
         force: If True, re-run even if edit_summary.json already exists
+        use_synthesized: If True, use synthesized task instructions instead of template-based
 
     Returns:
         Edit run ID
@@ -471,6 +485,7 @@ def run_edit_stage(
             cache_dir=cache_dir,
             force=force,
             test_label=test_label,
+            use_synthesized=use_synthesized,
         )
 
     console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")

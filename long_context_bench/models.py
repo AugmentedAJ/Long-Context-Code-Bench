@@ -21,8 +21,13 @@ class Sample(BaseModel):
     pr_number: int
     base_commit: str
     head_commit: str
-    task_instructions: str
+    task_instructions: str  # Template-based instructions (PR title + body)
     stats: SampleStats
+
+    # Optional synthesized prompt fields
+    synthesized_task_instructions: Optional[str] = None  # LLM-generated natural instructions
+    synthesis_model: Optional[str] = None  # Model used for synthesis (e.g., "claude-3-7-sonnet-20250219")
+    synthesis_timestamp: Optional[str] = None  # ISO timestamp of synthesis
 
 
 class Edit(BaseModel):

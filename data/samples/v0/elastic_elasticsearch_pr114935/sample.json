@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114935,
+  "base_commit": "61a0a69c4abbba2169296e7b9418afe4d1ba6d5f",
+  "head_commit": "cc0ea6d210ec720a6c21796182ffe0b0788095d7",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.16] Introduce `index.mapping.source.mode` setting to override `_source.mode` (#114433)\n\n# Backport\n\nThis is an automatic backport to `8.16` of:\n - #114433\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sqren/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 61,
+    "lines_deleted": 117,
+    "total_diff_hunks": 42,
+    "context_size_bytes": 130633,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Introduce `index.mapping.source.mode` setting to override `_source.mode` in the IndexScopedSettings configuration",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:54:01.813429Z"
+}

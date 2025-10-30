@@ -16,26 +16,49 @@ def main() -> None:
 
 @main.command()
 @click.argument("input_path", type=str)
-@click.option("--output-dir", type=click.Path(), default="output/samples", help="Output directory for samples")
+@click.option("--output-dir", type=click.Path(), default="data/samples", help="Output directory for samples")
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token for API access")
 @click.option("--force", is_flag=True, help="Re-sample even if sample.json already exists")
-def sample(input_path: str, output_dir: str, dataset_version: str, github_token: Optional[str], force: bool) -> None:
+@click.option("--synthesize", is_flag=True, help="Generate synthesized task instructions using LLM")
+@click.option("--synthesis-model", default="claude-3-7-sonnet-20250219", help="Model for synthesis (LiteLLM model or auggie/<model>)")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+def sample(
+    input_path: str,
+    output_dir: str,
+    dataset_version: str,
+    github_token: Optional[str],
+    force: bool,
+    synthesize: bool,
+    synthesis_model: str,
+    cache_dir: str,
+) -> None:
     """Sample stage: Extract PR metadata and create sample.json files.
 
     INPUT_PATH can be a PR URL, JSON file with PR URLs, or directory of samples.
 
     By default, skips PRs that have already been sampled. Use --force to re-sample.
+
+    Use --synthesize to generate natural task instructions using an LLM.
+
+    Synthesis models:
+    - LiteLLM models (requires API key): claude-3-7-sonnet-20250219, gpt-4o, etc.
+    - Auggie CLI (requires auggie login): auggie/claude-sonnet-4, auggie/gpt-4o, etc.
     """
     from long_context_bench.stages.sample import run_sample_stage
 
     click.echo(f"Running sample stage on {input_path}")
+    if synthesize:
+        click.echo(f"Synthesis enabled with model: {synthesis_model}")
     run_sample_stage(
         input_path=input_path,
         output_dir=Path(output_dir),
         dataset_version=dataset_version,
         github_token=github_token,
         force=force,
+        synthesize=synthesize,
+        synthesis_model=synthesis_model,
+        cache_dir=Path(cache_dir),
     )
     click.echo("Sample stage completed")
 
@@ -55,6 +78,7 @@ def sample(input_path: str, output_dir: str, dataset_version: str, github_token:
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-run even if edit_summary.json already exists")
+@click.option("--use-synthesized", is_flag=True, help="Use synthesized task instructions instead of template-based")
 def edit(
     sample_path: str,
     runner: str,
@@ -70,6 +94,7 @@ def edit(
     test_label: Optional[str],
     cache_dir: str,
     force: bool,
+    use_synthesized: bool,
 ) -> None:
     """Edit stage: Run agent on samples and capture diffs.
 
@@ -77,12 +102,16 @@ def edit(
     saved under output/edits/<runner>/<model>/<edit_run_id>/.
 
     By default, skips PRs that have already been edited. Use --force to re-run.
+
+    Use --use-synthesized to use LLM-generated task instructions (if available in samples).
     """
     from long_context_bench.stages.edit import run_edit_stage
 
     click.echo(f"Running edit stage with runner={runner}, model={model}")
     if test_label:
         click.echo(f"Test label: {test_label}")
+    if use_synthesized:
+        click.echo("Using synthesized task instructions")
     edit_run_id = run_edit_stage(
         sample_path=Path(sample_path),
         runner=runner,
@@ -98,6 +127,7 @@ def edit(
         test_label=test_label,
         cache_dir=Path(cache_dir),
         force=force,
+        use_synthesized=use_synthesized,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 

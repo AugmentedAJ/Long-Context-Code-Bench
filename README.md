@@ -11,7 +11,8 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
-- 📊 Evaluates agents on 51 real Elasticsearch PRs (dataset v0, ~40K files per codebase)
+- 📊 Evaluates agents on 40 real Elasticsearch PRs (dataset v0, ~40K files per codebase)
+- 🎯 **Pre-synthesized prompts**: v0 dataset includes LLM-generated natural task instructions
 - 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, etc.)
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
@@ -74,15 +75,16 @@ export ANTHROPIC_API_KEY=your_key
 export OPENAI_API_KEY=your_key
 ```
 
-### 2. Generate Samples (One-Time Setup)
+### 2. Use Pre-Built Dataset
 
-Extract PR metadata and create sample files:
+The v0 dataset is included in the repository with pre-synthesized prompts:
 
 ```bash
-long-context-bench sample
+# Dataset is ready to use at data/samples/v0/
+ls data/samples/v0/
 ```
 
-This creates `output/samples/v0/<pr_id>/sample.json` for all 50 PRs in the dataset.
+**Note:** The v0 dataset includes 40 Elasticsearch PRs with both template-based and synthesized task instructions. No setup required!
 
 ### 3. Run Agents with Test Label
 
@@ -90,13 +92,13 @@ Run each agent you want to compare, using the **same test label**:
 
 ```bash
 # Run Auggie
-long-context-bench edit output/samples/v0 \
+long-context-bench edit data/samples/v0 \
   --runner auggie \
   --model claude-sonnet-4.5 \
   --test-label "sonnet-4.5-comparison"
 
 # Run Claude Code
-long-context-bench edit output/samples/v0 \
+long-context-bench edit data/samples/v0 \
   --runner claude-code \
   --model claude-sonnet-4.5 \
   --test-label "sonnet-4.5-comparison"
@@ -206,6 +208,69 @@ Example comparison output:
 
 The v0 dataset (50 Elasticsearch PRs) is included in the repository. No need to download or specify file paths!
 
+### Prompt Synthesis (Optional)
+
+Long-Context-Bench supports **two types of task instructions**:
+
+1. **Template-based** (default): Simple concatenation of PR title and body
+2. **Synthesized** (optional): LLM-generated natural instructions that mimic human requests
+
+**Why synthesize?** Synthesized prompts are more concise, natural, and focused on the core task—similar to how developers actually use coding agents.
+
+**Example comparison:**
+
+Template-based (369 chars):
+```
+You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:
+
+[DOCS] Update local data extraction version info
+
+This PR updates the documentation to reflect the new version of the local data extraction module...
+
+Please make all necessary code changes to complete this task.
+```
+
+Synthesized (69 chars):
+```
+Update the documentation for the local data extraction module version
+```
+
+**Usage:**
+
+```bash
+# Step 1: Sample with synthesis (requires LiteLLM + API key)
+pip install litellm
+export ANTHROPIC_API_KEY=your_key
+
+long-context-bench sample \
+  data/elasticsearch_prs_50.json \
+  --synthesize \
+  --synthesis-model claude-3-7-sonnet-20250219
+
+# Step 2: Run with synthesized prompts
+long-context-bench edit \
+  output/samples/v0 \
+  --runner auggie \
+  --model claude-3-7-sonnet-20250219 \
+  --use-synthesized \
+  --test-label synthesized-prompts
+
+# Step 3: Compare with template-based prompts
+long-context-bench edit \
+  output/samples/v0 \
+  --runner auggie \
+  --model claude-3-7-sonnet-20250219 \
+  --test-label template-prompts
+```
+
+**Benefits:**
+- ✅ **Cached**: Synthesize once during sampling, reuse forever
+- ✅ **Comparable**: Use test labels to compare synthesized vs template-based
+- ✅ **Flexible**: Supports any LiteLLM model
+- ✅ **Optional**: Falls back to template-based if unavailable
+
+See [docs/PROMPT_SYNTHESIS.md](docs/PROMPT_SYNTHESIS.md) for details.
+
 ### Repository Caching & Workspace Isolation
 
 The benchmark implements strict workspace isolation to ensure valid, unbiased evaluation:
@@ -289,24 +354,25 @@ Run stages independently for more control:
 Extracts PR metadata and creates sample.json files (uses built-in dataset by default):
 
 ```bash
-long-context-bench sample \
+long-context-bench sample data/elasticsearch_prs_50.json \
   --dataset-version v0 \
-  --output-dir output/samples
+  --output-dir data/samples
 ```
 
-**Output:** `output/samples/v0/<pr_id>/sample.json`
+**Output:** `data/samples/v0/<pr_id>/sample.json`
+
+**Note:** The v0 dataset is already included in the repository, so you typically don't need to run this stage.
 
 #### 2. Edit Stage
 
 Runs the agent on samples and captures diffs. Each run gets a unique ID:
 
 ```bash
-long-context-bench edit \
+long-context-bench edit data/samples/v0 \
   --runner auggie \
   --model claude-sonnet-4 \
   --dataset-version v0 \
-  --output-dir output/edits \
-  output/samples/v0
+  --output-dir output/edits
 ```
 
 **Output:**

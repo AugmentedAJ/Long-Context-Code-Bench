@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114860,
+  "base_commit": "8c475a23c9aac193f8360fc9d78dd98e9dc690b8",
+  "head_commit": "3a935e07c9494fa21393189e47c6b38eaf7cb53d",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Support multi-valued fields in compute engine for ST_DISTANCE (#114836)\n\nBackports the following commits to 8.x:\n - Support multi-valued fields in compute engine for ST_DISTANCE (#114836)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 17,
+    "lines_added": 455,
+    "lines_deleted": 519,
+    "total_diff_hunks": 94,
+    "context_size_bytes": 215191,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Support multi-valued fields in compute engine for ST_DISTANCE and backport to 8.x",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T17:00:11.274418Z"
+}

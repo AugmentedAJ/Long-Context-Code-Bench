@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114857,
+  "base_commit": "5aadfebfcafd3dd3cc0b0a09e58790afcae7c82b",
+  "head_commit": "de8d246f490b815ae27124a88d044b3c078965eb",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nAdjust index creation for dense vector telemetry tests\n\nIn 8.x we need to have bwc back to when before `element_type: byte` existed. To prevent loss of coverage for past versions & telemetry, here I move the index creation around so that we only create with `byte` when we have the more recent telemetry changes (and thus also `byte` elements).\r\n\r\ncloses: https://github.com/elastic/elasticsearch/issues/114556\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 45,
+    "lines_deleted": 21,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 29490,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Adjust index creation for dense vector telemetry tests to ensure BWC compatibility by only creating byte element type indices when the telemetry changes support it",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T17:00:27.620806Z"
+}
