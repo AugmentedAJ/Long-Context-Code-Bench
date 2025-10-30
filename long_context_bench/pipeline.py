@@ -340,8 +340,30 @@ def run_pipeline(
     # Sample stage (shared across all agents)
     samples = []
     console.print(f"\n[bold cyan]═══ Sample Stage (shared) ═══[/bold cyan]")
+
+    # Check for pre-synthesized samples in data/samples first
+    import long_context_bench
+    package_dir = Path(long_context_bench.__file__).parent.parent
+    builtin_samples_dir = package_dir / "data" / "samples"
+
     for pr_url in filtered_urls:
         try:
+            from long_context_bench.stages.sample import parse_pr_url, get_pr_id
+            owner, repo, pr_number = parse_pr_url(pr_url)
+            pr_id = get_pr_id(owner, repo, pr_number)
+
+            # First, try to load from built-in pre-synthesized samples
+            builtin_sample_file = builtin_samples_dir / dataset_version / pr_id / "sample.json"
+            if builtin_sample_file.exists():
+                console.print(f"[green]✓ Loading pre-synthesized sample: {pr_id}[/green]")
+                with open(builtin_sample_file) as f:
+                    sample_data = json.load(f)
+                    from long_context_bench.models import Sample
+                    sample = Sample(**sample_data)
+                    samples.append(sample)
+                continue
+
+            # Fall back to sampling (will check output/samples or re-sample from GitHub)
             sample = sample_pr(pr_url, samples_dir, dataset_version, github_token, cache_dir, force=force)
             if sample:
                 samples.append(sample)
@@ -354,7 +376,7 @@ def run_pipeline(
         console.print("[yellow]No samples to process[/yellow]")
         return
 
-    console.print(f"[bold green]Sampled {len(samples)} PRs[/bold green]")
+    console.print(f"[bold green]Loaded {len(samples)} samples[/bold green]")
 
     # Run agents in parallel
     all_agent_results = []
