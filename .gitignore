@@ -51,6 +51,7 @@ output/
 output_backup_*/
 output_backups/
 backups/
+archive_*/
 results/
 *.log
 
@@ -69,5 +70,3 @@ Thumbs.db
 .env
 *.key
 *.pem
-
-run_v1_test.sh

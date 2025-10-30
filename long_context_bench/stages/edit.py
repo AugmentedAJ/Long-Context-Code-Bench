@@ -327,6 +327,7 @@ def run_edit_on_sample(
                 logs_path=str(logs_path.relative_to(output_dir)),
                 errors=result.errors,
                 edit_run_id=run_id,
+                test_label=test_label,
             )
 
             # Write edit.json
@@ -362,6 +363,7 @@ def run_edit_on_sample(
                 logs_path=str(logs_path.relative_to(output_dir)) if logs_path.exists() else "",
                 errors=[str(e)],
                 edit_run_id=run_id,
+                test_label=test_label,
             )
 
             # Create empty patch file for consistency

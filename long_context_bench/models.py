@@ -43,7 +43,8 @@ class Edit(BaseModel):
     patch_unified: str
     logs_path: str
     errors: Optional[List[str]] = None
-    edit_run_id: Optional[str] = None  # ID of the edit run that produced this
+    edit_run_id: Optional[str
+    test_label: Optional[str] = None  # Optional label for grouping runs for comparison] = None  # ID of the edit run that produced this
 
 
 class Scores(BaseModel):
