@@ -61,12 +61,13 @@ def test_edit():
         elapsed_ms=30000,
         patch_unified="diff --git a/file.py b/file.py\n...",
         logs_path="logs.jsonl",
-        errors=None,
+        errors=[],
+        edit_run_id="test123",
     )
-    
+
     assert edit.status == "success"
     assert edit.elapsed_ms == 30000
-    assert edit.errors is None
+    assert edit.errors == []
 
 
 def test_scores():

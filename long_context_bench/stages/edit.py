@@ -325,7 +325,7 @@ def run_edit_on_sample(
                 elapsed_ms=result.elapsed_ms,
                 patch_unified=patch_unified,
                 logs_path=str(logs_path.relative_to(output_dir)),
-                errors=result.errors,
+                errors=result.errors or [],
                 edit_run_id=run_id,
                 test_label=test_label,
             )
