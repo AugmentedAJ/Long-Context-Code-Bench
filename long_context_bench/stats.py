@@ -693,8 +693,10 @@ def generate_index_manifest(output_dir: Path) -> None:
                 runner = summary.get("runner")
                 model = summary.get("model")
 
-                if edit_run_id and runner and model:
-                    edit_dir = output_dir / "edits" / runner / model / edit_run_id
+                if runner and model:
+                    # Try edit_run_id first, fall back to run_id if edit_run_id is null
+                    run_id_to_check = edit_run_id if edit_run_id else run_id
+                    edit_dir = output_dir / "edits" / runner / model / run_id_to_check
                     if edit_dir.exists():
                         for pr_dir in edit_dir.iterdir():
                             if pr_dir.is_dir():

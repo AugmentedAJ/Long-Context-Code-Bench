@@ -13,9 +13,12 @@ window.currentGroundTruthDiff = null;
 async function loadTaskDetails(runId, prNumber) {
     try {
         const index = await loadIndex();
-        
+
         // Find the run in the index
-        const runEntry = index.runs.find(r => r.run_id === runId);
+        // runId can be either a run_id or a summary_path
+        const runEntry = index.runs.find(r =>
+            r.run_id === runId || r.summary_path === runId
+        );
         if (!runEntry) {
             throw new Error(`Run ${runId} not found`);
         }

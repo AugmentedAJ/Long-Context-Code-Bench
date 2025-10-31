@@ -75,6 +75,36 @@ async function loadSummary(runId) {
 }
 
 /**
+ * Load a summary by its path (unique identifier including runner/model)
+ */
+async function loadSummaryByPath(summaryPath) {
+    // Use summaryPath as cache key
+    if (dataCache.summaries[summaryPath]) {
+        return dataCache.summaries[summaryPath];
+    }
+
+    try {
+        const fullPath = summaryPath.startsWith('summaries/')
+            ? `${API_BASE}/${summaryPath}`
+            : `${API_BASE}/summaries/${summaryPath}/summary.json`;
+
+        const response = await fetch(fullPath);
+        if (!response.ok) {
+            throw new Error(`Failed to load summary from ${summaryPath}`);
+        }
+
+        const summary = await response.json();
+        // Add summary_path to the summary object for unique identification
+        summary.summary_path = summaryPath;
+        dataCache.summaries[summaryPath] = summary;
+        return summary;
+    } catch (error) {
+        console.error('Error loading summary by path:', error);
+        return null;
+    }
+}
+
+/**
  * Load all summaries
  */
 async function loadAllSummaries() {
@@ -106,6 +136,8 @@ async function loadAllSummaries() {
             }
 
             const summary = await response.json();
+            // Add summary_path to the summary object for unique identification
+            summary.summary_path = run.summary_path || run.run_id;
             dataCache.summaries[cacheKey] = summary;
             summaries.push(summary);
         } catch (error) {
@@ -118,22 +150,42 @@ async function loadAllSummaries() {
 
 /**
  * Load edit data for a specific PR
+ * @param {string|object} editRunIdOrRun - Either edit_run_id string or run object
+ * @param {string} prId - PR identifier
  */
-async function loadEdit(editRunId, prId) {
-    const cacheKey = `${editRunId}:${prId}`;
+async function loadEdit(editRunIdOrRun, prId) {
+    // Handle both old API (editRunId string) and new API (run object)
+    let run, editRunId, runIdToUse;
+
+    if (typeof editRunIdOrRun === 'object' && editRunIdOrRun !== null) {
+        // New API: run object passed directly
+        run = editRunIdOrRun;
+        editRunId = run.edit_run_id;
+        runIdToUse = editRunId || run.run_id;
+    } else {
+        // Old API: editRunId string passed
+        editRunId = editRunIdOrRun;
+        runIdToUse = editRunId;
+
+        if (!editRunId) {
+            return null;
+        }
+
+        const index = dataCache.index || await loadIndex();
+        run = index.runs.find(r => r.edit_run_id === editRunId);
+
+        if (!run) {
+            throw new Error(`Edit run ${editRunId} not found`);
+        }
+    }
+
+    const cacheKey = `${run.runner}:${run.model}:${runIdToUse}:${prId}`;
     if (dataCache.edits[cacheKey]) {
         return dataCache.edits[cacheKey];
     }
 
     try {
-        const index = dataCache.index || await loadIndex();
-        const run = index.runs.find(r => r.edit_run_id === editRunId);
-
-        if (!run) {
-            throw new Error(`Edit run ${editRunId} not found`);
-        }
-
-        const response = await fetch(`${API_BASE}/edits/${run.runner}/${run.model}/${editRunId}/${prId}/edit.json`);
+        const response = await fetch(`${API_BASE}/edits/${run.runner}/${run.model}/${runIdToUse}/${prId}/edit.json`);
 
         if (!response.ok) {
             throw new Error(`Failed to load edit for ${prId}`);
@@ -150,23 +202,43 @@ async function loadEdit(editRunId, prId) {
 
 /**
  * Load judge data for a specific PR
+ * @param {string|object} judgeRunIdOrRun - Either judge_run_id string or run object
+ * @param {string} prId - PR identifier
  */
-async function loadJudge(judgeRunId, prId) {
-    const cacheKey = `${judgeRunId}:${prId}`;
+async function loadJudge(judgeRunIdOrRun, prId) {
+    // Handle both old API (judgeRunId string) and new API (run object)
+    let run, judgeRunId, runIdToUse;
+
+    if (typeof judgeRunIdOrRun === 'object' && judgeRunIdOrRun !== null) {
+        // New API: run object passed directly
+        run = judgeRunIdOrRun;
+        judgeRunId = run.judge_run_id;
+        runIdToUse = judgeRunId || run.run_id;
+    } else {
+        // Old API: judgeRunId string passed
+        judgeRunId = judgeRunIdOrRun;
+        runIdToUse = judgeRunId;
+
+        if (!judgeRunId) {
+            return null;
+        }
+
+        const index = dataCache.index || await loadIndex();
+        run = index.runs.find(r => r.judge_run_id === judgeRunId);
+
+        if (!run) {
+            throw new Error(`Judge run ${judgeRunId} not found`);
+        }
+    }
+
+    const cacheKey = `${run.judge_mode}:${run.judge_model}:${runIdToUse}:${prId}`;
     if (dataCache.judges[cacheKey]) {
         return dataCache.judges[cacheKey];
     }
 
     try {
-        const index = dataCache.index || await loadIndex();
-        const run = index.runs.find(r => r.judge_run_id === judgeRunId);
-
-        if (!run) {
-            throw new Error(`Judge run ${judgeRunId} not found`);
-        }
-
         const judgeModel = run.judge_model || 'default';
-        const response = await fetch(`${API_BASE}/judges/${run.judge_mode}/${judgeModel}/${judgeRunId}/${prId}/judge.json`);
+        const response = await fetch(`${API_BASE}/judges/${run.judge_mode}/${judgeModel}/${runIdToUse}/${prId}/judge.json`);
 
         if (!response.ok) {
             throw new Error(`Failed to load judge for ${prId}`);
@@ -226,10 +298,45 @@ async function loadRunDetails(runId) {
     const samples = [];
 
     for (const prId of run.pr_ids) {
-        const edit = await loadEdit(run.edit_run_id, prId);
-        const judge = await loadJudge(run.judge_run_id, prId);
+        // Pass run object instead of just IDs to support null edit_run_id/judge_run_id
+        const edit = await loadEdit(run, prId);
+        const judge = await loadJudge(run, prId);
         const sample = await loadSample(prId);
-        
+
+        if (edit) edits.push(edit);
+        if (judge) judges.push(judge);
+        if (sample) samples.push(sample);
+    }
+
+    return { summary, edits, judges, samples };
+}
+
+/**
+ * Load all edits and judges for a run by summary path
+ */
+async function loadRunDetailsByPath(summaryPath) {
+    const summary = await loadSummaryByPath(summaryPath);
+    if (!summary) {
+        return null;
+    }
+
+    const index = dataCache.index || await loadIndex();
+    const run = index.runs.find(r => (r.summary_path || r.run_id) === summaryPath);
+
+    if (!run || !run.pr_ids) {
+        return { summary, edits: [], judges: [], samples: [] };
+    }
+
+    const edits = [];
+    const judges = [];
+    const samples = [];
+
+    for (const prId of run.pr_ids) {
+        // Pass run object instead of just IDs to support null edit_run_id/judge_run_id
+        const edit = await loadEdit(run, prId);
+        const judge = await loadJudge(run, prId);
+        const sample = await loadSample(prId);
+
         if (edit) edits.push(edit);
         if (judge) judges.push(judge);
         if (sample) samples.push(sample);
@@ -253,6 +360,8 @@ async function getSummariesByTestLabel(testLabel) {
                 const response = await fetch(`${API_BASE}/${run.summary_path}`);
                 if (response.ok) {
                     const summary = await response.json();
+                    // Add summary_path to the summary object for unique identification
+                    summary.summary_path = run.summary_path;
                     summaries.push(summary);
                 }
             } catch (error) {
@@ -262,6 +371,8 @@ async function getSummariesByTestLabel(testLabel) {
             // Fallback to loadSummary for backward compatibility
             const summary = await loadSummary(run.run_id);
             if (summary) {
+                // Add summary_path for consistency
+                summary.summary_path = run.run_id;
                 summaries.push(summary);
             }
         }

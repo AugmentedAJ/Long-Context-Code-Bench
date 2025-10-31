@@ -129,7 +129,7 @@ function displayLeaderboard(summaries) {
             <td>${formatScore(summary.mean_code_reuse)}</td>
             <td>${formatScore(summary.mean_best_practices)}</td>
             <td>${summary.tasks_per_hour ? summary.tasks_per_hour.toFixed(2) : '-'}</td>
-            <td><a href="summary.html?run_id=${summary.run_id}">View</a></td>
+            <td><a href="summary.html?run_id=${encodeURIComponent(summary.summary_path || summary.run_id)}">View</a></td>
         `;
         tbody.appendChild(row);
     });
@@ -174,14 +174,15 @@ async function loadRunSelector() {
     try {
         const index = await loadIndex();
         const select = document.getElementById('run-selector');
-        
+
         if (!select) return;
-        
+
         select.innerHTML = '<option value="">Select a run...</option>';
-        
+
         index.runs.forEach(run => {
             const option = document.createElement('option');
-            option.value = run.run_id;
+            // Use summary_path as unique identifier
+            option.value = run.summary_path || run.run_id;
             option.textContent = `${run.runner || 'Unknown'} / ${run.model || 'Unknown'} - ${run.test_label || run.run_id}`;
             select.appendChild(option);
         });
@@ -192,10 +193,14 @@ async function loadRunSelector() {
 
 /**
  * Load and display run summary
+ * @param {string} identifier - Either run_id or summary_path
  */
-async function loadRunSummary(runId) {
+async function loadRunSummary(identifier) {
     try {
-        const data = await loadRunDetails(runId);
+        // Check if identifier is a summary_path or run_id
+        const data = identifier.startsWith('summaries/')
+            ? await loadRunDetailsByPath(identifier)
+            : await loadRunDetails(identifier);
         
         if (!data || !data.summary) {
             alert('Failed to load run data');
@@ -306,14 +311,16 @@ async function loadComparisonOptions() {
         const checkboxContainer = document.getElementById('run-checkboxes');
         if (checkboxContainer) {
             checkboxContainer.innerHTML = '';
-            index.runs.forEach(run => {
+            index.runs.forEach((run, idx) => {
                 const label = document.createElement('label');
                 label.style.display = 'block';
                 label.style.marginBottom = '8px';
 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.value = run.run_id;
+                // Use summary_path as unique identifier (includes runner and model)
+                checkbox.value = run.summary_path || run.run_id;
+                checkbox.dataset.runIndex = idx; // Store index for lookup
                 checkbox.style.marginRight = '8px';
 
                 label.appendChild(checkbox);
@@ -347,16 +354,21 @@ async function loadComparison() {
         } else {
             // Manual selection
             const checkboxes = document.querySelectorAll('#run-checkboxes input[type="checkbox"]:checked');
-            const runIds = Array.from(checkboxes).map(cb => cb.value);
+            const summaryPaths = Array.from(checkboxes).map(cb => cb.value);
 
-            if (runIds.length < 2) {
+            if (summaryPaths.length < 2) {
                 alert('Please select at least 2 runs to compare');
                 return;
             }
 
-            for (const runId of runIds) {
-                const summary = await loadSummary(runId);
-                if (summary) summaries.push(summary);
+            const index = await loadIndex();
+            for (const summaryPath of summaryPaths) {
+                // Find the run by summary_path
+                const run = index.runs.find(r => (r.summary_path || r.run_id) === summaryPath);
+                if (run) {
+                    const summary = await loadSummaryByPath(summaryPath);
+                    if (summary) summaries.push(summary);
+                }
             }
         }
 
