@@ -80,14 +80,39 @@ async function loadSummary(runId) {
 async function loadAllSummaries() {
     const index = dataCache.index || await loadIndex();
     const summaries = [];
-    
+
     for (const run of index.runs) {
-        const summary = await loadSummary(run.run_id);
-        if (summary) {
+        // Use summary_path as unique identifier instead of run_id
+        // since multiple runners can share the same run_id
+        const cacheKey = run.summary_path || run.run_id;
+
+        if (dataCache.summaries[cacheKey]) {
+            summaries.push(dataCache.summaries[cacheKey]);
+            continue;
+        }
+
+        try {
+            let summaryPath;
+            if (run.summary_path) {
+                summaryPath = `${API_BASE}/${run.summary_path}`;
+            } else {
+                summaryPath = `${API_BASE}/summaries/${run.run_id}/summary.json`;
+            }
+
+            const response = await fetch(summaryPath);
+            if (!response.ok) {
+                console.error(`Failed to load summary from ${summaryPath}`);
+                continue;
+            }
+
+            const summary = await response.json();
+            dataCache.summaries[cacheKey] = summary;
             summaries.push(summary);
+        } catch (error) {
+            console.error(`Error loading summary for ${run.run_id}:`, error);
         }
     }
-    
+
     return summaries;
 }
 
