@@ -54,7 +54,12 @@ function updateOverviewStats(index, summaries) {
     
     const totalSamples = summaries.reduce((sum, s) => sum + (s.total_samples || 0), 0);
     document.getElementById('total-samples').textContent = totalSamples;
-    
+
+    const avgAggregateScore = summaries.length > 0
+        ? summaries.reduce((sum, s) => sum + (s.mean_aggregate || 0), 0) / summaries.length
+        : 0;
+    document.getElementById('avg-aggregate-score').innerHTML = formatScore(avgAggregateScore);
+
     const avgSuccessRate = summaries.length > 0
         ? summaries.reduce((sum, s) => sum + (s.success_rate || 0), 0) / summaries.length
         : 0;
