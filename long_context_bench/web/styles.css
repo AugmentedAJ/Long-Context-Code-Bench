@@ -157,6 +157,21 @@ nav a.active {
     letter-spacing: 0.5px;
 }
 
+.stat-card-primary {
+    background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 102, 204, 0.05) 100%);
+    border: 2px solid var(--accent-color);
+}
+
+.stat-card-primary .stat-value {
+    color: var(--accent-color);
+    font-size: 32px;
+}
+
+.stat-card-primary .stat-label {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
 /* Metrics Grid */
 .metrics-summary {
     background: var(--bg-primary);
@@ -335,11 +350,36 @@ td.loading {
 .chart-container h3 {
     font-size: 14px;
     font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 16px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.chart-controls label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.chart-controls select {
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 canvas {
-    max-height: 300px;
+    max-height: 400px;
 }
 
 /* Run Info */

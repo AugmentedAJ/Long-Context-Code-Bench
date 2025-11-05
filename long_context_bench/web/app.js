@@ -4,6 +4,7 @@
 
 // Global state
 let currentSummaries = [];
+let filteredSummaries = [];
 let currentSort = { field: 'mean_aggregate', ascending: false };
 
 /**
@@ -22,13 +23,10 @@ async function loadLeaderboard() {
         
         // Display leaderboard
         displayLeaderboard(currentSummaries);
-        
+
         // Update charts
-        if (currentSummaries.length > 0) {
-            createScoreDistributionChart('score-distribution-chart', currentSummaries);
-            createSuccessRateChart('success-rate-chart', currentSummaries);
-        }
-        
+        updateLeaderboardCharts();
+
         // Update timestamp
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);
     } catch (error) {
@@ -43,7 +41,7 @@ async function loadLeaderboard() {
  */
 function updateOverviewStats(index, summaries) {
     document.getElementById('total-runs').textContent = summaries.length;
-    
+
     const uniqueAgents = new Set();
     summaries.forEach(s => {
         if (s.runner && s.model) {
@@ -51,10 +49,15 @@ function updateOverviewStats(index, summaries) {
         }
     });
     document.getElementById('total-agents').textContent = uniqueAgents.size;
-    
+
     const totalSamples = summaries.reduce((sum, s) => sum + (s.total_samples || 0), 0);
     document.getElementById('total-samples').textContent = totalSamples;
-    
+
+    const avgAggregateScore = summaries.length > 0
+        ? summaries.reduce((sum, s) => sum + (s.mean_aggregate || 0), 0) / summaries.length
+        : 0;
+    document.getElementById('avg-aggregate-score').textContent = formatScore(avgAggregateScore);
+
     const avgSuccessRate = summaries.length > 0
         ? summaries.reduce((sum, s) => sum + (s.success_rate || 0), 0) / summaries.length
         : 0;
@@ -150,21 +153,40 @@ function displayLeaderboard(summaries) {
 }
 
 /**
+ * Update leaderboard charts based on current summaries and controls
+ */
+function updateLeaderboardCharts() {
+    const summariesToUse = filteredSummaries.length > 0 ? filteredSummaries : currentSummaries;
+    if (summariesToUse.length === 0) return;
+
+    // Get control values
+    const radarTopN = parseInt(document.getElementById('radar-top-n')?.value || 5);
+    const breakdownTopN = document.getElementById('breakdown-top-n')?.value || 10;
+
+    // Create charts
+    createLeaderboardRadarChart('leaderboard-radar-chart', summariesToUse, radarTopN);
+    createMetricBreakdownChart('metric-breakdown-chart', summariesToUse, breakdownTopN);
+}
+
+/**
  * Filter leaderboard
  */
 function filterLeaderboard() {
     const runner = document.getElementById('filter-runner').value;
     const model = document.getElementById('filter-model').value;
     const label = document.getElementById('filter-label').value;
-    
-    const filtered = currentSummaries.filter(s => {
+
+    filteredSummaries = currentSummaries.filter(s => {
         if (runner && s.runner !== runner) return false;
         if (model && s.model !== model) return false;
         if (label && s.test_label !== label) return false;
         return true;
     });
-    
-    displayLeaderboard(filtered);
+
+    displayLeaderboard(filteredSummaries);
+
+    // Update charts with filtered data
+    updateLeaderboardCharts();
 }
 
 /**

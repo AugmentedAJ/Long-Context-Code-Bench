@@ -55,6 +55,10 @@
                     <div class="stat-value" id="total-samples">-</div>
                     <div class="stat-label">Total Samples</div>
                 </div>
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-value" id="avg-aggregate-score">-</div>
+                    <div class="stat-label">Avg Aggregate Score</div>
+                </div>
                 <div class="stat-card">
                     <div class="stat-value" id="avg-success-rate">-</div>
                     <div class="stat-label">Avg Success Rate</div>
@@ -92,12 +96,28 @@
 
             <section class="charts">
                 <div class="chart-container">
-                    <h3>Score Distribution</h3>
-                    <canvas id="score-distribution-chart"></canvas>
+                    <h3>Top Agents Comparison (Radar)</h3>
+                    <div class="chart-controls">
+                        <label for="radar-top-n">Show top:</label>
+                        <select id="radar-top-n">
+                            <option value="3">3 agents</option>
+                            <option value="5" selected>5 agents</option>
+                            <option value="10">10 agents</option>
+                        </select>
+                    </div>
+                    <canvas id="leaderboard-radar-chart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3>Success Rate by Agent</h3>
-                    <canvas id="success-rate-chart"></canvas>
+                    <h3>Metric Breakdown by Agent</h3>
+                    <div class="chart-controls">
+                        <label for="breakdown-top-n">Show top:</label>
+                        <select id="breakdown-top-n">
+                            <option value="5">5 agents</option>
+                            <option value="10" selected>10 agents</option>
+                            <option value="all">All agents</option>
+                        </select>
+                    </div>
+                    <canvas id="metric-breakdown-chart"></canvas>
                 </div>
             </section>
         </main>
@@ -124,6 +144,15 @@
         // Filter handlers
         ['filter-runner', 'filter-model', 'filter-label'].forEach(id => {
             document.getElementById(id).addEventListener('change', filterLeaderboard);
+        });
+
+        // Chart control handlers
+        document.getElementById('radar-top-n').addEventListener('change', () => {
+            updateLeaderboardCharts();
+        });
+
+        document.getElementById('breakdown-top-n').addEventListener('change', () => {
+            updateLeaderboardCharts();
         });
     </script>
 </body>
