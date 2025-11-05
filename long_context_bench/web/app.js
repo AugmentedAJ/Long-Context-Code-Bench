@@ -56,7 +56,7 @@ function updateOverviewStats(index, summaries) {
     const avgAggregateScore = summaries.length > 0
         ? summaries.reduce((sum, s) => sum + (s.mean_aggregate || 0), 0) / summaries.length
         : 0;
-    document.getElementById('avg-aggregate-score').textContent = formatScore(avgAggregateScore);
+    document.getElementById('avg-aggregate-score').innerHTML = formatScore(avgAggregateScore);
 
     const avgSuccessRate = summaries.length > 0
         ? summaries.reduce((sum, s) => sum + (s.success_rate || 0), 0) / summaries.length
