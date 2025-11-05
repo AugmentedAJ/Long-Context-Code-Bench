@@ -13,13 +13,7 @@ async function loadLeaderboard() {
     try {
         const index = await loadIndex();
         currentSummaries = await loadAllSummaries();
-        
-        // Update overview stats
-        updateOverviewStats(index, currentSummaries);
-        
-        // Populate filters
-        populateFilters(index);
-        
+
         // Display leaderboard
         displayLeaderboard(currentSummaries);
         
@@ -33,7 +27,7 @@ async function loadLeaderboard() {
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        document.getElementById('leaderboard-body').innerHTML = 
+        document.getElementById('leaderboard-body').innerHTML =
             '<tr><td colspan="12" class="loading">Error loading data. Make sure the benchmark has been run.</td></tr>';
     }
 }
