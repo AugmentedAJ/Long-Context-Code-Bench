@@ -18,53 +18,6 @@
         </header>
 
         <main>
-            <section class="controls">
-                <div class="control-group">
-                    <label for="filter-runner">Runner:</label>
-                    <select id="filter-runner">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="filter-model">Model:</label>
-                    <select id="filter-model">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="filter-label">Test Label:</label>
-                    <select id="filter-label">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <button id="refresh-btn">Refresh Data</button>
-                </div>
-            </section>
-
-            <section class="stats-overview">
-                <div class="stat-card">
-                    <div class="stat-value" id="total-runs">-</div>
-                    <div class="stat-label">Total Runs</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="total-agents">-</div>
-                    <div class="stat-label">Agents Tested</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="total-samples">-</div>
-                    <div class="stat-label">Total Samples</div>
-                </div>
-                <div class="stat-card stat-card-primary">
-                    <div class="stat-value" id="avg-aggregate-score">-</div>
-                    <div class="stat-label">Avg Aggregate Score</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="avg-success-rate">-</div>
-                    <div class="stat-label">Avg Success Rate</div>
-                </div>
-            </section>
-
             <section class="leaderboard">
                 <h2>Leaderboard</h2>
                 <div class="table-container">
@@ -135,15 +88,6 @@
         // Initialize leaderboard page
         document.addEventListener('DOMContentLoaded', async () => {
             await loadLeaderboard();
-        });
-
-        document.getElementById('refresh-btn').addEventListener('click', async () => {
-            await loadLeaderboard();
-        });
-
-        // Filter handlers
-        ['filter-runner', 'filter-model', 'filter-label'].forEach(id => {
-            document.getElementById(id).addEventListener('change', filterLeaderboard);
         });
 
         // Chart control handlers
