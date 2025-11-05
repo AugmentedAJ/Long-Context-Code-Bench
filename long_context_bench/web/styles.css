@@ -332,6 +332,10 @@ td.loading {
     padding: 20px;
 }
 
+.chart-container-full {
+    grid-column: 1 / -1;
+}
+
 .chart-container h3 {
     font-size: 14px;
     font-weight: 600;

@@ -47,13 +47,17 @@
             </section>
 
             <section class="charts">
-                <div class="chart-container">
-                    <h3>Score Distribution</h3>
-                    <canvas id="score-distribution-chart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Success Rate by Agent</h3>
-                    <canvas id="success-rate-chart"></canvas>
+                <div class="chart-container chart-container-full">
+                    <h3>Top Agents Comparison</h3>
+                    <div class="chart-controls">
+                        <label for="radar-top-n">Show top:</label>
+                        <select id="radar-top-n">
+                            <option value="3">3 agents</option>
+                            <option value="5" selected>5 agents</option>
+                            <option value="10">10 agents</option>
+                        </select>
+                    </div>
+                    <canvas id="leaderboard-radar-chart"></canvas>
                 </div>
             </section>
         </main>
@@ -73,12 +77,8 @@
             await loadLeaderboard();
         });
 
-        // Chart control handlers
+        // Chart control handler
         document.getElementById('radar-top-n').addEventListener('change', () => {
-            updateLeaderboardCharts();
-        });
-
-        document.getElementById('breakdown-top-n').addEventListener('change', () => {
             updateLeaderboardCharts();
         });
     </script>

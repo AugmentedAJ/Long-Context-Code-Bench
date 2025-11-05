@@ -148,6 +148,20 @@ function displayLeaderboard(summaries) {
 }
 
 /**
+ * Update leaderboard charts based on current summaries and controls
+ */
+function updateLeaderboardCharts() {
+    const summariesToUse = filteredSummaries.length > 0 ? filteredSummaries : currentSummaries;
+    if (summariesToUse.length === 0) return;
+
+    // Get control value
+    const radarTopN = parseInt(document.getElementById('radar-top-n')?.value || 5);
+
+    // Create chart
+    createLeaderboardRadarChart('leaderboard-radar-chart', summariesToUse, radarTopN);
+}
+
+/**
  * Filter leaderboard
  */
 function filterLeaderboard() {
