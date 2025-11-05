@@ -16,19 +16,20 @@ class RunnerResult:
 
 class RunnerAdapter(ABC):
     """Abstract base class for agent runner adapters.
-    
+
     Per R-4.4-4.7: Adapters provide a common contract for running CLI agents.
     """
-    
+
     def __init__(
         self,
         model: str,
         agent_binary: Optional[str] = None,
-        timeout: int = 1800,
+        timeout: int = 7200,
         disable_retrieval: bool = False,
         disable_shell: bool = False,
         enable_mcp_codebase_qa: bool = False,
         stream_output: bool = False,
+        enable_asciinema: bool = False,
         **kwargs: Any,
     ):
         """Initialize runner adapter.
@@ -41,6 +42,7 @@ class RunnerAdapter(ABC):
             disable_shell: Disable shell access
             enable_mcp_codebase_qa: Enable MCP codebase QA
             stream_output: Stream agent output to console in real-time
+            enable_asciinema: Record agent session with asciinema
             **kwargs: Additional adapter-specific arguments
         """
         self.model = model
@@ -50,6 +52,7 @@ class RunnerAdapter(ABC):
         self.disable_shell = disable_shell
         self.enable_mcp_codebase_qa = enable_mcp_codebase_qa
         self.stream_output = stream_output
+        self.enable_asciinema = enable_asciinema
         self.extra_kwargs = kwargs
     
     @abstractmethod

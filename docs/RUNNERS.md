@@ -230,7 +230,7 @@ class RunnerAdapter(ABC):
         self,
         model: str,
         agent_binary: Optional[str] = None,
-        timeout: int = 1800,
+        timeout: int = 7200,
         disable_retrieval: bool = False,
         disable_shell: bool = False,
         enable_mcp_codebase_qa: bool = False,
@@ -331,7 +331,7 @@ export AUGMENT_API_TOKEN=your_token
 ### Timeout Issues
 
 If tasks are timing out:
-1. Increase timeout: `--timeout 3600` (1 hour)
+1. Default timeout is 2 hours (7200 seconds). Increase if needed: `--timeout 10800` (3 hours)
 2. Check agent logs in `output/edits/.../logs.jsonl`
 3. Test the agent manually on a simple task
 

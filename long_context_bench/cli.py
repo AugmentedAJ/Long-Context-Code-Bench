@@ -69,7 +69,7 @@ def sample(
 @click.option("--model", required=True, help="Model name")
 @click.option("--agent-binary", type=click.Path(), help="Path to agent binary")
 @click.option("--output-dir", type=click.Path(), default="output/edits", help="Output directory for edits")
-@click.option("--timeout", type=int, default=1800, help="Timeout in seconds per task")
+@click.option("--timeout", type=int, default=7200, help="Timeout in seconds per task")
 @click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
@@ -80,6 +80,7 @@ def sample(
 @click.option("--force", is_flag=True, help="Re-run even if edit_summary.json already exists")
 @click.option("--use-synthesized", is_flag=True, help="Use synthesized task instructions instead of template-based")
 @click.option("--stream-output", is_flag=True, help="Stream agent output to console in real-time")
+@click.option("--enable-asciinema", is_flag=True, help="Record agent sessions with asciinema")
 def edit(
     sample_path: str,
     runner: str,
@@ -97,6 +98,7 @@ def edit(
     force: bool,
     use_synthesized: bool,
     stream_output: bool,
+    enable_asciinema: bool,
 ) -> None:
     """Edit stage: Run agent on samples and capture diffs.
 
@@ -108,6 +110,8 @@ def edit(
     Use --use-synthesized to use LLM-generated task instructions (if available in samples).
 
     Use --stream-output to see agent output in real-time during execution.
+
+    Use --enable-asciinema to record agent sessions with asciinema (requires asciinema to be installed).
     """
     from long_context_bench.stages.edit import run_edit_stage
 
@@ -118,6 +122,8 @@ def edit(
         click.echo("Using synthesized task instructions")
     if stream_output:
         click.echo("Streaming agent output enabled")
+    if enable_asciinema:
+        click.echo("Asciinema recording enabled")
     edit_run_id = run_edit_stage(
         sample_path=Path(sample_path),
         runner=runner,
@@ -135,6 +141,7 @@ def edit(
         force=force,
         use_synthesized=use_synthesized,
         stream_output=stream_output,
+        enable_asciinema=enable_asciinema,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 
@@ -209,7 +216,7 @@ def judge(
 @click.option("--agent-binary", type=click.Path(), help="Path to agent binary")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--dataset-version", default="v0", help="Dataset version")
-@click.option("--timeout", type=int, default=1800, help="Timeout in seconds per task")
+@click.option("--timeout", type=int, default=7200, help="Timeout in seconds per task")
 @click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
 @click.option("--total-shards", type=int, default=1, help="Total number of shards")
 @click.option("--shard-index", type=int, default=0, help="Current shard index (0-based)")
@@ -288,7 +295,7 @@ def pipeline(
 @click.option("--agents", required=True, help="Agent configurations in format 'runner:model[:binary],runner:model[:binary],...' (e.g., 'auggie:claude-sonnet-4.5,claude-code:claude-sonnet-4.5')")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--dataset-version", default="v0", help="Dataset version")
-@click.option("--timeout", type=int, default=1800, help="Timeout in seconds per task")
+@click.option("--timeout", type=int, default=7200, help="Timeout in seconds per task")
 @click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
 @click.option("--total-shards", type=int, default=1, help="Total number of shards")
 @click.option("--shard-index", type=int, default=0, help="Current shard index (0-based)")

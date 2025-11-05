@@ -645,7 +645,7 @@ The generic runner passes task instructions via stdin.
 ### Optional Flags
 
 - `--agent-binary`: Path to agent binary (defaults to runner name in PATH)
-- `--timeout`: Timeout in seconds per task (default: 1800)
+- `--timeout`: Timeout in seconds per task (default: 7200)
 - `--concurrency`: Max concurrent tasks (default: 1)
 - `--total-shards`: Total number of shards (default: 1)
 - `--shard-index`: Current shard index, 0-based (default: 0)

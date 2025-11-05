@@ -133,6 +133,7 @@ def run_edit_on_sample(
     test_label: Optional[str] = None,
     use_synthesized: bool = False,
     stream_output: bool = False,
+    enable_asciinema: bool = False,
 ) -> Edit:
     """Run edit stage on a single sample.
 
@@ -152,6 +153,7 @@ def run_edit_on_sample(
         test_label: Optional test label for grouping runs
         use_synthesized: If True, use synthesized task instructions instead of template-based
         stream_output: If True, stream agent output to console in real-time
+        enable_asciinema: If True, record agent session with asciinema
 
     Returns:
         Edit object
@@ -253,6 +255,7 @@ def run_edit_on_sample(
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
         stream_output=stream_output,
+        enable_asciinema=enable_asciinema,
     )
     
     # Materialize workspace
@@ -403,6 +406,7 @@ def run_edit_stage(
     force: bool = False,
     use_synthesized: bool = False,
     stream_output: bool = False,
+    enable_asciinema: bool = False,
 ) -> str:
     """Run the edit stage.
 
@@ -423,6 +427,7 @@ def run_edit_stage(
         force: If True, re-run even if edit_summary.json already exists
         use_synthesized: If True, use synthesized task instructions instead of template-based
         stream_output: If True, stream agent output to console in real-time
+        enable_asciinema: If True, record agent sessions with asciinema
 
     Returns:
         Edit run ID
@@ -496,6 +501,7 @@ def run_edit_stage(
             test_label=test_label,
             use_synthesized=use_synthesized,
             stream_output=stream_output,
+            enable_asciinema=enable_asciinema,
         )
 
     console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")

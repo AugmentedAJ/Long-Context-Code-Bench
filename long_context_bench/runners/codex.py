@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Optional, Dict
 
 from long_context_bench.runners.base import RunnerAdapter, RunnerResult
+from long_context_bench.runners.asciinema_utils import (
+    is_asciinema_available,
+    wrap_command_with_asciinema,
+    get_recording_path,
+)
 
 
 class CodexAdapter(RunnerAdapter):
@@ -61,10 +66,16 @@ class CodexAdapter(RunnerAdapter):
         # Prepare environment
         run_env = env.copy() if env else {}
 
+        # Wrap with asciinema if enabled
+        actual_cmd = cmd
+        if self.enable_asciinema and is_asciinema_available():
+            asciinema_output = get_recording_path(logs_path)
+            actual_cmd = wrap_command_with_asciinema(cmd, asciinema_output, run_env)
+
         try:
             # Run agent with timeout
             result = subprocess.run(
-                cmd,
+                actual_cmd,
                 cwd=workspace_path,
                 env=run_env,
                 capture_output=True,

@@ -8,6 +8,7 @@ from typing import Optional, Dict
 
 from long_context_bench.runners.base import RunnerAdapter, RunnerResult
 from long_context_bench.runners.stream_utils import run_with_streaming
+from long_context_bench.runners.asciinema_utils import get_recording_path
 
 
 class AuggieAdapter(RunnerAdapter):
@@ -74,13 +75,20 @@ class AuggieAdapter(RunnerAdapter):
                 }
                 f.write(json.dumps(log_entry) + "\n")
 
-            # Run agent with optional streaming
+            # Determine asciinema recording path if enabled
+            asciinema_output = None
+            if self.enable_asciinema:
+                asciinema_output = get_recording_path(logs_path)
+
+            # Run agent with optional streaming and asciinema recording
             returncode, stdout = run_with_streaming(
                 cmd=cmd,
                 cwd=str(workspace_path),
                 env=run_env,
                 timeout=self.timeout,
                 stream_output=self.stream_output,
+                enable_asciinema=self.enable_asciinema,
+                asciinema_output=asciinema_output,
             )
 
             # Write comprehensive logs
