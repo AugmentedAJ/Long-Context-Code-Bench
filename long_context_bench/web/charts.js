@@ -375,7 +375,6 @@ function createLeaderboardRadarChart(canvasId, summaries, topN = 5) {
             summary.mean_correctness,
             summary.mean_completeness,
             summary.mean_code_reuse,
-            summary.mean_best_practices,
             summary.mean_unsolicited_docs
         ],
         backgroundColor: colors[index % colors.length],
@@ -388,7 +387,7 @@ function createLeaderboardRadarChart(canvasId, summaries, topN = 5) {
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: ['Correctness', 'Completeness', 'Code Reuse', 'Best Practices', 'Unsolicited Docs'],
+            labels: ['Correctness', 'Completeness', 'Code Reuse', 'Unsolicited Docs'],
             datasets: datasets
         },
         options: {
@@ -455,13 +454,6 @@ function createMetricBreakdownChart(canvasId, summaries, topN = 10) {
             data: agents.map(s => s.mean_code_reuse),
             backgroundColor: 'rgba(255, 193, 7, 0.7)',
             borderColor: 'rgba(255, 193, 7, 1)',
-            borderWidth: 1
-        },
-        {
-            label: 'Best Practices',
-            data: agents.map(s => s.mean_best_practices),
-            backgroundColor: 'rgba(108, 117, 125, 0.7)',
-            borderColor: 'rgba(108, 117, 125, 1)',
             borderWidth: 1
         },
         {

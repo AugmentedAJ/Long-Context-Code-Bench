@@ -100,17 +100,17 @@ function displayLeaderboard(summaries) {
     if (!tbody) return;
     
     if (summaries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="loading">No runs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">No runs found</td></tr>';
         return;
     }
-    
+
     // Sort summaries
     const sorted = [...summaries].sort((a, b) => {
         const aVal = a[currentSort.field] || 0;
         const bVal = b[currentSort.field] || 0;
         return currentSort.ascending ? aVal - bVal : bVal - aVal;
     });
-    
+
     tbody.innerHTML = '';
     sorted.forEach((summary, index) => {
         const row = document.createElement('tr');
@@ -124,7 +124,6 @@ function displayLeaderboard(summaries) {
             <td>${formatScore(summary.mean_correctness)}</td>
             <td>${formatScore(summary.mean_completeness)}</td>
             <td>${formatScore(summary.mean_code_reuse)}</td>
-            <td>${formatScore(summary.mean_best_practices)}</td>
             <td>${summary.tasks_per_hour ? summary.tasks_per_hour.toFixed(2) : '-'}</td>
             <td><a href="summary.html?run_id=${encodeURIComponent(summary.summary_path || summary.run_id)}">View</a></td>
         `;
