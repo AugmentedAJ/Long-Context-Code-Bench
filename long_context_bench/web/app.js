@@ -152,13 +152,11 @@ function updateLeaderboardCharts() {
     const summariesToUse = filteredSummaries.length > 0 ? filteredSummaries : currentSummaries;
     if (summariesToUse.length === 0) return;
 
-    // Get control values
+    // Get control value
     const radarTopN = parseInt(document.getElementById('radar-top-n')?.value || 5);
-    const breakdownTopN = document.getElementById('breakdown-top-n')?.value || 10;
 
-    // Create charts
+    // Create chart
     createLeaderboardRadarChart('leaderboard-radar-chart', summariesToUse, radarTopN);
-    createMetricBreakdownChart('metric-breakdown-chart', summariesToUse, breakdownTopN);
 }
 
 /**
