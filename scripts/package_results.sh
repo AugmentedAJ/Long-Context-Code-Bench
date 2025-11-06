@@ -93,7 +93,11 @@ The `web/` directory is a fully static site - just drag and drop to:
 - **Vercel**: `cd web && vercel --prod`
 - **GitHub Pages**: Push `web/` to a gh-pages branch
 
-No build step required! All data is included.
+**IMPORTANT**: Deploy the `web/` folder from THIS package, not from `output/web/`!
+The `output/web/` folder uses symlinks which don't work on static hosting platforms.
+This packaged version contains actual copies of all data files.
+
+No build step required! All data is included (~4MB).
 
 ### Option 3: Local Python Server (No Node.js required)
 
@@ -349,6 +353,10 @@ Most platforms support custom domains:
 EOF
 
 echo "📖 Deployment instructions: $PACKAGE_DIR/DEPLOYMENT.md"
+echo ""
+echo "⚠️  IMPORTANT: Deploy $PACKAGE_DIR/web/, NOT output/web/"
+echo "   The output/web/ folder uses symlinks which don't work on static hosts."
+echo "   This packaged version has actual data files."
 echo ""
 echo "🎉 Done! Package is ready to share."
 
