@@ -140,9 +140,10 @@ def compute_comparative_analysis(
     
     # Build prompt with all agent solutions
     agent_sections = []
-    for i, result in enumerate(agent_results, 1):
+    for result in agent_results:
+        agent_name = f"{result.runner}:{result.model}"
         agent_sections.append(f"""
-**Agent {i}: {result.runner}:{result.model}**
+**Agent: {agent_name}**
 Status: {result.status}
 Elapsed: {result.elapsed_ms}ms
 Aggregate Score: {result.aggregate:.2f}
@@ -175,14 +176,19 @@ Diff:
 **Your Task:**
 Compare these agents' approaches and provide a comprehensive analysis.
 
+**Important Guidelines:**
+- Always refer to agents by their full name (e.g., "auggie:sonnet4.5", "claude-code:claude-sonnet-4-5", "factory:claude-sonnet-4-5-20250929")
+- Do NOT use generic labels like "Agent 1", "Agent 2", etc.
+- Use the exact agent names as shown in the "Agent:" headers above
+
 **Output Format:**
 Respond with ONLY a valid JSON object (no markdown, no code blocks):
 
 {{
-  "summary": "<2-3 sentence overall comparison>",
+  "summary": "<2-3 sentence overall comparison using agent names, not numbers>",
   "best_agent": "<runner:model of best performing agent>",
-  "best_agent_reasoning": "<why this agent performed best>",
-  "approach_differences": "<key differences in how agents approached the problem>",
+  "best_agent_reasoning": "<why this agent performed best, using agent name not number>",
+  "approach_differences": "<key differences in how agents approached the problem, using agent names not numbers>",
   "ranking": ["<runner:model>", "<runner:model>", ...]
 }}"""
 
