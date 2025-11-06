@@ -87,6 +87,30 @@ app.get('/api/samples/:version/:prId/sample.json', (req, res) => {
     res.sendFile(samplePath);
 });
 
+// API endpoint to list cross-agent analyses
+app.get('/api/cross_agent_analysis/', (req, res) => {
+    const analysisDir = path.join(OUTPUT_DIR, 'cross_agent_analysis');
+
+    if (!fs.existsSync(analysisDir)) {
+        return res.json([]);
+    }
+
+    const files = fs.readdirSync(analysisDir).filter(f => f.endsWith('.json'));
+    res.json(files);
+});
+
+// API endpoint to get a specific cross-agent analysis
+app.get('/api/cross_agent_analysis/:filename', (req, res) => {
+    const { filename } = req.params;
+    const analysisPath = path.join(OUTPUT_DIR, 'cross_agent_analysis', filename);
+
+    if (!fs.existsSync(analysisPath)) {
+        return res.status(404).json({ error: `Analysis not found` });
+    }
+
+    res.sendFile(analysisPath);
+});
+
 // Serve data files directly (for task detail page)
 app.use('/data', express.static(OUTPUT_DIR));
 
@@ -108,10 +132,11 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`\n✓ Server running at http://localhost:${PORT}`);
     console.log(`\nAvailable pages:`);
-    console.log(`  - Leaderboard:  http://localhost:${PORT}/`);
-    console.log(`  - Summary:      http://localhost:${PORT}/summary.html`);
-    console.log(`  - Comparison:   http://localhost:${PORT}/comparison.html`);
-    console.log(`  - Task Detail:  http://localhost:${PORT}/task.html`);
+    console.log(`  - Leaderboard:       http://localhost:${PORT}/`);
+    console.log(`  - Summary:           http://localhost:${PORT}/summary.html`);
+    console.log(`  - Comparison:        http://localhost:${PORT}/comparison.html`);
+    console.log(`  - Cross-Agent:       http://localhost:${PORT}/cross-agent.html`);
+    console.log(`  - Task Detail:       http://localhost:${PORT}/task.html`);
     console.log(`\nPress Ctrl+C to stop the server\n`);
 });
 

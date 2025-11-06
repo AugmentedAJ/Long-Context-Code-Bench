@@ -517,6 +517,106 @@ long-context-bench judge \
 
 **Note:** LLM judge falls back to deterministic scoring if the API call fails or returns invalid JSON.
 
+### Cross-Agent Analysis
+
+Compare multiple agents' solutions for the same PR to understand different approaches and identify the best performer.
+
+#### Features
+
+- **Multi-Agent Comparison**: Analyzes all agent attempts for a specific PR
+- **Individual Scoring**: Judges each agent's solution independently
+- **Comparative Analysis**: LLM-generated side-by-side comparison (in comparative mode)
+- **Ranking**: Automatically ranks agents by performance
+- **Approach Analysis**: Identifies key differences in how agents solved the problem
+
+#### Usage
+
+```bash
+# Basic cross-agent analysis with LLM judge
+export ANTHROPIC_API_KEY=your_key
+long-context-bench analyze-pr \
+  --pr-number 114869 \
+  --test-label v0 \
+  --judge-mode comparative \
+  --judge-model anthropic/claude-3-5-sonnet-20241022
+
+# Analyze specific PR with deterministic scoring
+long-context-bench analyze-pr \
+  --pr-number 114869 \
+  --test-label v0 \
+  --judge-mode deterministic
+
+# Using OpenAI for comparative analysis
+export OPENAI_API_KEY=your_key
+long-context-bench analyze-pr \
+  --pr-number 114869 \
+  --test-label v0 \
+  --judge-mode comparative \
+  --judge-model gpt-4o
+```
+
+#### Judge Modes
+
+- **deterministic**: Fast heuristic-based scoring (no API costs)
+- **llm**: Individual LLM evaluation of each agent (provides rationale)
+- **comparative**: LLM evaluation + cross-agent comparison and ranking (recommended)
+
+#### Output
+
+Results are saved to `output/cross_agent_analysis/pr{number}_{run_id}.json`:
+
+```json
+{
+  "pr_number": 114869,
+  "task_instructions": "Fix the bug in search functionality",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "status": "success",
+      "aggregate": 0.85,
+      "scores": {
+        "correctness": 0.9,
+        "completeness": 0.95,
+        "code_reuse": 0.8,
+        "best_practices": 0.85,
+        "unsolicited_docs": 1.0
+      }
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "aggregate": 0.72,
+      ...
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "Auggie produced a more complete solution...",
+    "best_agent": "auggie:sonnet4.5",
+    "best_agent_reasoning": "Higher scores across all metrics...",
+    "approach_differences": "Auggie leveraged existing utilities...",
+    "ranking": ["auggie:sonnet4.5", "claude-code:claude-sonnet-4-5"]
+  }
+}
+```
+
+#### Example: Analyze v0 Test Results
+
+```bash
+# Compare all agents on PR 114869 from v0 test run
+export ANTHROPIC_API_KEY=your_key
+long-context-bench analyze-pr \
+  --pr-number 114869 \
+  --test-label v0 \
+  --judge-mode comparative \
+  --judge-model anthropic/claude-3-5-sonnet-20241022
+
+# Output shows:
+# - Individual scores for auggie:sonnet4.5, claude-code:claude-sonnet-4-5, factory:claude-sonnet-4-5-20250929
+# - Comparative analysis of different approaches
+# - Ranking from best to worst
+```
+
 ## Supported Runners
 
 The benchmark supports multiple CLI coding agents through pluggable adapters:

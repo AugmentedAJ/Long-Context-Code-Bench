@@ -447,6 +447,66 @@ function getPrId(repoUrl, prNumber) {
 }
 
 /**
+ * Load all cross-agent analyses
+ */
+async function loadAllCrossAgentAnalyses() {
+    try {
+        // List all files in cross_agent_analysis directory
+        const response = await fetch(`${API_BASE}/cross_agent_analysis/`);
+        if (!response.ok) {
+            console.warn('No cross-agent analyses found');
+            return [];
+        }
+
+        // For Node.js server, it returns a JSON array of filenames
+        let files;
+        try {
+            files = await response.json();
+        } catch (e) {
+            // If not JSON, try to parse HTML directory listing (for static hosting)
+            const html = await response.text();
+            const matches = html.matchAll(/href="([^"]+\.json)"/g);
+            files = Array.from(matches, m => m[1]);
+        }
+
+        // Load each analysis file
+        const analyses = [];
+        for (const file of files) {
+            if (file.endsWith('.json')) {
+                try {
+                    const analysisResponse = await fetch(`${API_BASE}/cross_agent_analysis/${file}`);
+                    if (analysisResponse.ok) {
+                        const analysis = await analysisResponse.json();
+                        analyses.push(analysis);
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${file}:`, error);
+                }
+            }
+        }
+
+        return analyses;
+    } catch (error) {
+        console.error('Error loading cross-agent analyses:', error);
+        return [];
+    }
+}
+
+/**
+ * Load a specific cross-agent analysis by run ID
+ */
+async function loadCrossAgentAnalysis(analysisRunId) {
+    try {
+        // Try to find the file by listing directory
+        const analyses = await loadAllCrossAgentAnalyses();
+        return analyses.find(a => a.analysis_run_id === analysisRunId) || null;
+    } catch (error) {
+        console.error('Error loading cross-agent analysis:', error);
+        return null;
+    }
+}
+
+/**
  * Clear cache
  */
 function clearCache() {

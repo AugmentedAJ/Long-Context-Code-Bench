@@ -174,7 +174,7 @@ def compute_llm_scores(
 ) -> tuple[Scores, str]:
     """Compute scores using LLM judge.
 
-    Per R-3.12: LLM-based judge with temperature 0.0, top_p 0, fixed prompt and seed.
+    Per R-3.12: LLM-based judge with temperature 0.0, fixed prompt and seed.
 
     Args:
         agent_diff: Agent-produced diff
@@ -251,7 +251,6 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
             model=judge_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            top_p=0.0,
             seed=42,  # Fixed seed for reproducibility (dropped if unsupported)
         )
 

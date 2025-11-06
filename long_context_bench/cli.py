@@ -204,6 +204,66 @@ def judge(
 
 
 @main.command()
+@click.option("--pr-number", required=True, type=int, help="PR number to analyze")
+@click.option("--judge-mode", type=click.Choice(["deterministic", "llm", "comparative"]), default="comparative", help="Judge mode")
+@click.option("--judge-model", help="Judge model (required for llm/comparative modes)")
+@click.option("--test-label", help="Optional label to filter edits by")
+@click.option("--output-dir", type=click.Path(), default="output", help="Output directory")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-analyze even if output exists")
+def analyze_pr(
+    pr_number: int,
+    judge_mode: str,
+    judge_model: Optional[str],
+    test_label: Optional[str],
+    output_dir: str,
+    cache_dir: str,
+    force: bool,
+) -> None:
+    """Cross-agent analysis: Compare multiple agents' solutions for a single PR.
+
+    This command finds all agent attempts for the specified PR (optionally filtered
+    by test_label), judges each one, and generates a comparative analysis showing:
+    - Individual scores for each agent
+    - Side-by-side comparison of approaches
+    - LLM-generated ranking and analysis (in comparative mode)
+
+    Example:
+        long-context-bench analyze-pr --pr-number 114869 --test-label v0 \\
+            --judge-mode comparative --judge-model anthropic/claude-3-5-sonnet-20241022
+    """
+    from long_context_bench.stages.cross_agent_analysis import run_cross_agent_analysis
+
+    # Validate judge model for llm/comparative modes
+    if judge_mode in ["llm", "comparative"] and not judge_model:
+        click.echo("Error: --judge-model is required for llm/comparative modes")
+        return
+
+    click.echo(f"Running cross-agent analysis for PR {pr_number}")
+    if test_label:
+        click.echo(f"Test label filter: {test_label}")
+    click.echo(f"Judge mode: {judge_mode}")
+    if judge_model:
+        click.echo(f"Judge model: {judge_model}")
+
+    analysis_run_id = run_cross_agent_analysis(
+        pr_number=pr_number,
+        output_dir=Path(output_dir),
+        judge_mode=judge_mode,
+        judge_model=judge_model,
+        test_label=test_label,
+        cache_dir=Path(cache_dir),
+        force=force,
+    )
+
+    if analysis_run_id:
+        click.echo(f"Cross-agent analysis completed. Analysis run ID: {analysis_run_id}")
+        click.echo(f"Results saved to: output/cross_agent_analysis/pr{pr_number}_{analysis_run_id}.json")
+    else:
+        click.echo("Cross-agent analysis failed")
+
+
+@main.command()
 @click.option("--runner", required=True, help="Agent runner name")
 @click.option("--model", required=True, help="Model name")
 @click.option("--agent-binary", type=click.Path(), help="Path to agent binary")

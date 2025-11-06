@@ -147,3 +147,43 @@ class AggregateSummary(BaseModel):
     runner: Optional[str] = None  # Runner name for comparison reports
     model: Optional[str] = None  # Model name for comparison reports
 
+
+class AgentResult(BaseModel):
+    """Individual agent's result for cross-agent comparison."""
+    runner: str
+    model: str
+    edit_run_id: str
+    status: str  # success|timeout|error
+    elapsed_ms: int
+    patch_unified: str
+    scores: Scores
+    aggregate: float = Field(ge=-1.0, le=1.0)
+    rationale: Optional[str] = None
+    errors: List[str] = []
+
+
+class ComparativeAnalysis(BaseModel):
+    """LLM-generated comparative analysis of multiple agents."""
+    summary: str  # Overall comparison summary
+    best_agent: str  # Which agent performed best (runner:model)
+    best_agent_reasoning: str  # Why this agent was best
+    approach_differences: str  # Key differences in approaches
+    ranking: List[str]  # Ordered list of agents (runner:model) from best to worst
+
+
+class CrossAgentJudge(BaseModel):
+    """Cross-agent comparison results for a single PR."""
+    repo_url: str
+    pr_number: int
+    base_commit: str
+    head_commit: str
+    task_instructions: str
+    ground_truth_diff: str
+    judge_mode: str  # deterministic|llm|comparative
+    judge_model: Optional[str] = None
+    test_label: Optional[str] = None
+    agent_results: List[AgentResult]  # Results from each agent
+    comparative_analysis: Optional[ComparativeAnalysis] = None  # LLM comparative analysis
+    timestamp: str
+    analysis_run_id: str  # Unique ID for this cross-agent analysis run
+
