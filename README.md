@@ -706,6 +706,28 @@ The web app is automatically deployed and updated when you run:
 - `long-context-bench stats`
 - `long-context-bench compare`
 
+### Packaging and Sharing Results
+
+Package your results for easy sharing with an interactive web UI:
+
+```bash
+./scripts/package_results.sh
+```
+
+This creates a lightweight archive (~100KB) containing:
+- Interactive web dashboard (all HTML/JS/CSS files)
+- Result data (summaries and index)
+- Quick-start launchers (`start.sh` / `start.bat`)
+
+**Sharing options:**
+
+1. **GitHub Releases** - Upload the `.tar.gz` file for downloads
+2. **Netlify/Vercel** - Deploy the `web/` folder for instant live URL (drag & drop to netlify.com/drop)
+3. **GitHub Pages** - Host permanently with version control
+4. **Email/Drive** - Share the 100KB archive directly
+
+Recipients can extract and run `./start.sh` to view results locally, or you can deploy to any static hosting service for a live URL.
+
 ### Generate Statistics (CLI)
 
 ```bash
