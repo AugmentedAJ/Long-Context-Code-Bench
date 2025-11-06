@@ -122,9 +122,7 @@ function displayLeaderboard(summaries) {
             <td>${index + 1}</td>
             <td>${summary.runner || '-'}</td>
             <td>${summary.model || '-'}</td>
-            <td>${summary.test_label || '-'}</td>
             <td>${formatScore(summary.mean_aggregate)}</td>
-            <td>${formatPercentage(summary.success_rate)}</td>
             <td>${formatScore(summary.mean_correctness)}</td>
             <td>${formatScore(summary.mean_completeness)}</td>
             <td>${formatScore(summary.mean_code_reuse)}</td>
