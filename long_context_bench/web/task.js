@@ -65,7 +65,7 @@ async function loadTaskSample(prNumber) {
     const prId = `elastic_elasticsearch_pr${prNumber}`;
     const samplePath = `samples/v0/${prId}/sample.json`;
 
-    const response = await fetch(`/data/${samplePath}`);
+    const response = await fetch(`${API_BASE}/${samplePath}`);
     if (!response.ok) {
         throw new Error(`Failed to load sample: ${response.statusText}`);
     }
@@ -77,25 +77,29 @@ async function loadTaskSample(prNumber) {
  * Load edit data for a specific task
  */
 async function loadTaskEdit(runEntry, prNumber) {
-    const editPath = `edits/${runEntry.runner}/${runEntry.model}/${runEntry.run_id}`;
+    // Use edit_run_id if available, otherwise fall back to run_id
+    const runIdToUse = runEntry.edit_run_id || runEntry.run_id;
+    const editPath = `edits/${runEntry.runner}/${runEntry.model}/${runIdToUse}`;
     const prId = `elastic_elasticsearch_pr${prNumber}`; // TODO: Make this more generic
     
     try {
-        // Load edit summary
-        const summaryResponse = await fetch(`/data/${editPath}/${prId}/edit_summary.json`);
-        if (!summaryResponse.ok) {
-            throw new Error(`Failed to load edit summary: ${summaryResponse.statusText}`);
+        // Load edit.json (contains all edit data)
+        const editResponse = await fetch(`${API_BASE}/${editPath}/${prId}/edit.json`);
+        if (!editResponse.ok) {
+            throw new Error(`Failed to load edit: ${editResponse.statusText}`);
         }
-        const edit = await summaryResponse.json();
-        
-        // Load patch file
-        const patchResponse = await fetch(`/data/${editPath}/${prId}/edit.patch`);
-        if (patchResponse.ok) {
-            edit.patch_unified = await patchResponse.text();
-        } else {
-            edit.patch_unified = '';
+        const edit = await editResponse.json();
+
+        // Load patch file if not already in edit.json
+        if (!edit.patch_unified) {
+            const patchResponse = await fetch(`${API_BASE}/${editPath}/${prId}/edit.patch`);
+            if (patchResponse.ok) {
+                edit.patch_unified = await patchResponse.text();
+            } else {
+                edit.patch_unified = '';
+            }
         }
-        
+
         return edit;
     } catch (error) {
         console.error('Error loading edit:', error);
@@ -107,15 +111,17 @@ async function loadTaskEdit(runEntry, prNumber) {
  * Load judge data for a specific task
  */
 async function loadTaskJudge(runEntry, prNumber) {
-    // Judge path: judges/{judge_mode}/{judge_model}/{run_id}/{pr_id}/judge.json
+    // Judge path: judges/{judge_mode}/{judge_model}/{judge_run_id}/{pr_id}/judge.json
     // Default to 'deterministic' and 'default' if not specified
     const judgeMode = runEntry.judge_mode || 'deterministic';
     const judgeModel = runEntry.judge_model || 'default';
-    const judgePath = `judges/${judgeMode}/${judgeModel}/${runEntry.run_id}`;
+    // Use judge_run_id if available, otherwise fall back to run_id
+    const runIdToUse = runEntry.judge_run_id || runEntry.run_id;
+    const judgePath = `judges/${judgeMode}/${judgeModel}/${runIdToUse}`;
     const prId = `elastic_elasticsearch_pr${prNumber}`; // TODO: Make this more generic
 
     try {
-        const response = await fetch(`/data/${judgePath}/${prId}/judge.json`);
+        const response = await fetch(`${API_BASE}/${judgePath}/${prId}/judge.json`);
         if (!response.ok) {
             throw new Error(`Failed to load judge: ${response.statusText}`);
         }
@@ -130,11 +136,13 @@ async function loadTaskJudge(runEntry, prNumber) {
  * Load logs for a specific task
  */
 async function loadTaskLogs(runEntry, prNumber) {
-    const editPath = `edits/${runEntry.runner}/${runEntry.model}/${runEntry.run_id}`;
+    // Use edit_run_id if available, otherwise fall back to run_id
+    const runIdToUse = runEntry.edit_run_id || runEntry.run_id;
+    const editPath = `edits/${runEntry.runner}/${runEntry.model}/${runIdToUse}`;
     const prId = `elastic_elasticsearch_pr${prNumber}`; // TODO: Make this more generic
     
     try {
-        const response = await fetch(`/data/${editPath}/${prId}/logs.jsonl`);
+        const response = await fetch(`${API_BASE}/${editPath}/${prId}/logs.jsonl`);
         if (!response.ok) {
             console.warn('Logs not found');
             return [];
