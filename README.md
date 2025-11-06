@@ -728,6 +728,40 @@ This creates a lightweight archive (~100KB) containing:
 
 Recipients can extract and run `./start.sh` to view results locally, or you can deploy to any static hosting service for a live URL.
 
+### Sharing Full Results with Logs (Team Debugging)
+
+For internal team debugging with full agent logs:
+
+```bash
+# Archive the complete output directory with logs
+./scripts/archive_full_output.sh
+```
+
+This creates a larger archive (~10-50MB depending on log verbosity) containing:
+- Everything from the lightweight package
+- **Full agent logs** (stdout/stderr) for every task
+- Complete execution traces
+
+**Recommended distribution workflow:**
+
+1. **Upload to shared storage:**
+   ```bash
+   # AWS S3 (recommended)
+   aws s3 cp long-context-bench-v0-full-output_*.tar.gz s3://your-bucket/benchmarks/
+   aws s3 presign s3://your-bucket/benchmarks/long-context-bench-v0-full-output_*.tar.gz --expires-in 604800
+
+   # Or Google Drive, Dropbox, internal file server, etc.
+   ```
+
+2. **Share instructions with team:**
+   - Send the download link + the generated `*_INSTRUCTIONS.txt` file
+   - Team members clone the repo, download the archive, and extract to repo root
+   - Run `cd output/web && npm start` to view with full logs
+
+**Security note:** Full archives contain agent logs which may include internal paths, error traces, and reasoning. Share only with trusted team members.
+
+See [DISTRIBUTION.md](DISTRIBUTION.md) for detailed distribution strategies and security considerations.
+
 ### Generate Statistics (CLI)
 
 ```bash

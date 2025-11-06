@@ -70,6 +70,8 @@ Thumbs.db
 .env
 *.key
 *.pem
+
+# Generated packages and archives
 long-context-bench-v0-results_*/
-long-context-bench-v0-results_*/
-long-context-bench-v0-results_*/
+long-context-bench-v0-full-output_*.tar.gz
+long-context-bench-v0-full-output_*_INSTRUCTIONS.txt
