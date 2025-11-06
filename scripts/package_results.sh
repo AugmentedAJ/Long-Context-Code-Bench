@@ -31,8 +31,38 @@ cp -r "$OUTPUT_DIR/web/lib" "$PACKAGE_DIR/web/" 2>/dev/null || true
 # Copy data files
 echo "📊 Copying result data..."
 cp "$OUTPUT_DIR/index.json" "$PACKAGE_DIR/web/"
+
+# Copy summaries
 mkdir -p "$PACKAGE_DIR/web/summaries"
 cp -r "$OUTPUT_DIR/summaries"/* "$PACKAGE_DIR/web/summaries/"
+
+# Copy edit data (only edit.json files, not logs or patches to save space)
+echo "📝 Copying edit data..."
+if [ -d "$OUTPUT_DIR/edits" ]; then
+    mkdir -p "$PACKAGE_DIR/web/edits"
+    # Copy directory structure and edit.json files only
+    find "$OUTPUT_DIR/edits" -name "edit.json" | while read -r edit_file; do
+        # Get relative path from output/edits/
+        rel_path="${edit_file#$OUTPUT_DIR/edits/}"
+        target_dir="$PACKAGE_DIR/web/edits/$(dirname "$rel_path")"
+        mkdir -p "$target_dir"
+        cp "$edit_file" "$target_dir/"
+    done
+fi
+
+# Copy judge data
+echo "⚖️  Copying judge data..."
+if [ -d "$OUTPUT_DIR/judges" ]; then
+    mkdir -p "$PACKAGE_DIR/web/judges"
+    cp -r "$OUTPUT_DIR/judges"/* "$PACKAGE_DIR/web/judges/"
+fi
+
+# Copy sample data (if exists)
+echo "📋 Copying sample data..."
+if [ -d "$OUTPUT_DIR/samples" ]; then
+    mkdir -p "$PACKAGE_DIR/web/samples"
+    cp -r "$OUTPUT_DIR/samples"/* "$PACKAGE_DIR/web/samples/"
+fi
 
 # Create README
 echo "📝 Creating README..."
