@@ -5,7 +5,7 @@
 // Global state
 let currentSummaries = [];
 let filteredSummaries = [];
-let currentSort = { field: 'mean_aggregate', ascending: false };
+let currentSort = { field: 'win_rate', ascending: false };
 let crossAgentAnalyses = [];
 let crossAgentLeaderboard = [];
 
@@ -115,11 +115,11 @@ function displayLeaderboard(summaries) {
     if (!tbody) return;
 
     if (summaries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">No runs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">No runs found</td></tr>';
         return;
     }
 
-    // Sort summaries by aggregate score (descending) by default
+    // Sort summaries by win rate (descending) by default
     const sorted = [...summaries].sort((a, b) => {
         const aVal = a[currentSort.field] || 0;
         const bVal = b[currentSort.field] || 0;
@@ -138,26 +138,24 @@ function displayLeaderboard(summaries) {
                 <td>${index + 1}</td>
                 <td>${summary.runner || '-'}</td>
                 <td>${summary.model || '-'}</td>
+                <td>${formatPercentage(summary.win_rate)}</td>
+                <td>${summary.wins || 0}</td>
                 <td>${formatScore(summary.mean_aggregate)}</td>
                 <td>${formatScore(summary.mean_correctness)}</td>
                 <td>${formatScore(summary.mean_completeness)}</td>
                 <td>${formatScore(summary.mean_code_reuse)}</td>
-                <td>${summary.wins || 0}</td>
-                <td>${formatPercentage(summary.win_rate)}</td>
-                <td>${summary.total_tasks || 0}</td>
             `;
         } else {
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${summary.runner || '-'}</td>
                 <td>${summary.model || '-'}</td>
+                <td>-</td>
+                <td>-</td>
                 <td>${formatScore(summary.mean_aggregate)}</td>
                 <td>${formatScore(summary.mean_correctness)}</td>
                 <td>${formatScore(summary.mean_completeness)}</td>
                 <td>${formatScore(summary.mean_code_reuse)}</td>
-                <td>-</td>
-                <td>-</td>
-                <td>${summary.total_samples || '-'}</td>
             `;
         }
 
