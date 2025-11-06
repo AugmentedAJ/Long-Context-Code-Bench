@@ -447,41 +447,32 @@ function getPrId(repoUrl, prNumber) {
 }
 
 /**
- * Load all cross-agent analyses
+ * Load all cross-agent analysis files
  */
 async function loadAllCrossAgentAnalyses() {
     try {
-        // List all files in cross_agent_analysis directory
-        const response = await fetch(`${API_BASE}/cross_agent_analysis/`);
-        if (!response.ok) {
-            console.warn('No cross-agent analyses found');
+        // Get index manifest which contains list of cross-agent analysis files
+        const index = await loadIndex();
+
+        if (!index.cross_agent_runs || index.cross_agent_runs.length === 0) {
+            console.log('No cross-agent analyses found in index');
             return [];
         }
 
-        // For Node.js server, it returns a JSON array of filenames
-        let files;
-        try {
-            files = await response.json();
-        } catch (e) {
-            // If not JSON, try to parse HTML directory listing (for static hosting)
-            const html = await response.text();
-            const matches = html.matchAll(/href="([^"]+\.json)"/g);
-            files = Array.from(matches, m => m[1]);
-        }
-
-        // Load each analysis file
         const analyses = [];
-        for (const file of files) {
-            if (file.endsWith('.json')) {
-                try {
-                    const analysisResponse = await fetch(`${API_BASE}/cross_agent_analysis/${file}`);
-                    if (analysisResponse.ok) {
-                        const analysis = await analysisResponse.json();
-                        analyses.push(analysis);
-                    }
-                } catch (error) {
-                    console.error(`Error loading ${file}:`, error);
+        for (const run of index.cross_agent_runs) {
+            try {
+                const analysisResponse = await fetch(`${API_BASE}/cross_agent_analysis/${run.file}`);
+                if (analysisResponse.ok) {
+                    const analysis = await analysisResponse.json();
+                    // Add metadata from index
+                    analysis.analysis_run_id = run.analysis_run_id;
+                    analyses.push(analysis);
+                } else {
+                    console.warn(`Failed to load ${run.file}: ${analysisResponse.status}`);
                 }
+            } catch (error) {
+                console.error(`Error loading ${run.file}:`, error);
             }
         }
 
@@ -493,17 +484,76 @@ async function loadAllCrossAgentAnalyses() {
 }
 
 /**
- * Load a specific cross-agent analysis by run ID
+ * Aggregate cross-agent analysis data by agent
+ * Returns leaderboard data with aggregate scores per agent
  */
-async function loadCrossAgentAnalysis(analysisRunId) {
-    try {
-        // Try to find the file by listing directory
-        const analyses = await loadAllCrossAgentAnalyses();
-        return analyses.find(a => a.analysis_run_id === analysisRunId) || null;
-    } catch (error) {
-        console.error('Error loading cross-agent analysis:', error);
-        return null;
-    }
+function aggregateCrossAgentData(analyses) {
+    const agentStats = {};
+
+    analyses.forEach(analysis => {
+        if (!analysis.agent_results || !analysis.comparative_analysis) return;
+
+        analysis.agent_results.forEach(result => {
+            const agentKey = `${result.runner}:${result.model}`;
+
+            if (!agentStats[agentKey]) {
+                agentStats[agentKey] = {
+                    runner: result.runner,
+                    model: result.model,
+                    total_tasks: 0,
+                    total_aggregate: 0,
+                    total_correctness: 0,
+                    total_completeness: 0,
+                    total_code_reuse: 0,
+                    total_best_practices: 0,
+                    total_unsolicited_docs: 0,
+                    total_llm_rating: 0,
+                    wins: 0,
+                    tasks: []
+                };
+            }
+
+            const stats = agentStats[agentKey];
+            stats.total_tasks++;
+            stats.total_aggregate += result.aggregate || 0;
+            stats.total_correctness += result.scores?.correctness || 0;
+            stats.total_completeness += result.scores?.completeness || 0;
+            stats.total_code_reuse += result.scores?.code_reuse || 0;
+            stats.total_best_practices += result.scores?.best_practices || 0;
+            stats.total_unsolicited_docs += result.scores?.unsolicited_docs || 0;
+            stats.total_llm_rating += result.llm_rating || 0;
+
+            // Track if this agent won this task
+            if (analysis.comparative_analysis.best_agent === agentKey) {
+                stats.wins++;
+            }
+
+            stats.tasks.push({
+                pr_number: analysis.pr_number,
+                aggregate: result.aggregate,
+                llm_rating: result.llm_rating
+            });
+        });
+    });
+
+    // Calculate averages
+    const leaderboard = Object.values(agentStats).map(stats => ({
+        runner: stats.runner,
+        model: stats.model,
+        total_tasks: stats.total_tasks,
+        mean_aggregate: stats.total_aggregate / stats.total_tasks,
+        mean_correctness: stats.total_correctness / stats.total_tasks,
+        mean_completeness: stats.total_completeness / stats.total_tasks,
+        mean_code_reuse: stats.total_code_reuse / stats.total_tasks,
+        mean_best_practices: stats.total_best_practices / stats.total_tasks,
+        mean_unsolicited_docs: stats.total_unsolicited_docs / stats.total_tasks,
+        mean_llm_rating: stats.total_llm_rating / stats.total_tasks,
+        wins: stats.wins,
+        win_rate: stats.wins / stats.total_tasks,
+        tasks: stats.tasks
+    }));
+
+    return leaderboard;
 }
 
 /**

@@ -695,6 +695,7 @@ def generate_index_manifest(output_dir: Path) -> None:
 
     index = {
         "runs": [],
+        "cross_agent_runs": [],
         "test_labels": set(),
         "runners": set(),
         "models": set(),
@@ -756,6 +757,36 @@ def generate_index_manifest(output_dir: Path) -> None:
             except Exception as e:
                 console.print(f"[yellow]Warning: Failed to process {summary_file}: {e}[/yellow]")
 
+    # Scan cross-agent analysis directory
+    cross_agent_dir = output_dir / "cross_agent_analysis"
+    if cross_agent_dir.exists():
+        for analysis_file in cross_agent_dir.glob("*.json"):
+            try:
+                with open(analysis_file) as f:
+                    analysis = json.load(f)
+
+                # Extract PR number and analysis run ID from filename
+                # Format: pr{number}_{analysis_run_id}.json
+                filename = analysis_file.stem
+                parts = filename.split('_')
+                if len(parts) >= 2 and parts[0].startswith('pr'):
+                    pr_number = int(parts[0][2:])  # Remove 'pr' prefix
+                    analysis_run_id = '_'.join(parts[1:])  # Join remaining parts
+
+                    cross_agent_info = {
+                        "file": analysis_file.name,
+                        "pr_number": pr_number,
+                        "analysis_run_id": analysis_run_id,
+                        "test_label": analysis.get("test_label"),
+                        "judge_mode": analysis.get("judge_mode"),
+                        "judge_model": analysis.get("judge_model"),
+                    }
+
+                    index["cross_agent_runs"].append(cross_agent_info)
+
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to process {analysis_file}: {e}[/yellow]")
+
     # Convert sets to sorted lists
     index["test_labels"] = sorted(list(index["test_labels"]))
     index["runners"] = sorted(list(index["runners"]))
@@ -774,6 +805,7 @@ def generate_index_manifest(output_dir: Path) -> None:
 
     console.print(f"[green]✓ Index manifest generated: {index_file}[/green]")
     console.print(f"  Found {len(index['runs'])} runs")
+    console.print(f"  Found {len(index['cross_agent_runs'])} cross-agent analyses")
 
 
 def update_web_app(output_dir: Path) -> None:
