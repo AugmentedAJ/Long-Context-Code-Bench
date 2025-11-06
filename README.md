@@ -13,7 +13,7 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
 - 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~40K files per codebase)
 - 🎯 **Pre-synthesized prompts**: LLM-generated natural task instructions (standard for v0 results)
-- 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, etc.)
+- 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, Factory, Codex, Aider, etc.)
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
 - 📝 Traceable: complete provenance tracking for all runs
@@ -30,9 +30,12 @@ For the broader vision, competitive landscape, GTM, and roadmap, see:
 - Python ≥ 3.11
 - Git
 - GitHub token for API access (set as `GITHUB_GIT_TOKEN`)
-- **Agent authentication** (choose one):
+- **Agent authentication** (choose one or more):
   - **Auggie**: OAuth login (recommended) or API token
   - **Claude Code**: OAuth login (recommended) or API key
+  - **Factory CLI**: OAuth login (run `droid` interactively first)
+  - **Codex CLI**: Requires `OPENAI_API_KEY`
+  - **Aider**: Requires API keys for model provider
 
 ### Install from source
 
@@ -607,6 +610,21 @@ long-context-bench pipeline \
 
 **Install:** `npm install -g @openai/codex`
 **Environment:** Requires `OPENAI_API_KEY`
+
+### Factory CLI
+
+Factory AI's command-line coding agent.
+
+```bash
+long-context-bench pipeline \
+  --runner factory \
+  --model claude-sonnet-4-5-20250929 \
+  --agent-binary /path/to/droid  # Optional, defaults to 'droid' in PATH
+```
+
+**Install:** `npm install -g @factory-ai/droid`
+**Authentication:** OAuth-based (run `droid` interactively first to authenticate)
+**Models:** Claude models work with Factory subscription (e.g., `claude-sonnet-4-5-20250929`). GPT models require payment.
 
 ### Aider
 
