@@ -10,17 +10,32 @@
     <div class="container">
         <header>
             <h1>Long-Context-Bench</h1>
-            <nav>
-                <a href="index.html" class="active">Leaderboard</a>
-                <a href="summary.html">Run Details</a>
-                <a href="comparison.html">Compare</a>
-                <a href="cross-agent.html">Cross-Agent Analysis</a>
-            </nav>
         </header>
 
         <main>
+            <section class="intro">
+                <h2>About Long-Context-Code-Bench</h2>
+                <p>
+                    Long-Context-Code-Bench evaluates AI coding agents on <strong>enterprise-scale repositories with 40,000+ files</strong>.
+                    Unlike existing benchmarks that focus on small codebases, LCB measures what matters most for enterprise adoption:
+                    the ability to understand, modify, and integrate changes across massive real-world repositories.
+                </p>
+                <p>
+                    This leaderboard shows results from <strong>cross-agent comparative analysis</strong>, where an LLM judge evaluates
+                    multiple agents solving the same real GitHub PRs and ranks them based on correctness, completeness, code reuse,
+                    and best practices. Each agent is tested on recreating actual PR changes given only the PR description—no access
+                    to the solution or git history.
+                </p>
+                <div class="version-notice">
+                    <strong>📊 Version v0</strong> — This is our initial release featuring 40 PRs from the Elasticsearch repository
+                    (~40,000 files). Future versions will expand to include diverse codebases across multiple languages (Java, TypeScript,
+                    Go, Rust) and even larger repository sizes to comprehensively evaluate context engines and retrieval systems at scale.
+                </div>
+            </section>
+
             <section class="leaderboard">
-                <h2>Leaderboard</h2>
+                <h2>Agent Leaderboard</h2>
+                <p class="section-description">Ranked by aggregate LLM judge score from cross-agent comparative analysis</p>
                 <div class="table-container">
                     <table id="leaderboard-table">
                         <thead>
@@ -32,31 +47,34 @@
                                 <th class="sortable" data-sort="mean_correctness">Correctness</th>
                                 <th class="sortable" data-sort="mean_completeness">Completeness</th>
                                 <th class="sortable" data-sort="mean_code_reuse">Code Reuse</th>
-                                <th class="sortable" data-sort="tasks_per_hour">Tasks/Hour</th>
-                                <th>Actions</th>
+                                <th class="sortable" data-sort="wins">Wins</th>
+                                <th class="sortable" data-sort="win_rate">Win Rate</th>
+                                <th class="sortable" data-sort="total_tasks">Tasks</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr>
-                                <td colspan="9" class="loading">Loading data...</td>
+                                <td colspan="10" class="loading">Loading data...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <section class="charts">
-                <div class="chart-container chart-container-full">
-                    <h3>Top Agents Comparison</h3>
-                    <div class="chart-controls">
-                        <label for="radar-top-n">Show top:</label>
-                        <select id="radar-top-n">
-                            <option value="3">3 agents</option>
-                            <option value="5" selected>5 agents</option>
-                            <option value="10">10 agents</option>
-                        </select>
+            <section class="cross-agent-details">
+                <h2>Cross-Agent Analysis Details</h2>
+                <p class="section-description">Detailed comparative analysis for each PR</p>
+
+                <!-- Analysis List -->
+                <div class="analysis-list-container">
+                    <div class="analysis-list" id="analysis-list">
+                        <p class="loading">Loading cross-agent analyses...</p>
                     </div>
-                    <canvas id="leaderboard-radar-chart"></canvas>
+                </div>
+
+                <!-- Analysis Detail View -->
+                <div class="analysis-detail" id="analysis-detail" style="display: none;">
+                    <!-- Detail content will be inserted here -->
                 </div>
             </section>
         </main>
@@ -69,6 +87,7 @@
     <script src="lib/chart.min.js"></script>
     <script src="data-loader.js"></script>
     <script src="charts.js"></script>
+    <script src="cross-agent.js"></script>
     <script src="app.js"></script>
     <script>
         // Initialize leaderboard page
@@ -76,9 +95,9 @@
             await loadLeaderboard();
         });
 
-        // Chart control handler
-        document.getElementById('radar-top-n').addEventListener('change', () => {
-            updateLeaderboardCharts();
+        // Test label filter handler
+        document.getElementById('test-label-filter').addEventListener('change', () => {
+            filterLeaderboard();
         });
     </script>
 </body>

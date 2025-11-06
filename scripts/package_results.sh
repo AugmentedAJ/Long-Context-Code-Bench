@@ -64,6 +64,13 @@ if [ -d "$OUTPUT_DIR/samples" ]; then
     cp -r "$OUTPUT_DIR/samples"/* "$PACKAGE_DIR/web/samples/"
 fi
 
+# Copy cross-agent analysis data
+echo "🔄 Copying cross-agent analysis..."
+if [ -d "$OUTPUT_DIR/cross_agent_analysis" ]; then
+    mkdir -p "$PACKAGE_DIR/web/cross_agent_analysis"
+    cp -r "$OUTPUT_DIR/cross_agent_analysis"/* "$PACKAGE_DIR/web/cross_agent_analysis/"
+fi
+
 # Create README
 echo "📝 Creating README..."
 cat > "$PACKAGE_DIR/README.md" << 'EOF'

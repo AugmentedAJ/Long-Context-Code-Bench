@@ -632,11 +632,13 @@ def deploy_web_app(output_dir: Path) -> None:
         'index.html',
         'summary.html',
         'comparison.html',
+        'cross-agent.html',
         'task.html',
         'styles.css',
         'data-loader.js',
         'charts.js',
         'app.js',
+        'cross-agent.js',
         'task.js',
         'lib/chart.min.js',
         'package.json',
@@ -656,7 +658,7 @@ def deploy_web_app(output_dir: Path) -> None:
 
     # For static hosting, create symlinks or copy data directories to web/
     # This allows the web app to work without the Node.js server
-    data_dirs = ['summaries', 'edits', 'judges', 'samples']
+    data_dirs = ['summaries', 'edits', 'judges', 'samples', 'cross_agent_analysis']
     for data_dir in data_dirs:
         src_dir = output_dir / data_dir
         dst_dir = web_dir / data_dir

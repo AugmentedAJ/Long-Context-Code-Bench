@@ -40,19 +40,14 @@ function displayAnalysisList(analyses) {
                 <thead>
                     <tr>
                         <th>PR Number</th>
-                        <th>Repository</th>
-                        <th>Agents Compared</th>
                         <th>Best Agent</th>
-                        <th>Comparative Summary</th>
-                        <th>Judge Mode</th>
-                        <th>Test Label</th>
-                        <th>Timestamp</th>
+                        <th>Summary</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${analyses.map(analysis => {
-                        // Get comparative summary if available
+                        // Get best agent and summary if available
                         const bestAgentName = analysis.comparative_analysis ? analysis.comparative_analysis.best_agent : null;
                         const comparativeSummary = analysis.comparative_analysis && analysis.comparative_analysis.summary
                             ? analysis.comparative_analysis.summary
@@ -61,13 +56,8 @@ function displayAnalysisList(analyses) {
                         return `
                             <tr>
                                 <td><strong>${analysis.pr_number}</strong></td>
-                                <td>${getRepoName(analysis.repo_url)}</td>
-                                <td>${analysis.agent_results.length} agents</td>
                                 <td>${bestAgentName || 'N/A'}</td>
-                                <td style="max-width: 500px; font-size: 0.9em;">${comparativeSummary}</td>
-                                <td><span class="badge">${analysis.judge_mode}</span></td>
-                                <td>${analysis.test_label || 'N/A'}</td>
-                                <td>${formatTimestamp(analysis.timestamp)}</td>
+                                <td style="max-width: 600px; font-size: 0.9em;">${comparativeSummary}</td>
                                 <td>
                                     <button class="btn-primary" onclick="showAnalysisDetail('${analysis.analysis_run_id}')">
                                         View Details

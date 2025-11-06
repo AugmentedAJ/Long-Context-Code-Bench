@@ -6,6 +6,8 @@
 let currentSummaries = [];
 let filteredSummaries = [];
 let currentSort = { field: 'mean_aggregate', ascending: false };
+let crossAgentAnalyses = [];
+let crossAgentLeaderboard = [];
 
 /**
  * Load and display leaderboard
@@ -13,16 +15,25 @@ let currentSort = { field: 'mean_aggregate', ascending: false };
 async function loadLeaderboard() {
     try {
         const index = await loadIndex();
-        currentSummaries = await loadAllSummaries();
+
+        // Load cross-agent analysis data
+        crossAgentAnalyses = await loadAllCrossAgentAnalyses();
+
+        if (crossAgentAnalyses.length > 0) {
+            // Use cross-agent analysis for leaderboard
+            crossAgentLeaderboard = aggregateCrossAgentData(crossAgentAnalyses);
+            currentSummaries = crossAgentLeaderboard;
+        } else {
+            // Fallback to regular summaries if no cross-agent data
+            currentSummaries = await loadAllSummaries();
+        }
 
         // Display leaderboard
         displayLeaderboard(currentSummaries);
 
-        // Update charts
-        if (currentSummaries.length > 0) {
-            createScoreDistributionChart('score-distribution-chart', currentSummaries);
-            createSuccessRateChart('success-rate-chart', currentSummaries);
-            updateLeaderboardCharts();  // Initialize the top agents comparison chart
+        // Load cross-agent analysis details
+        if (typeof loadCrossAgentAnalyses === 'function') {
+            await loadCrossAgentAnalyses();
         }
 
         // Update timestamp
@@ -30,7 +41,7 @@ async function loadLeaderboard() {
     } catch (error) {
         console.error('Error loading leaderboard:', error);
         document.getElementById('leaderboard-body').innerHTML =
-            '<tr><td colspan="12" class="loading">Error loading data. Make sure the benchmark has been run.</td></tr>';
+            '<tr><td colspan="9" class="loading">Error loading data. Make sure the benchmark has been run.</td></tr>';
     }
 }
 
@@ -102,13 +113,13 @@ function populateSelect(selectId, values) {
 function displayLeaderboard(summaries) {
     const tbody = document.getElementById('leaderboard-body');
     if (!tbody) return;
-    
+
     if (summaries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="loading">No runs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No runs found</td></tr>';
         return;
     }
 
-    // Sort summaries
+    // Sort summaries by aggregate score (descending) by default
     const sorted = [...summaries].sort((a, b) => {
         const aVal = a[currentSort.field] || 0;
         const bVal = b[currentSort.field] || 0;
@@ -118,20 +129,41 @@ function displayLeaderboard(summaries) {
     tbody.innerHTML = '';
     sorted.forEach((summary, index) => {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${summary.runner || '-'}</td>
-            <td>${summary.model || '-'}</td>
-            <td>${formatScore(summary.mean_aggregate)}</td>
-            <td>${formatScore(summary.mean_correctness)}</td>
-            <td>${formatScore(summary.mean_completeness)}</td>
-            <td>${formatScore(summary.mean_code_reuse)}</td>
-            <td>${summary.tasks_per_hour ? summary.tasks_per_hour.toFixed(2) : '-'}</td>
-            <td><a href="summary.html?run_id=${encodeURIComponent(summary.summary_path || summary.run_id)}">View</a></td>
-        `;
+
+        // Check if this is cross-agent data or regular summary
+        const isCrossAgent = summary.wins !== undefined;
+
+        if (isCrossAgent) {
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${summary.runner || '-'}</td>
+                <td>${summary.model || '-'}</td>
+                <td>${formatScore(summary.mean_aggregate)}</td>
+                <td>${formatScore(summary.mean_correctness)}</td>
+                <td>${formatScore(summary.mean_completeness)}</td>
+                <td>${formatScore(summary.mean_code_reuse)}</td>
+                <td>${summary.wins || 0}</td>
+                <td>${formatPercentage(summary.win_rate)}</td>
+                <td>${summary.total_tasks || 0}</td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${summary.runner || '-'}</td>
+                <td>${summary.model || '-'}</td>
+                <td>${formatScore(summary.mean_aggregate)}</td>
+                <td>${formatScore(summary.mean_correctness)}</td>
+                <td>${formatScore(summary.mean_completeness)}</td>
+                <td>${formatScore(summary.mean_code_reuse)}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${summary.total_samples || '-'}</td>
+            `;
+        }
+
         tbody.appendChild(row);
     });
-    
+
     // Add sort handlers
     document.querySelectorAll('th.sortable').forEach(th => {
         th.onclick = () => {
@@ -142,7 +174,7 @@ function displayLeaderboard(summaries) {
                 currentSort.field = field;
                 currentSort.ascending = false;
             }
-            displayLeaderboard(currentSummaries);
+            displayLeaderboard(filteredSummaries.length > 0 ? filteredSummaries : currentSummaries);
         };
     });
 }
@@ -154,30 +186,31 @@ function updateLeaderboardCharts() {
     const summariesToUse = filteredSummaries.length > 0 ? filteredSummaries : currentSummaries;
     if (summariesToUse.length === 0) return;
 
-    // Get control value
-    const radarTopN = parseInt(document.getElementById('radar-top-n')?.value || 5);
+    // Sort by aggregate score to get top performers
+    const sorted = [...summariesToUse].sort((a, b) => (b.mean_aggregate || 0) - (a.mean_aggregate || 0));
 
-    // Create chart
-    createLeaderboardRadarChart('leaderboard-radar-chart', summariesToUse, radarTopN);
+    // Create cross-agent comparison charts
+    createBarComparisonChart('bar-comparison-chart', sorted);
+    createRadarChart('radar-chart', sorted);
 }
 
 /**
  * Filter leaderboard
  */
 function filterLeaderboard() {
-    const runner = document.getElementById('filter-runner').value;
-    const model = document.getElementById('filter-model').value;
-    const label = document.getElementById('filter-label').value;
+    const label = document.getElementById('test-label-filter')?.value;
 
-    filteredSummaries = currentSummaries.filter(s => {
-        if (runner && s.runner !== runner) return false;
-        if (model && s.model !== model) return false;
-        if (label && s.test_label !== label) return false;
-        return true;
-    });
+    if (!label) {
+        filteredSummaries = [];
+        displayLeaderboard(currentSummaries);
+        updateLeaderboardCharts();
+        return;
+    }
+
+    filteredSummaries = currentSummaries.filter(s => s.test_label === label);
 
     displayLeaderboard(filteredSummaries);
-    updateLeaderboardCharts();  // Update charts when filter changes
+    updateLeaderboardCharts();
 }
 
 /**
