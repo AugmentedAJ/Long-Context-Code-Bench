@@ -2,8 +2,9 @@
  * Data loading utilities for Long-Context-Bench web app
  */
 
-// API base path - use /api when served by Node.js server
-const API_BASE = '/api';
+// API base path - auto-detect based on environment
+// Use /api when served by Node.js server, otherwise use relative paths for static hosting
+const API_BASE = window.location.port === '3000' ? '/api' : '.';
 
 // Global data cache
 const dataCache = {

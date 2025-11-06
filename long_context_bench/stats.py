@@ -654,6 +654,30 @@ def deploy_web_app(output_dir: Path) -> None:
             # Copy file (overwrite to ensure latest version)
             shutil.copy2(src, dst)
 
+    # For static hosting, create symlinks or copy data directories to web/
+    # This allows the web app to work without the Node.js server
+    data_dirs = ['summaries', 'edits', 'judges', 'samples']
+    for data_dir in data_dirs:
+        src_dir = output_dir / data_dir
+        dst_dir = web_dir / data_dir
+
+        if src_dir.exists():
+            # Remove existing symlink or directory
+            if dst_dir.is_symlink():
+                dst_dir.unlink()
+            elif dst_dir.exists():
+                # Don't remove - data might already be there
+                pass
+
+            # Create symlink (works on Unix-like systems)
+            try:
+                if not dst_dir.exists():
+                    dst_dir.symlink_to(src_dir.resolve(), target_is_directory=True)
+            except (OSError, NotImplementedError):
+                # Symlinks not supported (Windows without admin), skip
+                # The packaging script will copy these directories
+                pass
+
     console.print(f"[green]✓ Web app deployed to {web_dir}[/green]")
 
 
@@ -735,10 +759,16 @@ def generate_index_manifest(output_dir: Path) -> None:
     index["runners"] = sorted(list(index["runners"]))
     index["models"] = sorted(list(index["models"]))
 
-    # Write index.json
+    # Write index.json to both output/ and output/web/ for static hosting
     index_file = output_dir / "index.json"
     with open(index_file, "w") as f:
         json.dump(index, f, indent=2)
+
+    # Also copy to web directory for static hosting (Cloudflare Pages, Netlify, etc.)
+    web_index_file = output_dir / "web" / "index.json"
+    if (output_dir / "web").exists():
+        with open(web_index_file, "w") as f:
+            json.dump(index, f, indent=2)
 
     console.print(f"[green]✓ Index manifest generated: {index_file}[/green]")
     console.print(f"  Found {len(index['runs'])} runs")

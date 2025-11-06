@@ -76,17 +76,26 @@ This package contains the results from the v0 benchmark comparing three AI codin
 
 ## Quick Start
 
-### Option 1: Local Web Server (Recommended)
+### Option 1: One-Click Launcher (Easiest)
 
 ```bash
-cd web
-npm install
-npm start
+./start.sh    # Mac/Linux
+start.bat     # Windows
 ```
 
-Then open http://localhost:3000 in your browser.
+This automatically installs dependencies and starts the server at http://localhost:3000
 
-### Option 2: Python HTTP Server
+### Option 2: Static Hosting (Cloudflare Pages, Netlify, etc.)
+
+The `web/` directory is a fully static site - just drag and drop to:
+- **Cloudflare Pages**: https://pages.cloudflare.com/ (drag `web/` folder)
+- **Netlify Drop**: https://app.netlify.com/drop (drag `web/` folder)
+- **Vercel**: `cd web && vercel --prod`
+- **GitHub Pages**: Push `web/` to a gh-pages branch
+
+No build step required! All data is included.
+
+### Option 3: Local Python Server (No Node.js required)
 
 ```bash
 cd web
@@ -95,9 +104,15 @@ python3 -m http.server 8000
 
 Then open http://localhost:8000 in your browser.
 
-### Option 3: Static File Server
+### Option 4: Node.js Server (Best Performance)
 
-Use any static file server (e.g., `npx serve web`)
+```bash
+cd web
+npm install
+npm start
+```
+
+Then open http://localhost:3000 in your browser.
 
 ## What's Included
 
