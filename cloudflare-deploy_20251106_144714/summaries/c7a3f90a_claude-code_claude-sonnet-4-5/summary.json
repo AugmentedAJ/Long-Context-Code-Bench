@@ -1,0 +1,22 @@
+{
+  "run_id": "c7a3f90a",
+  "total_samples": 40,
+  "successful_samples": 40,
+  "failed_samples": 0,
+  "skipped_samples": 0,
+  "success_rate": 1.0,
+  "mean_correctness": -0.5701246250372702,
+  "mean_completeness": -0.556702731253494,
+  "mean_code_reuse": 0.375,
+  "mean_best_practices": 0.0,
+  "mean_unsolicited_docs": 0.9625,
+  "mean_aggregate": 0.04213452874184715,
+  "std_aggregate": 0.22985933056398844,
+  "mean_elapsed_ms": 249987.425,
+  "tasks_per_hour": 14.40072435643513,
+  "edit_run_id": "c7a3f90a",
+  "judge_run_id": "c7a3f90a",
+  "test_label": "v0",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5"
+}

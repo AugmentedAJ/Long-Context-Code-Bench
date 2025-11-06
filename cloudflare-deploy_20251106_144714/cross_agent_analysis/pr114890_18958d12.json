@@ -1,0 +1,86 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114890,
+  "base_commit": "6de48b122f41ad9ddd8449dbcaec46e883d7e4a8",
+  "head_commit": "78ea7c2f33dad1f77a423143bd8e7bec1e048df6",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Fix NPE in AdaptiveAllocationsScalerService (#114880)\n\nbackport of #114880 \n\nPlease make all necessary code changes to complete this task.",
+  "ground_truth_diff": "diff --git a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\nindex 1c3a73a409dd..9624d619ff20 100644\n--- a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n+++ b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n@@ -433,7 +433,8 @@ public class AdaptiveAllocationsScalerService implements ClusterStateListener {\n     public boolean maybeStartAllocation(TrainedModelAssignment assignment) {\n         if (assignment.getAdaptiveAllocationsSettings() != null\n             && assignment.getAdaptiveAllocationsSettings().getEnabled() == Boolean.TRUE\n-            && assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0) {\n+            && (assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == null\n+                || assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0)) {\n \n             // Prevent against a flurry of scale up requests.\n             if (deploymentIdsWithInFlightScaleFromZeroRequests.contains(assignment.getDeploymentId()) == false) {",
+  "judge_mode": "comparative",
+  "judge_model": "openai/claude-sonnet-4-5-20250929",
+  "test_label": "v0",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "edit_run_id": "a9463435",
+      "status": "success",
+      "elapsed_ms": 338911,
+      "patch_unified": "diff --git a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\nindex 1c3a73a4..9624d619 100644\n--- a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n+++ b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n@@ -433,7 +433,8 @@ public class AdaptiveAllocationsScalerService implements ClusterStateListener {\n     public boolean maybeStartAllocation(TrainedModelAssignment assignment) {\n         if (assignment.getAdaptiveAllocationsSettings() != null\n             && assignment.getAdaptiveAllocationsSettings().getEnabled() == Boolean.TRUE\n-            && assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0) {\n+            && (assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == null\n+                || assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0)) {\n \n             // Prevent against a flurry of scale up requests.\n             if (deploymentIdsWithInFlightScaleFromZeroRequests.contains(assignment.getDeploymentId()) == false) {",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 1.0,
+      "rationale": "The agent's diff is identical to the ground truth diff. Both add a null check for getMinNumberOfAllocations() in the maybeStartAllocation method of AdaptiveAllocationsScalerService.java, fixing the NPE by checking if the value is null OR equals 0. The change is correctly implemented with proper parentheses grouping, maintains the existing code structure, follows Java best practices for null-safe comparisons, and includes no unsolicited documentation.",
+      "llm_rating": 1.0,
+      "llm_summary": "Added null check for getMinNumberOfAllocations() in AdaptiveAllocationsScalerService.maybeStartAllocation method by modifying the conditional to check if the value is null or equals 0, matching the ground truth exactly.",
+      "errors": []
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "edit_run_id": "c7a3f90a",
+      "status": "success",
+      "elapsed_ms": 66814,
+      "patch_unified": "diff --git a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\nindex 1c3a73a4..6a0e7f6d 100644\n--- a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n+++ b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n@@ -408,6 +408,9 @@ public class AdaptiveAllocationsScalerService implements ClusterStateListener {\n             String deploymentId = deploymentAndStats.getKey();\n             Stats stats = deploymentAndStats.getValue();\n             AdaptiveAllocationsScaler adaptiveAllocationsScaler = scalers.get(deploymentId);\n+            if (adaptiveAllocationsScaler == null) {\n+                continue;\n+            }\n             adaptiveAllocationsScaler.process(stats, statsTimeInterval, numberOfAllocations.get(deploymentId));\n             Integer newNumberOfAllocations = adaptiveAllocationsScaler.scale();\n             if (newNumberOfAllocations != null) {",
+      "scores": {
+        "correctness": -0.8,
+        "completeness": -1.0,
+        "code_reuse": 0.8,
+        "best_practices": 0.5,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.1,
+      "rationale": "The agent attempted to fix an NPE but addressed the wrong location and root cause. The ground truth fixes a null check issue in the `maybeStartAllocation` method (line 433) by adding a null check for `getMinNumberOfAllocations()` before comparing it to 0. The agent instead added a null check for `adaptiveAllocationsScaler` in a completely different method around line 408. While the agent's change might prevent some NPE, it does not address the actual bug described in the task. The change is in the wrong method, checks the wrong variable, and completely misses the required fix. This represents a fundamental misunderstanding of the issue.",
+      "llm_rating": 0.12,
+      "llm_summary": "Added null check for adaptiveAllocationsScaler variable in the process loop around line 408, but completely missed the required null check for getMinNumberOfAllocations() in the maybeStartAllocation method at line 433",
+      "errors": []
+    },
+    {
+      "runner": "factory",
+      "model": "claude-sonnet-4-5-20250929",
+      "edit_run_id": "074538b9",
+      "status": "success",
+      "elapsed_ms": 282128,
+      "patch_unified": "diff --git a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\nindex 1c3a73a4..9624d619 100644\n--- a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n+++ b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n@@ -433,7 +433,8 @@ public class AdaptiveAllocationsScalerService implements ClusterStateListener {\n     public boolean maybeStartAllocation(TrainedModelAssignment assignment) {\n         if (assignment.getAdaptiveAllocationsSettings() != null\n             && assignment.getAdaptiveAllocationsSettings().getEnabled() == Boolean.TRUE\n-            && assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0) {\n+            && (assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == null\n+                || assignment.getAdaptiveAllocationsSettings().getMinNumberOfAllocations() == 0)) {\n \n             // Prevent against a flurry of scale up requests.\n             if (deploymentIdsWithInFlightScaleFromZeroRequests.contains(assignment.getDeploymentId()) == false) {\ndiff --git a/x-pack/plugin/ml/src/test/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerServiceTests.java b/x-pack/plugin/ml/src/test/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerServiceTests.java\nindex 79f2a913..a4a4c119 100644\n--- a/x-pack/plugin/ml/src/test/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerServiceTests.java\n+++ b/x-pack/plugin/ml/src/test/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerServiceTests.java\n@@ -274,11 +274,17 @@ public class AdaptiveAllocationsScalerServiceTests extends ESTestCase {\n                 TrainedModelAssignment.Builder.empty(taskParams(0), new AdaptiveAllocationsSettings(Boolean.TRUE, 1, 2)).build()\n             )\n         );\n+        // min allocations = 0 or null should start\n         assertTrue(\n             service.maybeStartAllocation(\n                 TrainedModelAssignment.Builder.empty(taskParams(0), new AdaptiveAllocationsSettings(Boolean.TRUE, 0, 2)).build()\n             )\n         );\n+        assertTrue(\n+            service.maybeStartAllocation(\n+                TrainedModelAssignment.Builder.empty(taskParams(0), new AdaptiveAllocationsSettings(Boolean.TRUE, null, 2)).build()\n+            )\n+        );\n     }\n \n     public void testMaybeStartAllocation_BlocksMultipleRequests() throws Exception {",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 0.8
+      },
+      "aggregate": 0.96,
+      "rationale": "The agent correctly implements the NPE fix by adding a null check for getMinNumberOfAllocations() in AdaptiveAllocationsScalerService.java, matching the ground truth exactly. The agent also added a test case in AdaptiveAllocationsScalerServiceTests.java to verify the null scenario, which was not in the ground truth but is a reasonable addition. The test includes a comment explaining the behavior. While the test wasn't requested, it's a minor addition that validates the fix rather than extensive documentation. All code follows existing patterns and style.",
+      "llm_rating": 0.98,
+      "llm_summary": "Added null check for getMinNumberOfAllocations() in AdaptiveAllocationsScalerService.maybeStartAllocation() matching ground truth exactly, plus added an unrequested test case with comment to verify null handling behavior.",
+      "errors": []
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 both correctly identified and fixed the NPE by adding a null check for getMinNumberOfAllocations(), matching the ground truth exactly. claude-code:claude-sonnet-4-5 misidentified the NPE location and added a null check for adaptiveAllocationsScaler instead, which doesn't address the actual issue described in the task.",
+    "best_agent": "auggie:sonnet4.5",
+    "best_agent_reasoning": "auggie:sonnet4.5 achieved a perfect score (1.00) by implementing the exact fix required - adding a null check for getMinNumberOfAllocations() in the maybeStartAllocation method. While factory:claude-sonnet-4-5-20250929 also implemented the correct fix, auggie:sonnet4.5 completed it without adding unsolicited test code, making it the cleanest solution that precisely addresses the task requirements.",
+    "approach_differences": "auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 both correctly analyzed the NPE issue in the maybeStartAllocation method where getMinNumberOfAllocations() could return null, adding the appropriate null check alongside the existing zero check. factory:claude-sonnet-4-5-20250929 additionally added test cases to verify the fix. In contrast, claude-code:claude-sonnet-4-5 misdiagnosed the problem entirely, adding a null check for the adaptiveAllocationsScaler object in a different method (processStats), which doesn't address the actual NPE issue mentioned in the task title.",
+    "ranking": [
+      "auggie:sonnet4.5",
+      "factory:claude-sonnet-4-5-20250929",
+      "claude-code:claude-sonnet-4-5"
+    ]
+  },
+  "timestamp": "2025-11-06T21:46:49.710319",
+  "analysis_run_id": "18958d12"
+}

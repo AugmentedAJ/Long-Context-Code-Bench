@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114890,
+  "base_commit": "6de48b122f41ad9ddd8449dbcaec46e883d7e4a8",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 66814,
+  "patch_unified": "diff --git a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\nindex 1c3a73a4..6a0e7f6d 100644\n--- a/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n+++ b/x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/adaptiveallocations/AdaptiveAllocationsScalerService.java\n@@ -408,6 +408,9 @@ public class AdaptiveAllocationsScalerService implements ClusterStateListener {\n             String deploymentId = deploymentAndStats.getKey();\n             Stats stats = deploymentAndStats.getValue();\n             AdaptiveAllocationsScaler adaptiveAllocationsScaler = scalers.get(deploymentId);\n+            if (adaptiveAllocationsScaler == null) {\n+                continue;\n+            }\n             adaptiveAllocationsScaler.process(stats, statsTimeInterval, numberOfAllocations.get(deploymentId));\n             Integer newNumberOfAllocations = adaptiveAllocationsScaler.scale();\n             if (newNumberOfAllocations != null) {",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114890/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

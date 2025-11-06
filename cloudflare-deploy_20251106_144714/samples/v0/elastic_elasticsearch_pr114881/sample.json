@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114881,
+  "base_commit": "3bb20e39ab1bc094ff412602e3217be08f230631",
+  "head_commit": "65d482dd8e65dabdf9d1f56e18465b550ec04e8d",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nHandle remaining refs to `RestApiVersion#V_7`\n\nRemoves several more references to the now-unused `RestApiVersion#V_7`\r\nconstant, and decorates all remaining references with an `@UpdateForV9`\r\nannotation so that they all have clear owners.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 35,
+    "lines_added": 76,
+    "lines_deleted": 157,
+    "total_diff_hunks": 156,
+    "context_size_bytes": 451899,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Remove remaining references to the unused `RestApiVersion#V_7` constant and annotate any remaining references with `@UpdateForV9` for clear ownership.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:58:11.883564Z"
+}

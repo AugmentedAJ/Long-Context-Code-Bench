@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114899,
+  "base_commit": "6f608803302230a24c2d81fc9c4b863eb3513cb8",
+  "runner": "factory",
+  "model": "claude-sonnet-4-5-20250929",
+  "timeout_s": 7200,
+  "status": "success",
+  "elapsed_ms": 233136,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\nindex b2f314a0..a18f6e20 100644\n--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\n+++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\n@@ -157,7 +157,27 @@ public class Aggregate extends UnaryPlan implements Stats {\n     }\n \n     public static AttributeSet computeReferences(List<? extends NamedExpression> aggregates, List<? extends Expression> groupings) {\n-        return Expressions.references(groupings).combine(Expressions.references(aggregates));\n+        // Collect grouping attributes to exclude them from aggregate references\n+        // These are implicit aliases added by the parser and should not be considered for field_caps\n+        AttributeSet groupingAttributes = new AttributeSet();\n+        for (Expression grouping : groupings) {\n+            Attribute attr = Expressions.attribute(grouping);\n+            if (attr != null) {\n+                groupingAttributes.add(attr);\n+            }\n+        }\n+        \n+        // Collect references from aggregates, excluding the implicit grouping aliases\n+        AttributeSet aggRefs = new AttributeSet();\n+        for (NamedExpression agg : aggregates) {\n+            // Skip aggregates that are just references to grouping expressions (implicit aliases)\n+            if (agg instanceof Attribute attr && groupingAttributes.contains(attr)) {\n+                continue;\n+            }\n+            aggRefs.addAll(agg.references());\n+        }\n+        \n+        return Expressions.references(groupings).combine(aggRefs);\n     }\n \n     @Override",
+  "logs_path": "factory/claude-sonnet-4-5-20250929/074538b9/elastic_elasticsearch_pr114899/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "074538b9",
+  "test_label": "v0"
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114914,
+  "base_commit": "041022944e7df963d4a3269dfa6ec7791247251e",
+  "head_commit": "1d7194ca29bff718ec3a780de04b95fb420bee16",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nAdding chunking settings to IbmWatsonxService\n\nIssue - https://github.com/elastic/elasticsearch/issues/117188\r\n\r\n## Description\r\nThis change introduces:\r\n- Chunking settings as a new setting to provide when creating embedding inference endpoints for the IbmWatsonxService\r\n\r\nNote: Chunking currently only runs when large documents are ingested to an index with an inference field.\r\n\r\n## Testing\r\n- Ran unit tests and ensured that all succeed\r\n- Tested the following cases with each service with the feature flag enabled:\r\n  - Creating an embedding endpoint with no `chunking_settings` provided generates a model with default chunking settings (keeps existing sentence based chunking strategy with default configurations).\r\n  - Creating an embedding endpoint with `chunking_settings` for a word based chunking strategy provided generates a model that uses the word based chunking strategy.\r\n  - Creating an embedding endpoint with `chunking_settings` for a sentence based chunking strategy provided generates a model that uses the sentence based chunking strategy.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 5,
+    "lines_added": 211,
+    "lines_deleted": 3,
+    "total_diff_hunks": 48,
+    "context_size_bytes": 64125,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Add chunking settings support to IbmWatsonxService for embedding inference endpoints",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:55:38.233687Z"
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114986,
+  "base_commit": "8e26d18029b66de8e6fa65b6fa1de350ac6ed498",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 49933,
+  "patch_unified": "diff --git a/docs/reference/ml/ml-shared.asciidoc b/docs/reference/ml/ml-shared.asciidoc\nindex ef19fbf4..ffbc5df6 100644\n--- a/docs/reference/ml/ml-shared.asciidoc\n+++ b/docs/reference/ml/ml-shared.asciidoc\n@@ -3,7 +3,6 @@ Adaptive allocations configuration object.\n If enabled, the number of allocations of the model is set based on the current load the process gets.\n When the load is high, a new model allocation is automatically created (respecting the value of `max_number_of_allocations` if it's set).\n When the load is low, a model allocation is automatically removed (respecting the value of `min_number_of_allocations` if it's set).\n-The number of model allocations cannot be scaled down to less than `1` this way.\n If `adaptive_allocations` is enabled, do not set the number of allocations manually.\n end::adaptive-allocation[]\n \n@@ -19,7 +18,7 @@ end::adaptive-allocation-max-number[]\n \n tag::adaptive-allocation-min-number[]\n Specifies the minimum number of allocations to scale to.\n-If set, it must be greater than or equal to `1`.\n+If set, it must be greater than or equal to `0`.\n end::adaptive-allocation-min-number[]\n \n tag::aggregations[]",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114986/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

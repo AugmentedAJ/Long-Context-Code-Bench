@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114917,
+  "base_commit": "f4eba6279bb8e5f98862975dde2abc83d84b15db",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 102991,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java b/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\nindex ea7fbfd8..b4c28528 100644\n--- a/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\n+++ b/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\n@@ -332,7 +332,7 @@ public class SourceFieldMapper extends MetadataFieldMapper {\n                 }\n             }\n             // NOTE: if the `index.mapper.source.mode` exists it takes precedence to determine the source mode for `_source`\n-            // otherwise the mode is determined according to `index.mode` and `_source.mode`.\n+            // otherwise the mode is determined according to `index.mode` and the `mode` parameter in the `_source` mapping.\n             final Mode sourceMode = INDEX_MAPPER_SOURCE_MODE_SETTING.exists(settings)\n                 ? INDEX_MAPPER_SOURCE_MODE_SETTING.get(settings)\n                 : mode.get();",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114917/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

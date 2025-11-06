@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114944,
+  "base_commit": "575cd69db33a18147733be1d41032968e1f4e9a7",
+  "head_commit": "a9374a971155dfd5137dc5936d9e468133e5e06d",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Standardize error code when bulk body is invalid (#114869)\n\nBackports the following commits to 8.x:\n - Standardize error code when bulk body is invalid (#114869)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 65,
+    "lines_deleted": 25,
+    "total_diff_hunks": 26,
+    "context_size_bytes": 13386,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Standardize error code when bulk body is invalid",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:53:26.505135Z"
+}

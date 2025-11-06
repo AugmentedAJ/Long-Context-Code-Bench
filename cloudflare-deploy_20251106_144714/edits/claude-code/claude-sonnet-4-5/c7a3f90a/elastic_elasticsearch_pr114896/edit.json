@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114896,
+  "base_commit": "419b74bf3a031a82020e1a659ccbcc05837bd39e",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 103789,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/multivalue/MvPercentileTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/multivalue/MvPercentileTests.java\nindex 29cc959e..42a2ec54 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/multivalue/MvPercentileTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/multivalue/MvPercentileTests.java\n@@ -138,7 +138,7 @@ public class MvPercentileTests extends AbstractScalarFunctionTestCase {\n                             ),\n                             evaluatorString(DOUBLE, percentileType),\n                             DOUBLE,\n-                            closeTo(0, 0.0000001)\n+                            closeTo(0, 1e-10)\n                         )\n                     ),\n \n@@ -382,7 +382,7 @@ public class MvPercentileTests extends AbstractScalarFunctionTestCase {\n                     evaluatorString(fieldSupplier.type(), percentileSupplier.type()),\n                     fieldSupplier.type(),\n                     expected instanceof Double expectedDouble\n-                        ? closeTo(expectedDouble, Math.abs(expectedDouble * 0.0000001))\n+                        ? closeTo(expectedDouble, Math.max(Math.abs(expectedDouble * 0.0000001), 1e-10))\n                         : equalTo(expected)\n                 );\n             }",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114896/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

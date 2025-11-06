@@ -1,0 +1,95 @@
+Long-Context-Code-Bench Backup
+===============================
+Created: 2025-11-06 14:14:35
+File: long-context-bench-backup-20251106_141435.zip
+Size: 10.1 MB (944 files)
+
+CONTENTS:
+---------
+
+1. Sample Data (data/samples/)
+   - v0 dataset with 42 valid PRs from elastic/elasticsearch
+   - Each PR includes sample.json with task instructions and metadata
+
+2. Edit Runs (output/edits/)
+   - auggie/sonnet4.5/a9463435/ - Auggie agent runs
+   - claude-code/claude-sonnet-4-5/c7a3f90a/ - Claude Code agent runs
+   - factory/claude-sonnet-4-5-20250929/074538b9/ - Factory agent runs
+   
+   Each run includes:
+   - edit.json - Full edit metadata and patch
+   - edit.patch - Unified diff patch
+   - edit_summary.json - Summary without full patch
+   - logs.jsonl - Structured agent logs
+   - logs_readable.txt - Human-readable logs
+
+3. Judge Results (output/judges/)
+   - deterministic/default/<run_id>/<pr_id>/judge.json
+   - Deterministic scoring against ground truth
+   - Includes correctness, completeness, code_reuse, best_practices, unsolicited_docs
+   - Aggregate scores for each PR
+
+4. Summaries (output/summaries/)
+   - a9463435_auggie_sonnet4.5/ - Auggie summary
+   - c7a3f90a_claude-code_claude-sonnet-4-5/ - Claude Code summary
+   - 074538b9_factory_claude-sonnet-4-5-20250929/ - Factory summary
+   
+   Each includes:
+   - summary.json - Aggregate statistics (success rate, mean score, etc.)
+   - run_manifest.json - Run configuration and metadata
+
+5. Cross-Agent Analysis (output/cross_agent_analysis/)
+   - pr<number>_<analysis_id>.json - Comparative analysis for each PR
+   - Includes LLM judge ratings and summaries
+   - Side-by-side comparison of all agents
+
+6. Web Dashboard (output/web/)
+   - index.html - Leaderboard view
+   - summary.html - Run details view
+   - comparison.html - Agent comparison view
+   - task.html - Individual task view
+   - All supporting JS, CSS, and data files
+   - Node.js server (server.js) for local hosting
+
+7. Index Manifest (output/index.json)
+   - Master index of all runs
+   - Test labels, runners, models
+   - Used by web dashboard
+
+RESTORE INSTRUCTIONS:
+--------------------
+
+To restore this backup:
+
+1. Extract the zip file:
+   unzip long-context-bench-backup-20251106_141435.zip
+
+2. The extracted files will be in output/ and data/ directories
+
+3. To view the web dashboard:
+   cd output/web
+   npm install
+   npm start
+   # Open http://localhost:3000
+
+4. To run additional benchmarks:
+   long-context-bench edit data/samples/v0 --runner <runner> --model <model>
+
+5. To judge new runs:
+   long-context-bench judge --edit-run-ids <run_id>
+
+RUN IDS:
+--------
+- a9463435: Auggie (sonnet4.5) - test_label: v0
+- c7a3f90a: Claude Code (claude-sonnet-4-5) - test_label: v0
+- 074538b9: Factory (claude-sonnet-4-5-20250929) - test_label: v0
+
+STATISTICS:
+-----------
+Based on the v0 benchmark run:
+- 42 valid PRs from elastic/elasticsearch
+- 3 agents tested (Auggie, Claude Code, Factory)
+- All runs evaluated with deterministic judge
+- Cross-agent LLM analysis completed for all PRs
+
+For more information, see the README.md in the repository.

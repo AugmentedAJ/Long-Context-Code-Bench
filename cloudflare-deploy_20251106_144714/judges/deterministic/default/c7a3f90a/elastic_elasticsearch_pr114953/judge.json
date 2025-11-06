@@ -1,0 +1,19 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114953,
+  "base_commit": "9922d544a144c4e6a9f5bee806c39338f637b645",
+  "head_commit": "a15a3b5a166504cb424ef91fbb82eaa36b796e56",
+  "judge_mode": "deterministic",
+  "judge_model": null,
+  "scores": {
+    "correctness": -0.9164305949008499,
+    "completeness": -0.9543761638733705,
+    "code_reuse": 0.5,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": -0.07416135175484406,
+  "rationale": null,
+  "edit_run_id": "c7a3f90a",
+  "judge_run_id": "c7a3f90a"
+}

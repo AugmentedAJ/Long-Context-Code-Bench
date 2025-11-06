@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114899,
+  "base_commit": "6f608803302230a24c2d81fc9c4b863eb3513cb8",
+  "head_commit": "ab71dfe22a7ac71bfcc7d21f8cace7f3d12d9b4c",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nES|QL: Fix stats by constant expression\n\nFixes: https://github.com/elastic/elasticsearch/issues/114714\r\n\r\nDo not consider implicit aliases in `Aggregate.computeReferences()`. \r\nThese aliases could be misleading for the field_caps to compute involved indices.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 48,
+    "lines_deleted": 2,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 81423,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Fix the ES|QL stats by constant expression bug by updating Aggregate.computeReferences() to not consider implicit aliases that could mislead field_caps index computation.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:56:48.162518Z"
+}

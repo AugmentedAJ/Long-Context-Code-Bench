@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114989,
+  "base_commit": "f95d3f8d430641e2bff22cbdc05f7d6cd9616443",
+  "head_commit": "c5b3c5733bdfd3fc0e1f268a5ec06a642ed69ca3",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nReduce scope of `AmazonS3Reference`\n\nIt's possible that the client config, particularly its credentials,\r\nmight change in the middle of a long-running operation such as a large\r\nmultipart upload. Prior to this commit we would hold onto the same\r\n`AmazonS3` instance for the entire operation, but really there's no need\r\nto do so, we can obtain a potentially-fresher instance for each API\r\ncall.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 109,
+    "lines_deleted": 85,
+    "total_diff_hunks": 26,
+    "context_size_bytes": 158254,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Reduce the scope of `AmazonS3Reference` so that a fresh client instance is obtained for each API call instead of holding onto the same instance for the entire operation.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:50:26.592177Z"
+}

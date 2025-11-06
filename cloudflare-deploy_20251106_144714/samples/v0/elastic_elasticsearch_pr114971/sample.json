@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114971,
+  "base_commit": "91e1e02edcd877e7b347156f5f9ef39e62bce211",
+  "head_commit": "822ff8990cd281f8b095091cadb09e66eead9416",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nSquash transport versions for 8.15 (#114827)\n\nBackport #114827 to 8.x\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 134,
+    "lines_added": 269,
+    "lines_deleted": 360,
+    "total_diff_hunks": 498,
+    "context_size_bytes": 2379819,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Squash transport versions for 8.15 by simplifying the includeSha256 version check in GeoIpTaskState",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:52:00.428234Z"
+}

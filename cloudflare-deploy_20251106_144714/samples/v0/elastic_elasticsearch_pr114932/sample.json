@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114932,
+  "base_commit": "b84e99023270eb014d257eb6dfba030217cf4bc7",
+  "head_commit": "6d9b493b2b768a8ff829d855740832e9588a3aa6",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] (Doc+) troubleshoot ILM videos (#114528)\n\n# Backport\n\nThis will backport the following commits from `main` to `8.x`:\n - [(Doc+) troubleshoot ILM videos (#114528)](https://github.com/elastic/elasticsearch/pull/114528)\n\n<!--- Backport version: 9.3.0 -->\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sqren/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 14,
+    "lines_deleted": 2,
+    "total_diff_hunks": 14,
+    "context_size_bytes": 8943,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Add YouTube video links to the ILM troubleshooting documentation for error handling and duplicate alias resolution.",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:54:18.804678Z"
+}

@@ -161,6 +161,96 @@ nav a.active {
     margin: 0;
 }
 
+/* Analysis detail view */
+.analysis-detail {
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.analysis-detail h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.analysis-detail h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.analysis-detail h5 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.analysis-detail .card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.analysis-detail .code-block {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.comparative-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.metric-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.analysis-text p {
+    margin-bottom: 12px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.chart-container {
+    margin-bottom: 16px;
+    max-height: 400px;
+}
+
+#agent-details-container {
+    margin-top: 16px;
+}
+
 /* Controls */
 .controls {
     background: var(--bg-primary);

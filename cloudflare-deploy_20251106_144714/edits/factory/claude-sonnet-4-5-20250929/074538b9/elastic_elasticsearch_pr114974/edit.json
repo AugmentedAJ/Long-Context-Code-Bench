@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114974,
+  "base_commit": "f4b94645a585df9e57f53c3ed65e272b35cdcea7",
+  "runner": "factory",
+  "model": "claude-sonnet-4-5-20250929",
+  "timeout_s": 7200,
+  "status": "success",
+  "elapsed_ms": 79450,
+  "patch_unified": "diff --git a/.buildkite/scripts/dra-workflow.sh b/.buildkite/scripts/dra-workflow.sh\nindex ecfb8088..81b8225e 100755\n--- a/.buildkite/scripts/dra-workflow.sh\n+++ b/.buildkite/scripts/dra-workflow.sh\n@@ -22,6 +22,7 @@ if [[ \"$BRANCH\" == \"main\" ]]; then\n fi\n \n ES_VERSION=$(grep elasticsearch build-tools-internal/version.properties | sed \"s/elasticsearch *= *//g\")\n+echo \"ES_VERSION=$ES_VERSION\"\n \n VERSION_SUFFIX=\"\"\n if [[ \"$WORKFLOW\" == \"snapshot\" ]]; then\n@@ -29,7 +30,10 @@ if [[ \"$WORKFLOW\" == \"snapshot\" ]]; then\n fi\n \n BEATS_BUILD_ID=\"$(./.ci/scripts/resolve-dra-manifest.sh beats \"$RM_BRANCH\" \"$ES_VERSION\" \"$WORKFLOW\")\"\n+echo \"BEATS_BUILD_ID=$BEATS_BUILD_ID\"\n+\n ML_CPP_BUILD_ID=\"$(./.ci/scripts/resolve-dra-manifest.sh ml-cpp \"$RM_BRANCH\" \"$ES_VERSION\" \"$WORKFLOW\")\"\n+echo \"ML_CPP_BUILD_ID=$ML_CPP_BUILD_ID\"\n \n LICENSE_KEY_ARG=\"\"\n BUILD_SNAPSHOT_ARG=\"\"",
+  "logs_path": "factory/claude-sonnet-4-5-20250929/074538b9/elastic_elasticsearch_pr114974/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "074538b9",
+  "test_label": "v0"
+}

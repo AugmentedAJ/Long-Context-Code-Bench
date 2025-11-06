@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114887,
+  "base_commit": "6de48b122f41ad9ddd8449dbcaec46e883d7e4a8",
+  "head_commit": "6799f7fcf675e865a109b59e857327c7d1e347fd",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Inline `MockTransportService#getLocalDiscoNode()` (#114883)\n\nBackports the following commits to 8.x:\n - Inline `MockTransportService#getLocalDiscoNode()` (#114883)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 15,
+    "lines_added": 90,
+    "lines_deleted": 95,
+    "total_diff_hunks": 90,
+    "context_size_bytes": 607935,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Inline `MockTransportService#getLocalDiscoNode()` method by replacing calls with `getLocalNode()` throughout the codebase",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:57:38.463889Z"
+}

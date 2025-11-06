@@ -1,0 +1,86 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114908,
+  "base_commit": "a703b2013efa8aabec76caf98974f180fb3a3a64",
+  "head_commit": "f50ce324e8479bccadbb8738f344b294d31df8f7",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Fix setOnce in EmbeddingRequestChunker (#114900)\n\nbackport #114900 \n\nPlease make all necessary code changes to complete this task.",
+  "ground_truth_diff": "diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\nindex 3ae8dc055039..c5897f32d6eb 100644\n--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n+++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n@@ -324,7 +324,7 @@ public class EmbeddingRequestChunker {\n         public void onFailure(Exception e) {\n             var errorResult = new ErrorChunkedInferenceResults(e);\n             for (var pos : positions) {\n-                errors.setOnce(pos.inputIndex(), errorResult);\n+                errors.set(pos.inputIndex(), errorResult);\n             }\n \n             if (resultCount.incrementAndGet() == totalNumberOfRequests) {",
+  "judge_mode": "comparative",
+  "judge_model": "openai/claude-sonnet-4-5-20250929",
+  "test_label": "v0",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "edit_run_id": "a9463435",
+      "status": "success",
+      "elapsed_ms": 607646,
+      "patch_unified": "diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\nindex 3ae8dc05..c5897f32 100644\n--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n+++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n@@ -324,7 +324,7 @@ public class EmbeddingRequestChunker {\n         public void onFailure(Exception e) {\n             var errorResult = new ErrorChunkedInferenceResults(e);\n             for (var pos : positions) {\n-                errors.setOnce(pos.inputIndex(), errorResult);\n+                errors.set(pos.inputIndex(), errorResult);\n             }\n \n             if (resultCount.incrementAndGet() == totalNumberOfRequests) {",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 1.0,
+      "rationale": "The agent's diff is identical to the ground truth diff. Both change line 327 in EmbeddingRequestChunker.java from `errors.setOnce(pos.inputIndex(), errorResult)` to `errors.set(pos.inputIndex(), errorResult)`. This is a precise fix that replaces the setOnce method call with set, which is the exact change required. The modification is in the onFailure method within the error handling logic. No additional or missing changes, no unsolicited documentation, and the change follows the existing code style perfectly.",
+      "llm_rating": 1.0,
+      "llm_summary": "Changed errors.setOnce to errors.set in EmbeddingRequestChunker.onFailure method at line 327, exactly matching the ground truth diff",
+      "errors": []
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "edit_run_id": "c7a3f90a",
+      "status": "success",
+      "elapsed_ms": 120477,
+      "patch_unified": "diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\nindex 3ae8dc05..638bc6c9 100644\n--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n+++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n@@ -323,8 +323,14 @@ public class EmbeddingRequestChunker {\n         @Override\n         public void onFailure(Exception e) {\n             var errorResult = new ErrorChunkedInferenceResults(e);\n+            int previousIndex = -1;\n             for (var pos : positions) {\n-                errors.setOnce(pos.inputIndex(), errorResult);\n+                // Only set once per unique input index as multiple sub-batches\n+                // may belong to the same input\n+                if (pos.inputIndex() != previousIndex) {\n+                    errors.setOnce(pos.inputIndex(), errorResult);\n+                    previousIndex = pos.inputIndex();\n+                }\n             }\n \n             if (resultCount.incrementAndGet() == totalNumberOfRequests) {",
+      "scores": {
+        "correctness": -0.8,
+        "completeness": -0.8,
+        "code_reuse": 0.0,
+        "best_practices": -0.3,
+        "unsolicited_docs": 0.7
+      },
+      "aggregate": -0.24000000000000005,
+      "rationale": "The ground truth fix changes `errors.setOnce()` to `errors.set()` to allow multiple error assignments to the same index, which is the correct solution when multiple sub-batches belong to the same input. The agent instead kept `setOnce()` and added logic to track and skip duplicate indices with `previousIndex`, which fundamentally misunderstands the problem. The agent's approach assumes positions are ordered by inputIndex and only prevents consecutive duplicates, but doesn't handle non-consecutive duplicates. This breaks the intended functionality because errors may not be properly recorded for all positions. The added comment is unsolicited documentation but minor. The solution is incorrect and incomplete as it doesn't achieve the required behavior change.",
+      "llm_rating": 0.18,
+      "llm_summary": "Agent kept setOnce() and added previousIndex tracking to skip consecutive duplicate indices in EmbeddingRequestChunker.onFailure(), instead of changing setOnce() to set() as required by ground truth",
+      "errors": []
+    },
+    {
+      "runner": "factory",
+      "model": "claude-sonnet-4-5-20250929",
+      "edit_run_id": "074538b9",
+      "status": "success",
+      "elapsed_ms": 410091,
+      "patch_unified": "diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\nindex 3ae8dc05..c5897f32 100644\n--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n+++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/chunking/EmbeddingRequestChunker.java\n@@ -324,7 +324,7 @@ public class EmbeddingRequestChunker {\n         public void onFailure(Exception e) {\n             var errorResult = new ErrorChunkedInferenceResults(e);\n             for (var pos : positions) {\n-                errors.setOnce(pos.inputIndex(), errorResult);\n+                errors.set(pos.inputIndex(), errorResult);\n             }\n \n             if (resultCount.incrementAndGet() == totalNumberOfRequests) {",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 1.0,
+      "rationale": "The agent's diff is identical to the ground truth diff. Both change line 327 in EmbeddingRequestChunker.java from `errors.setOnce(pos.inputIndex(), errorResult)` to `errors.set(pos.inputIndex(), errorResult)`. This is a precise fix that replaces the setOnce method call with set, which is the exact change required. The modification is in the onFailure method within the error handling logic. No additional or missing changes, no unsolicited documentation, and the change follows the existing code style perfectly.",
+      "llm_rating": 1.0,
+      "llm_summary": "Changed errors.setOnce to errors.set in EmbeddingRequestChunker.onFailure method at line 327, exactly matching the ground truth diff",
+      "errors": []
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 both produced the correct solution by simply changing setOnce() to set(), matching the ground truth exactly. claude-code:claude-sonnet-4-5 misunderstood the task and implemented a more complex solution with deduplication logic that doesn't match the required fix.",
+    "best_agent": "auggie:sonnet4.5",
+    "best_agent_reasoning": "auggie:sonnet4.5 achieved a perfect aggregate score of 1.00 by correctly implementing the exact change required: replacing setOnce() with set() on line 327. This agent completed the task in 607646ms and matched the ground truth diff precisely, demonstrating correct understanding that the issue was with the method call itself, not with duplicate invocations.",
+    "approach_differences": "auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 both correctly identified that the fix required changing setOnce() to set(), making a single-line modification. In contrast, claude-code:claude-sonnet-4-5 misinterpreted the problem and added unnecessary deduplication logic with a previousIndex variable and conditional checks, attempting to prevent multiple calls to setOnce() rather than simply replacing it with set(). This resulted in claude-code:claude-sonnet-4-5 receiving negative scores for correctness (-0.80) and completeness (-0.80) as it failed to implement the required change.",
+    "ranking": [
+      "auggie:sonnet4.5",
+      "factory:claude-sonnet-4-5-20250929",
+      "claude-code:claude-sonnet-4-5"
+    ]
+  },
+  "timestamp": "2025-11-06T21:50:00.686073",
+  "analysis_run_id": "4b0de065"
+}

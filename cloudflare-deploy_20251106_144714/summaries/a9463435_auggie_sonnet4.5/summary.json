@@ -1,0 +1,22 @@
+{
+  "run_id": "a9463435",
+  "total_samples": 40,
+  "successful_samples": 40,
+  "failed_samples": 0,
+  "skipped_samples": 0,
+  "success_rate": 1.0,
+  "mean_correctness": -0.05493507393711294,
+  "mean_completeness": -0.05435624348292603,
+  "mean_code_reuse": 0.4,
+  "mean_best_practices": 0.0,
+  "mean_unsolicited_docs": 0.8875,
+  "mean_aggregate": 0.2356417365159922,
+  "std_aggregate": 0.28357935626375014,
+  "mean_elapsed_ms": 565129.05,
+  "tasks_per_hour": 6.370226411117955,
+  "edit_run_id": "a9463435",
+  "judge_run_id": "a9463435",
+  "test_label": "v0",
+  "runner": "auggie",
+  "model": "sonnet4.5"
+}

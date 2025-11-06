@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114929,
+  "base_commit": "64ae0aea45036be62aec076717816a27aa006437",
+  "runner": "factory",
+  "model": "claude-sonnet-4-5-20250929",
+  "timeout_s": 7200,
+  "status": "success",
+  "elapsed_ms": 246861,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/search/aggregations/bucket/geogrid/GeoTileUtils.java b/server/src/main/java/org/elasticsearch/search/aggregations/bucket/geogrid/GeoTileUtils.java\nindex 89240a94..9c1393e8 100644\n--- a/server/src/main/java/org/elasticsearch/search/aggregations/bucket/geogrid/GeoTileUtils.java\n+++ b/server/src/main/java/org/elasticsearch/search/aggregations/bucket/geogrid/GeoTileUtils.java\n@@ -21,8 +21,6 @@ import org.elasticsearch.xcontent.XContentParser;\n import java.io.IOException;\n import java.util.Locale;\n \n-import static org.elasticsearch.common.geo.GeoUtils.normalizeLat;\n-import static org.elasticsearch.common.geo.GeoUtils.normalizeLon;\n import static org.elasticsearch.common.geo.GeoUtils.quantizeLat;\n \n /**\n@@ -117,11 +115,7 @@ public final class GeoTileUtils {\n      * @param tiles     the number of tiles per row for a pre-determined zoom-level\n      */\n     public static int getXTile(double longitude, int tiles) {\n-        // normalizeLon treats this as 180, which is not friendly for tile mapping\n-        if (longitude == -180) {\n-            return 0;\n-        }\n-        final double xTile = (normalizeLon(longitude) + 180.0) / 360.0 * tiles;\n+        final double xTile = (longitude + 180.0) / 360.0 * tiles;\n         // Edge values may generate invalid values, and need to be clipped.\n         return Math.max(0, Math.min(tiles - 1, (int) Math.floor(xTile)));\n     }\n@@ -134,10 +128,9 @@ public final class GeoTileUtils {\n      * @param tiles     the number of tiles per column for a pre-determined zoom-level\n      */\n     public static int getYTile(double latitude, int tiles) {\n-        final double latSin = SloppyMath.cos(PI_DIV_2 - Math.toRadians(normalizeLat(latitude)));\n+        final double latSin = SloppyMath.cos(PI_DIV_2 - Math.toRadians(latitude));\n         final double yTile = (0.5 - (ESSloppyMath.log((1.0 + latSin) / (1.0 - latSin)) / PI_TIMES_4)) * tiles;\n         // Edge values may generate invalid values, and need to be clipped.\n-        // For example, polar regions (above/below lat 85.05112878) get normalized.\n         return Math.max(0, Math.min(tiles - 1, (int) Math.floor(yTile)));\n     }\n ",
+  "logs_path": "factory/claude-sonnet-4-5-20250929/074538b9/elastic_elasticsearch_pr114929/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "074538b9",
+  "test_label": "v0"
+}

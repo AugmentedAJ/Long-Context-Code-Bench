@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114935,
+  "base_commit": "61a0a69c4abbba2169296e7b9418afe4d1ba6d5f",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 922061,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java b/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\nindex ea7fbfd8..f32cfb19 100644\n--- a/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\n+++ b/server/src/main/java/org/elasticsearch/index/mapper/SourceFieldMapper.java\n@@ -331,7 +331,7 @@ public class SourceFieldMapper extends MetadataFieldMapper {\n                     throw new MapperParsingException(\"Cannot set both [mode] and [enabled] parameters\");\n                 }\n             }\n-            // NOTE: if the `index.mapper.source.mode` exists it takes precedence to determine the source mode for `_source`\n+            // NOTE: if the `index.mapping.source.mode` exists it takes precedence to determine the source mode for `_source`\n             // otherwise the mode is determined according to `index.mode` and `_source.mode`.\n             final Mode sourceMode = INDEX_MAPPER_SOURCE_MODE_SETTING.exists(settings)\n                 ? INDEX_MAPPER_SOURCE_MODE_SETTING.get(settings)",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr114935/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}

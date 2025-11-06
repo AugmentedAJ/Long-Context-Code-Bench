@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114905,
+  "base_commit": "a703b2013efa8aabec76caf98974f180fb3a3a64",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 449081,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\nindex 7799c3c7..a015132a 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n@@ -121,7 +121,7 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n                 new TestCaseSupplier.TypedDataSupplier(\n                     \"<date string>\",\n                     // millis past \"0001-01-01T00:00:00.000Z\" to match the default formatter\n-                    () -> new BytesRef(randomDateString(-62135596800000L, 253402300799999L)),\n+                    () -> new BytesRef(randomDateString(-62135596800000L, 253400659199999L)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -156,7 +156,7 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n                 new TestCaseSupplier.TypedDataSupplier(\n                     \"<date string before 0001-01-01T00:00:00.000Z>\",\n                     // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(253402300800000L, Long.MAX_VALUE)),\n+                    () -> new BytesRef(randomDateString(253400659200000L, Long.MAX_VALUE)),\n                     DataType.KEYWORD\n                 )\n             ),",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr114905/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}

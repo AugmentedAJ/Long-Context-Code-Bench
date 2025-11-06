@@ -1,0 +1,86 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114932,
+  "base_commit": "b84e99023270eb014d257eb6dfba030217cf4bc7",
+  "head_commit": "6d9b493b2b768a8ff829d855740832e9588a3aa6",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] (Doc+) troubleshoot ILM videos (#114528)\n\n# Backport\n\nThis will backport the following commits from `main` to `8.x`:\n - [(Doc+) troubleshoot ILM videos (#114528)](https://github.com/elastic/elasticsearch/pull/114528)\n\n<!--- Backport version: 9.3.0 -->\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sqren/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "ground_truth_diff": "diff --git a/docs/reference/ilm/error-handling.asciidoc b/docs/reference/ilm/error-handling.asciidoc\nindex f810afc6c2b5..e8df44653e9c 100644\n--- a/docs/reference/ilm/error-handling.asciidoc\n+++ b/docs/reference/ilm/error-handling.asciidoc\n@@ -8,6 +8,9 @@ When this happens, {ilm-init} moves the index to an `ERROR` step.\n If {ilm-init} cannot resolve the error automatically, execution is halted  \n until you resolve the underlying issues with the policy, index, or cluster.\n \n+See this https://www.youtube.com/watch?v=VCIqkji3IwY[{ilm-init} health video] \n+for example troubleshooting walkthrough.\n+\n For example, you might have a `shrink-index` policy that shrinks an index to four shards once it\n is at least five days old: \n \n@@ -183,6 +186,8 @@ The rollover action then manages setting and updating the alias to\n \n Do not explicitly configure this same alias in the aliases section of an index template.\n \n+See this https://www.youtube.com/watch?v=Ww5POq4zZtY[resolving `duplicate alias` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index.lifecycle.rollover_alias [x] does not point to index [y]\n \n@@ -191,6 +196,8 @@ Either the index is using the wrong alias or the alias does not exist.\n Check the `index.lifecycle.rollover_alias` <<indices-get-settings, index setting>>.\n To see what aliases are configured, use <<cat-alias, _cat/aliases>>.\n \n+See this https://www.youtube.com/watch?v=NKSe67x7aw8[resolving `not point to index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Setting [index.lifecycle.rollover_alias] for index [y] is empty or not defined\n \n@@ -198,6 +205,8 @@ The `index.lifecycle.rollover_alias` setting must be configured for the rollover\n \n Update the index settings to set `index.lifecycle.rollover_alias`.\n \n+See this https://www.youtube.com/watch?v=LRpMC2GS_FQ[resolving `empty or not defined` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Alias [x] has more than one write index [y,z]\n \n@@ -205,6 +214,8 @@ Only one index can be designated as the write index for a particular alias.\n \n Use the <<indices-aliases, aliases>> API to set `is_write_index:false` for all but one index.\n \n+See this https://www.youtube.com/watch?v=jCUvZCT5Hm4[resolving `more than one write index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index name [x] does not match pattern ^.*-\\d+\n \n@@ -214,6 +225,8 @@ For example, `my-index` does not match the pattern requirement.\n \n Append a numeric value to the index name, for example `my-index-000001`.\n \n+See this https://www.youtube.com/watch?v=9sp1zF6iL00[resolving `does not match pattern` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== CircuitBreakingException: [x] data too large, data for [y]\n \n@@ -227,8 +240,7 @@ For more information, see <<circuit-breaker-errors>>.\n \n This indicates that the cluster is running out of disk space.\n This can happen when you don't have {ilm} set up to roll over from hot to warm nodes.\n-\n-Consider adding nodes, upgrading your hardware, or deleting unneeded indices.\n+For more information, see <<fix-watermark-errors,Fix watermark errors>>.\n \n [discrete]\n ==== security_exception: action [<action-name>] is unauthorized for user [<user-name>] with roles [<role-name>], this action is granted by the index privileges [manage_follow_index,manage,all]",
+  "judge_mode": "comparative",
+  "judge_model": "openai/claude-sonnet-4-5-20250929",
+  "test_label": "v0",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "edit_run_id": "a9463435",
+      "status": "success",
+      "elapsed_ms": 196493,
+      "patch_unified": "diff --git a/docs/reference/ilm/error-handling.asciidoc b/docs/reference/ilm/error-handling.asciidoc\nindex f810afc6..a9872849 100644\n--- a/docs/reference/ilm/error-handling.asciidoc\n+++ b/docs/reference/ilm/error-handling.asciidoc\n@@ -3,11 +3,14 @@\n == Troubleshooting {ilm} errors\n \n When <<index-lifecycle-management,{ilm-init}>> executes a lifecycle policy, it's possible for errors to occur\n-while performing the necessary index operations for a step. \n-When this happens, {ilm-init} moves the index to an `ERROR` step. \n-If {ilm-init} cannot resolve the error automatically, execution is halted  \n+while performing the necessary index operations for a step.\n+When this happens, {ilm-init} moves the index to an `ERROR` step.\n+If {ilm-init} cannot resolve the error automatically, execution is halted\n until you resolve the underlying issues with the policy, index, or cluster.\n \n+See this https://www.youtube.com/watch?v=VCIqkji3IwY[{ilm-init} health video]\n+for example troubleshooting walkthrough.\n+\n For example, you might have a `shrink-index` policy that shrinks an index to four shards once it\n is at least five days old: \n \n@@ -183,6 +186,8 @@ The rollover action then manages setting and updating the alias to\n \n Do not explicitly configure this same alias in the aliases section of an index template.\n \n+See this https://www.youtube.com/watch?v=Ww5POq4zZtY[resolving `duplicate alias` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index.lifecycle.rollover_alias [x] does not point to index [y]\n \n@@ -191,6 +196,8 @@ Either the index is using the wrong alias or the alias does not exist.\n Check the `index.lifecycle.rollover_alias` <<indices-get-settings, index setting>>.\n To see what aliases are configured, use <<cat-alias, _cat/aliases>>.\n \n+See this https://www.youtube.com/watch?v=NKSe67x7aw8[resolving `not point to index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Setting [index.lifecycle.rollover_alias] for index [y] is empty or not defined\n \n@@ -198,6 +205,8 @@ The `index.lifecycle.rollover_alias` setting must be configured for the rollover\n \n Update the index settings to set `index.lifecycle.rollover_alias`.\n \n+See this https://www.youtube.com/watch?v=LRpMC2GS_FQ[resolving `empty or not defined` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Alias [x] has more than one write index [y,z]\n \n@@ -205,6 +214,8 @@ Only one index can be designated as the write index for a particular alias.\n \n Use the <<indices-aliases, aliases>> API to set `is_write_index:false` for all but one index.\n \n+See this https://www.youtube.com/watch?v=jCUvZCT5Hm4[resolving `more than one write index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index name [x] does not match pattern ^.*-\\d+\n \n@@ -214,6 +225,8 @@ For example, `my-index` does not match the pattern requirement.\n \n Append a numeric value to the index name, for example `my-index-000001`.\n \n+See this https://www.youtube.com/watch?v=9sp1zF6iL00[resolving `does not match pattern` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== CircuitBreakingException: [x] data too large, data for [y]\n \n@@ -229,6 +242,7 @@ This indicates that the cluster is running out of disk space.\n This can happen when you don't have {ilm} set up to roll over from hot to warm nodes.\n \n Consider adding nodes, upgrading your hardware, or deleting unneeded indices.\n+For more information, see <<fix-watermark-errors,Fix watermark errors>>.\n \n [discrete]\n ==== security_exception: action [<action-name>] is unauthorized for user [<user-name>] with roles [<role-name>], this action is granted by the index privileges [manage_follow_index,manage,all]",
+      "scores": {
+        "correctness": 0.8,
+        "completeness": 0.9,
+        "code_reuse": 1.0,
+        "best_practices": 0.9,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.9199999999999999,
+      "rationale": "The agent successfully added all 6 video links to the ILM error-handling documentation in the correct locations. However, there's a minor difference in the watermark error section: the ground truth removes the line 'Consider adding nodes, upgrading your hardware, or deleting unneeded indices.' and replaces it with a reference to fix-watermark-errors, while the agent keeps the original line and adds the reference on a new line. This is a small semantic difference but doesn't break functionality. The agent also made some whitespace changes (removing trailing spaces on lines 6-8) which are stylistic improvements but not part of the ground truth.",
+      "llm_rating": 0.91,
+      "llm_summary": "Added all 6 ILM troubleshooting video links to error-handling.asciidoc in correct locations but kept the original 'Consider adding nodes' text instead of replacing it with the watermark errors reference as specified in ground truth",
+      "errors": []
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "edit_run_id": "c7a3f90a",
+      "status": "success",
+      "elapsed_ms": 112986,
+      "patch_unified": "",
+      "scores": {
+        "correctness": -1.0,
+        "completeness": -1.0,
+        "code_reuse": 0.0,
+        "best_practices": 0.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": -0.2,
+      "rationale": "The agent made no changes whatsoever (empty diff), while the ground truth requires adding 6 video links and modifying one paragraph in docs/reference/ilm/error-handling.asciidoc. This is a complete failure to implement any of the requested documentation updates for ILM troubleshooting videos.",
+      "llm_rating": 0.0,
+      "llm_summary": "Agent made no changes to any files, completely missing all required additions of six YouTube video links and one paragraph modification in docs/reference/ilm/error-handling.asciidoc",
+      "errors": []
+    },
+    {
+      "runner": "factory",
+      "model": "claude-sonnet-4-5-20250929",
+      "edit_run_id": "074538b9",
+      "status": "success",
+      "elapsed_ms": 136754,
+      "patch_unified": "diff --git a/docs/reference/ilm/error-handling.asciidoc b/docs/reference/ilm/error-handling.asciidoc\nindex f810afc6..e8df4465 100644\n--- a/docs/reference/ilm/error-handling.asciidoc\n+++ b/docs/reference/ilm/error-handling.asciidoc\n@@ -8,6 +8,9 @@ When this happens, {ilm-init} moves the index to an `ERROR` step.\n If {ilm-init} cannot resolve the error automatically, execution is halted  \n until you resolve the underlying issues with the policy, index, or cluster.\n \n+See this https://www.youtube.com/watch?v=VCIqkji3IwY[{ilm-init} health video] \n+for example troubleshooting walkthrough.\n+\n For example, you might have a `shrink-index` policy that shrinks an index to four shards once it\n is at least five days old: \n \n@@ -183,6 +186,8 @@ The rollover action then manages setting and updating the alias to\n \n Do not explicitly configure this same alias in the aliases section of an index template.\n \n+See this https://www.youtube.com/watch?v=Ww5POq4zZtY[resolving `duplicate alias` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index.lifecycle.rollover_alias [x] does not point to index [y]\n \n@@ -191,6 +196,8 @@ Either the index is using the wrong alias or the alias does not exist.\n Check the `index.lifecycle.rollover_alias` <<indices-get-settings, index setting>>.\n To see what aliases are configured, use <<cat-alias, _cat/aliases>>.\n \n+See this https://www.youtube.com/watch?v=NKSe67x7aw8[resolving `not point to index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Setting [index.lifecycle.rollover_alias] for index [y] is empty or not defined\n \n@@ -198,6 +205,8 @@ The `index.lifecycle.rollover_alias` setting must be configured for the rollover\n \n Update the index settings to set `index.lifecycle.rollover_alias`.\n \n+See this https://www.youtube.com/watch?v=LRpMC2GS_FQ[resolving `empty or not defined` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== Alias [x] has more than one write index [y,z]\n \n@@ -205,6 +214,8 @@ Only one index can be designated as the write index for a particular alias.\n \n Use the <<indices-aliases, aliases>> API to set `is_write_index:false` for all but one index.\n \n+See this https://www.youtube.com/watch?v=jCUvZCT5Hm4[resolving `more than one write index` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== index name [x] does not match pattern ^.*-\\d+\n \n@@ -214,6 +225,8 @@ For example, `my-index` does not match the pattern requirement.\n \n Append a numeric value to the index name, for example `my-index-000001`.\n \n+See this https://www.youtube.com/watch?v=9sp1zF6iL00[resolving `does not match pattern` video] for an example troubleshooting walkthrough.\n+\n [discrete]\n ==== CircuitBreakingException: [x] data too large, data for [y]\n \n@@ -227,8 +240,7 @@ For more information, see <<circuit-breaker-errors>>.\n \n This indicates that the cluster is running out of disk space.\n This can happen when you don't have {ilm} set up to roll over from hot to warm nodes.\n-\n-Consider adding nodes, upgrading your hardware, or deleting unneeded indices.\n+For more information, see <<fix-watermark-errors,Fix watermark errors>>.\n \n [discrete]\n ==== security_exception: action [<action-name>] is unauthorized for user [<user-name>] with roles [<role-name>], this action is granted by the index privileges [manage_follow_index,manage,all]",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 1.0,
+      "rationale": "The agent's diff is identical to the ground truth diff. All seven video links have been added in the correct locations throughout the error-handling.asciidoc file, and the watermark error text has been properly updated to reference the fix-watermark-errors section. The formatting, spacing, and content match exactly.",
+      "llm_rating": 1.0,
+      "llm_summary": "Added seven ILM troubleshooting video links and updated watermark error text in error-handling.asciidoc, matching the ground truth diff exactly with identical formatting and placement.",
+      "errors": []
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "factory:claude-sonnet-4-5-20250929 produced a perfect implementation matching the ground truth exactly, while auggie:sonnet4.5 made nearly all the required changes but introduced an unintended modification to the watermark error section. claude-code:claude-sonnet-4-5 failed to make any changes, producing an empty diff.",
+    "best_agent": "factory:claude-sonnet-4-5-20250929",
+    "best_agent_reasoning": "factory:claude-sonnet-4-5-20250929 achieved a perfect score by implementing all required changes exactly as specified in the ground truth diff. It added all six video links to the appropriate troubleshooting sections and correctly replaced the 'Consider adding nodes...' text with a reference to fix-watermark-errors documentation, without introducing any unintended modifications.",
+    "approach_differences": "factory:claude-sonnet-4-5-20250929 precisely followed the ground truth requirements, adding video links and updating the watermark error section correctly. auggie:sonnet4.5 took a similar approach but made an error in the watermark section by appending the new reference instead of replacing the existing text, and also introduced unnecessary whitespace changes. claude-code:claude-sonnet-4-5 appears to have misunderstood the task entirely, producing no changes to the documentation file.",
+    "ranking": [
+      "factory:claude-sonnet-4-5-20250929",
+      "auggie:sonnet4.5",
+      "claude-code:claude-sonnet-4-5"
+    ]
+  },
+  "timestamp": "2025-11-06T21:55:39.641464",
+  "analysis_run_id": "694c4528"
+}

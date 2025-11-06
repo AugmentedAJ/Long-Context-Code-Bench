@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114899,
+  "base_commit": "6f608803302230a24c2d81fc9c4b863eb3513cb8",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 281696,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\nindex b2f314a0..24646eb6 100644\n--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\n+++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plan/logical/Aggregate.java\n@@ -11,6 +11,7 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;\n import org.elasticsearch.common.io.stream.StreamInput;\n import org.elasticsearch.common.io.stream.StreamOutput;\n import org.elasticsearch.xpack.esql.core.capabilities.Resolvables;\n+import org.elasticsearch.xpack.esql.core.expression.Alias;\n import org.elasticsearch.xpack.esql.core.expression.Attribute;\n import org.elasticsearch.xpack.esql.core.expression.AttributeSet;\n import org.elasticsearch.xpack.esql.core.expression.Expression;\n@@ -157,7 +158,30 @@ public class Aggregate extends UnaryPlan implements Stats {\n     }\n \n     public static AttributeSet computeReferences(List<? extends NamedExpression> aggregates, List<? extends Expression> groupings) {\n-        return Expressions.references(groupings).combine(Expressions.references(aggregates));\n+        // Collect references from groupings - use the original grouping expressions, not their aliases\n+        AttributeSet groupingRefs = Expressions.references(groupings);\n+\n+        // Collect references from aggregates, but exclude implicit aliases from groupings\n+        // Implicit aliases are created for constant expressions in groupings and should not be considered as field references\n+        AttributeSet aggregateRefs = new AttributeSet();\n+        for (NamedExpression agg : aggregates) {\n+            // Skip if this is an implicit alias wrapping a constant expression from groupings\n+            boolean isImplicitGroupingAlias = false;\n+            for (Expression grouping : groupings) {\n+                if (grouping instanceof Alias alias\n+                    && alias.child().foldable()\n+                    && agg instanceof Attribute attr\n+                    && attr.name().equals(alias.name())) {\n+                    isImplicitGroupingAlias = true;\n+                    break;\n+                }\n+            }\n+            if (isImplicitGroupingAlias == false) {\n+                aggregateRefs.addAll(agg.references());\n+            }\n+        }\n+\n+        return groupingRefs.combine(aggregateRefs);\n     }\n \n     @Override",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114899/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

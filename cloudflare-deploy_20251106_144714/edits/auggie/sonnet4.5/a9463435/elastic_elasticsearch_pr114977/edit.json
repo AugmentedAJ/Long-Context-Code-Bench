@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114977,
+  "base_commit": "91e1e02edcd877e7b347156f5f9ef39e62bce211",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 184237,
+  "patch_unified": "diff --git a/test/framework/src/main/java/org/elasticsearch/test/TestCluster.java b/test/framework/src/main/java/org/elasticsearch/test/TestCluster.java\nindex 75e0c0f4..2e4100ba 100644\n--- a/test/framework/src/main/java/org/elasticsearch/test/TestCluster.java\n+++ b/test/framework/src/main/java/org/elasticsearch/test/TestCluster.java\n@@ -262,7 +262,10 @@ public abstract class TestCluster {\n                     .<AcknowledgedResponse>andThen((l, clusterStateResponse) -> {\n                         ArrayList<String> concreteIndices = new ArrayList<>();\n                         for (IndexMetadata indexMetadata : clusterStateResponse.getState().metadata()) {\n-                            concreteIndices.add(indexMetadata.getIndex().getName());\n+                            // Temporarily ignore the inference index until we can figure out where it's being created\n+                            if (indexMetadata.getIndex().getName().startsWith(\".inference\") == false) {\n+                                concreteIndices.add(indexMetadata.getIndex().getName());\n+                            }\n                         }\n                         if (concreteIndices.isEmpty() == false) {\n                             client().admin().indices().prepareDelete(concreteIndices.toArray(Strings.EMPTY_ARRAY)).execute(l);\ndiff --git a/test/framework/src/main/java/org/elasticsearch/test/rest/ESRestTestCase.java b/test/framework/src/main/java/org/elasticsearch/test/rest/ESRestTestCase.java\nindex 29dbdc82..a95a417e 100644\n--- a/test/framework/src/main/java/org/elasticsearch/test/rest/ESRestTestCase.java\n+++ b/test/framework/src/main/java/org/elasticsearch/test/rest/ESRestTestCase.java\n@@ -1144,7 +1144,7 @@ public abstract class ESRestTestCase extends ESTestCase {\n         try {\n             // remove all indices except some history indices which can pop up after deleting all data streams but shouldn't interfere\n             final List<String> indexPatterns = new ArrayList<>(\n-                List.of(\"*\", \"-.ds-ilm-history-*\", \"-.ds-.slm-history-*\", \"-.ds-.watcher-history-*\")\n+                List.of(\"*\", \"-.ds-ilm-history-*\", \"-.ds-.slm-history-*\", \"-.ds-.watcher-history-*\", \"-.inference*\")\n             );\n             if (preserveSecurityIndices) {\n                 indexPatterns.add(\"-.security-*\");",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr114977/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}

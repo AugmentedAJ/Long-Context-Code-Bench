@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114854,
+  "base_commit": "9770ab7ac2da950b916743507abf8f9e73e084c7",
+  "head_commit": "2615cf8c1ec14c44a3e7d2a76836a61670a7fcfb",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\nAdding deprecation warnings for rank and sub_searches\n\nAdding deprecation warning for using the `rank` and `sub_searches` elements in Search API. \r\nAll doc references have already been removed, so here we just add the necessary headers.\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 15,
+    "lines_added": 178,
+    "lines_deleted": 31,
+    "total_diff_hunks": 82,
+    "context_size_bytes": 235611,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Add deprecation warnings for the `rank` and `sub_searches` parameters in the Search API",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T17:00:47.493555Z"
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 115001,
+  "base_commit": "f29ebd3d380295d719eda913363d1b1aa6e8beb7",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 111444,
+  "patch_unified": "diff --git a/docs/reference/connector/docs/connectors-content-extraction.asciidoc b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\nindex b785d62f..a7e54d38 100644\n--- a/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n+++ b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n@@ -90,7 +90,7 @@ include::_connectors-list-local-content-extraction.asciidoc[]\n Self-hosted content extraction is handled by a *separate* extraction service.\n \n The versions for the extraction service do not align with the Elastic stack.\n-For version `8.11.x`, you should use extraction service version `0.3.x`.\n+For versions after `8.11.x` (including `9.0.0`), you should use extraction service version `0.3.x`.\n \n You can run the service with the following command:\n ",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr115001/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}

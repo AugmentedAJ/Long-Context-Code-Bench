@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114917,
+  "base_commit": "f4eba6279bb8e5f98862975dde2abc83d84b15db",
+  "head_commit": "0b51fd943b79aa751fa411602bca4b8148a9dde4",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] Replace usages of `_source.mode` in documentation (#114743)\n\n# Backport\n\nThis is an automatic backport to `8.x` of:\n - #114743\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sqren/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 15,
+    "lines_added": 252,
+    "lines_deleted": 43,
+    "total_diff_hunks": 62,
+    "context_size_bytes": 129213,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Replace usages of `_source.mode` with the correct `index.mapping.source.mode` setting in documentation files",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:55:24.179310Z"
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long-Context-Bench - Run Summary</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Long-Context-Bench</h1>
+            <nav>
+                <a href="index.html">Leaderboard</a>
+                <a href="comparison.html">Details</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="controls">
+                <div class="control-group">
+                    <label for="run-selector">Select Run:</label>
+                    <select id="run-selector">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button id="refresh-btn">Refresh Data</button>
+                </div>
+            </section>
+
+            <section class="run-info" id="run-info">
+                <h2>Run Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Run ID:</span>
+                        <span class="info-value" id="info-run-id">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Runner:</span>
+                        <span class="info-value" id="info-runner">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Model:</span>
+                        <span class="info-value" id="info-model">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Test Label:</span>
+                        <span class="info-value" id="info-test-label">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Edit Run ID:</span>
+                        <span class="info-value" id="info-edit-run-id">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Judge Run ID:</span>
+                        <span class="info-value" id="info-judge-run-id">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="metrics-summary">
+                <h2>Aggregate Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-aggregate">-</div>
+                        <div class="metric-label">Aggregate Score</div>
+                        <div class="metric-detail">± <span id="metric-std">-</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-success-rate">-</div>
+                        <div class="metric-label">Success Rate</div>
+                        <div class="metric-detail"><span id="metric-successful">-</span>/<span id="metric-total">-</span> samples</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-correctness">-</div>
+                        <div class="metric-label">Correctness</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-completeness">-</div>
+                        <div class="metric-label">Completeness</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-code-reuse">-</div>
+                        <div class="metric-label">Code Reuse</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-best-practices">-</div>
+                        <div class="metric-label">Best Practices</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-unsolicited-docs">-</div>
+                        <div class="metric-label">Unsolicited Docs</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-tasks-per-hour">-</div>
+                        <div class="metric-label">Tasks/Hour</div>
+                        <div class="metric-detail"><span id="metric-elapsed">-</span>ms avg</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="charts">
+                <div class="chart-container">
+                    <h3>Score Breakdown</h3>
+                    <canvas id="score-breakdown-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Score Distribution</h3>
+                    <canvas id="score-distribution-chart"></canvas>
+                </div>
+            </section>
+
+            <section class="pr-results">
+                <h2>Per-PR Results</h2>
+                <div class="table-container">
+                    <table id="pr-results-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="pr_number">PR #</th>
+                                <th class="sortable" data-sort="repo">Repository</th>
+                                <th class="sortable" data-sort="status">Status</th>
+                                <th class="sortable" data-sort="aggregate">Aggregate</th>
+                                <th class="sortable" data-sort="correctness">Correctness</th>
+                                <th class="sortable" data-sort="completeness">Completeness</th>
+                                <th class="sortable" data-sort="code_reuse">Code Reuse</th>
+                                <th class="sortable" data-sort="best_practices">Best Practices</th>
+                                <th class="sortable" data-sort="unsolicited_docs">Unsol. Docs</th>
+                                <th class="sortable" data-sort="elapsed_ms">Time (ms)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pr-results-body">
+                            <tr>
+                                <td colspan="11" class="loading">Select a run to view results</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Last updated: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+    <script src="lib/chart.min.js"></script>
+    <script src="data-loader.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Initialize summary page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadRunSelector();
+            
+            // Check URL params for run_id
+            const urlParams = new URLSearchParams(window.location.search);
+            const runId = urlParams.get('run_id');
+            if (runId) {
+                document.getElementById('run-selector').value = runId;
+                await loadRunSummary(runId);
+            }
+        });
+
+        document.getElementById('run-selector').addEventListener('change', async (e) => {
+            const runId = e.target.value;
+            if (runId) {
+                await loadRunSummary(runId);
+                // Update URL
+                const url = new URL(window.location);
+                url.searchParams.set('run_id', runId);
+                window.history.pushState({}, '', url);
+            }
+        });
+
+        document.getElementById('refresh-btn').addEventListener('click', async () => {
+            const runId = document.getElementById('run-selector').value;
+            if (runId) {
+                await loadRunSummary(runId);
+            }
+        });
+    </script>
+</body>
+</html>
+

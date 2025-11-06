@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114911,
+  "base_commit": "f6a1e36d6be56a5d480765ad2d5f72f4adcaef5b",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1200,
+  "status": "success",
+  "elapsed_ms": 207845,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/search/DefaultSearchContext.java b/server/src/main/java/org/elasticsearch/search/DefaultSearchContext.java\nindex 1521b17a..8ac35f7c 100644\n--- a/server/src/main/java/org/elasticsearch/search/DefaultSearchContext.java\n+++ b/server/src/main/java/org/elasticsearch/search/DefaultSearchContext.java\n@@ -291,7 +291,7 @@ final class DefaultSearchContext extends SearchContext {\n         ToLongFunction<String> fieldCardinality\n     ) {\n         return executor instanceof ThreadPoolExecutor tpe\n-            && tpe.getQueue().isEmpty()\n+            && tpe.getQueue().size() <= tpe.getMaximumPoolSize()\n             && isParallelCollectionSupportedForResults(resultsType, request.source(), fieldCardinality, enableQueryPhaseParallelCollection)\n                 ? tpe.getMaximumPoolSize()\n                 : 1;\ndiff --git a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/termsenum/action/TransportTermsEnumAction.java b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/termsenum/action/TransportTermsEnumAction.java\nindex 9164fd88..a468b857 100644\n--- a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/termsenum/action/TransportTermsEnumAction.java\n+++ b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/termsenum/action/TransportTermsEnumAction.java\n@@ -746,11 +746,11 @@ public class TransportTermsEnumAction extends HandledTransportAction<TermsEnumRe\n         if (request.shardIds().size() == 0) {\n             listener.onResponse(NodeTermsEnumResponse.empty(request.nodeId()));\n         } else {\n-            // Use the search threadpool if its queue is empty\n+            // Use the search threadpool if its queue size is below the pool size threshold\n             assert transportService.getThreadPool().executor(ThreadPool.Names.SEARCH) instanceof EsThreadPoolExecutor\n                 : \"SEARCH threadpool must be an instance of ThreadPoolExecutor\";\n             EsThreadPoolExecutor ex = (EsThreadPoolExecutor) transportService.getThreadPool().executor(ThreadPool.Names.SEARCH);\n-            final Executor executor = ex.getQueue().size() == 0 ? ex : shardExecutor;\n+            final Executor executor = ex.getQueue().size() <= ex.getMaximumPoolSize() ? ex : shardExecutor;\n             executor.execute(ActionRunnable.supply(listener, () -> dataNodeOperation(request)));\n         }\n     }",
+  "logs_path": "claude-code/claude-sonnet-4-5/c7a3f90a/elastic_elasticsearch_pr114911/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "c7a3f90a",
+  "test_label": "v0"
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v0",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114959,
+  "base_commit": "49f359a598142420534e56459ae600f9b92b810a",
+  "head_commit": "abc890caabb8e3d7948398204664aa05e027a236",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] [ES|QL] Skip validating remote cluster index names in parser (#114271)\n\n# Backport\n\nThis will backport the following commits from `main` to `8.x`:\n - [[ES|QL] Skip validating remote cluster index names in parser (#114271)](https://github.com/elastic/elasticsearch/pull/114271)\n\n<!--- Backport version: 9.5.0 -->\n\n### Questions ?\nPlease refer to the [Backport tool documentation](https://github.com/sorenlouv/backport)\n\nPlease make all necessary code changes to complete this task.",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 119,
+    "lines_deleted": 203,
+    "total_diff_hunks": 18,
+    "context_size_bytes": 126426,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Skip validating remote cluster index names in the ES|QL parser",
+  "synthesis_model": "auggie/claude-sonnet-4.5",
+  "synthesis_timestamp": "2025-10-30T16:52:33.468936Z"
+}

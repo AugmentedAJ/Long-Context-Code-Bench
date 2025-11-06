@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114980,
+  "base_commit": "23fe8663a2b76cd64f509ba3eefdaedbab2f77ab",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 222720,
+  "patch_unified": "diff --git a/docs/reference/inference/inference-apis.asciidoc b/docs/reference/inference/inference-apis.asciidoc\nindex 8fdf8aec..5cb03d95 100644\n--- a/docs/reference/inference/inference-apis.asciidoc\n+++ b/docs/reference/inference/inference-apis.asciidoc\n@@ -21,6 +21,7 @@ the following APIs to manage {infer} models and perform {infer}:\n * <<get-inference-api>>\n * <<post-inference-api>>\n * <<put-inference-api>>\n+* <<update-inference-api>>\n \n [[inference-landscape]]\n .A representation of the Elastic inference landscape\n@@ -39,6 +40,7 @@ include::delete-inference.asciidoc[]\n include::get-inference.asciidoc[]\n include::post-inference.asciidoc[]\n include::put-inference.asciidoc[]\n+include::update-inference.asciidoc[]\n include::service-alibabacloud-ai-search.asciidoc[]\n include::service-amazon-bedrock.asciidoc[]\n include::service-anthropic.asciidoc[]",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr114980/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}

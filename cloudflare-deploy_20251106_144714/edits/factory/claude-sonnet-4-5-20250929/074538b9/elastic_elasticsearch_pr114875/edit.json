@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114875,
+  "base_commit": "6de48b122f41ad9ddd8449dbcaec46e883d7e4a8",
+  "runner": "factory",
+  "model": "claude-sonnet-4-5-20250929",
+  "timeout_s": 7200,
+  "status": "success",
+  "elapsed_ms": 237785,
+  "patch_unified": "diff --git a/docs/reference/search/retriever.asciidoc b/docs/reference/search/retriever.asciidoc\nindex 54836ac3..f0ad6a48 100644\n--- a/docs/reference/search/retriever.asciidoc\n+++ b/docs/reference/search/retriever.asciidoc\n@@ -1,8 +1,6 @@\n [[retriever]]\n === Retriever\n \n-preview::[\"This functionality is in technical preview and may be changed or removed in a future release. The syntax will likely change before GA. Elastic will work to fix any issues, but features in technical preview are not subject to the support SLA of official GA features.\"]\n-\n A retriever is a specification to describe top documents returned from a\n search. A retriever replaces other elements of the <<search-search, search API>>\n that also return top documents such as <<query-dsl, `query`>> and\ndiff --git a/docs/reference/search/rrf.asciidoc b/docs/reference/search/rrf.asciidoc\nindex 2a676e5f..277a965e 100644\n--- a/docs/reference/search/rrf.asciidoc\n+++ b/docs/reference/search/rrf.asciidoc\n@@ -1,8 +1,6 @@\n [[rrf]]\n === Reciprocal rank fusion\n \n-preview::[\"This functionality is in technical preview and may be changed or removed in a future release. The syntax will likely change before GA. Elastic will work to fix any issues, but features in technical preview are not subject to the support SLA of official GA features.\"]\n-\n https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf[Reciprocal rank fusion (RRF)]\n is a method for combining multiple result sets with different relevance indicators into a single result set.\n RRF requires no tuning, and the different relevance indicators do not have to be related to each other to achieve high-quality results.\ndiff --git a/docs/reference/search/search-your-data/retrievers-overview.asciidoc b/docs/reference/search/search-your-data/retrievers-overview.asciidoc\nindex c0fe7471..2c28c8f3 100644\n--- a/docs/reference/search/search-your-data/retrievers-overview.asciidoc\n+++ b/docs/reference/search/search-your-data/retrievers-overview.asciidoc\n@@ -1,8 +1,6 @@\n [[retrievers-overview]]\n === Retrievers\n \n-preview::[]\n-\n A retriever is an abstraction that was added to the Search API in *8.14.0*.\n This abstraction enables the configuration of multi-stage retrieval pipelines within a single `_search` call.\n This simplifies your search application logic, because you no longer need to configure complex searches via multiple {es} calls or implement additional client-side logic to combine results from different queries.",
+  "logs_path": "factory/claude-sonnet-4-5-20250929/074538b9/elastic_elasticsearch_pr114875/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "074538b9",
+  "test_label": "v0"
+}

@@ -1,0 +1,86 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 115001,
+  "base_commit": "f29ebd3d380295d719eda913363d1b1aa6e8beb7",
+  "head_commit": "760188f6985290717625639c8d5d2decece024c8",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[DOCS] Update local data extraction version info\n\nPlease make all necessary code changes to complete this task.",
+  "ground_truth_diff": "diff --git a/docs/reference/connector/docs/connectors-content-extraction.asciidoc b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\nindex b785d62f0f55..5d2a9550a7c3 100644\n--- a/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n+++ b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n@@ -90,7 +90,7 @@ include::_connectors-list-local-content-extraction.asciidoc[]\n Self-hosted content extraction is handled by a *separate* extraction service.\n \n The versions for the extraction service do not align with the Elastic stack.\n-For version `8.11.x`, you should use extraction service version `0.3.x`.\n+For versions after `8.11.x` (including {version}), you should use extraction service version `0.3.x`.\n \n You can run the service with the following command:\n ",
+  "judge_mode": "comparative",
+  "judge_model": "openai/claude-sonnet-4-5-20250929",
+  "test_label": "v0",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "edit_run_id": "a9463435",
+      "status": "success",
+      "elapsed_ms": 111444,
+      "patch_unified": "diff --git a/docs/reference/connector/docs/connectors-content-extraction.asciidoc b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\nindex b785d62f..a7e54d38 100644\n--- a/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n+++ b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n@@ -90,7 +90,7 @@ include::_connectors-list-local-content-extraction.asciidoc[]\n Self-hosted content extraction is handled by a *separate* extraction service.\n \n The versions for the extraction service do not align with the Elastic stack.\n-For version `8.11.x`, you should use extraction service version `0.3.x`.\n+For versions after `8.11.x` (including `9.0.0`), you should use extraction service version `0.3.x`.\n \n You can run the service with the following command:\n ",
+      "scores": {
+        "correctness": 0.7,
+        "completeness": 0.9,
+        "code_reuse": 1.0,
+        "best_practices": 0.5,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.82,
+      "rationale": "The agent correctly updated the version information in connectors-content-extraction.asciidoc by changing 'For version `8.11.x`' to 'For versions after `8.11.x`' and adding a parenthetical reference. However, it used a hardcoded version '9.0.0' instead of the dynamic '{version}' variable that the ground truth uses. This is functionally correct for the immediate context but less maintainable and doesn't follow the documentation pattern of using version variables. The change is nearly complete and achieves the core intent of updating the version info to indicate it applies to versions after 8.11.x, but the hardcoded version is a deviation from best practices in documentation that uses version substitution variables.",
+      "llm_rating": 0.81,
+      "llm_summary": "No summary provided",
+      "errors": []
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "edit_run_id": "c7a3f90a",
+      "status": "success",
+      "elapsed_ms": 94316,
+      "patch_unified": "diff --git a/docs/reference/connector/docs/connectors-content-extraction.asciidoc b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\nindex b785d62f..8a170179 100644\n--- a/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n+++ b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n@@ -90,7 +90,7 @@ include::_connectors-list-local-content-extraction.asciidoc[]\n Self-hosted content extraction is handled by a *separate* extraction service.\n \n The versions for the extraction service do not align with the Elastic stack.\n-For version `8.11.x`, you should use extraction service version `0.3.x`.\n+For version `9.0.x`, you should use extraction service version `0.4.x`.\n \n You can run the service with the following command:\n ",
+      "scores": {
+        "correctness": -0.8,
+        "completeness": -0.9,
+        "code_reuse": 1.0,
+        "best_practices": 0.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.05999999999999996,
+      "rationale": "The agent modified the version information in connectors-content-extraction.asciidoc but made incorrect changes. Ground truth updates the text to indicate 'versions after 8.11.x (including {version})' should use extraction service version '0.3.x', making it forward-compatible. The agent instead changed it to 'version 9.0.x' with extraction service version '0.4.x', which is factually incorrect and doesn't match the intended update. This is a documentation accuracy issue that could mislead users about which extraction service version to use. The change is in the correct file and location, but the content is wrong.",
+      "llm_rating": 0.16,
+      "llm_summary": "Agent modified version information in connectors-content-extraction.asciidoc to specify version 9.0.x with extraction service 0.4.x instead of updating to indicate versions after 8.11.x (including {version}) should use extraction service 0.3.x as required by ground truth",
+      "errors": []
+    },
+    {
+      "runner": "factory",
+      "model": "claude-sonnet-4-5-20250929",
+      "edit_run_id": "074538b9",
+      "status": "success",
+      "elapsed_ms": 146213,
+      "patch_unified": "diff --git a/docs/reference/connector/docs/connectors-content-extraction.asciidoc b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\nindex b785d62f..e41b09aa 100644\n--- a/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n+++ b/docs/reference/connector/docs/connectors-content-extraction.asciidoc\n@@ -90,7 +90,7 @@ include::_connectors-list-local-content-extraction.asciidoc[]\n Self-hosted content extraction is handled by a *separate* extraction service.\n \n The versions for the extraction service do not align with the Elastic stack.\n-For version `8.11.x`, you should use extraction service version `0.3.x`.\n+For versions after `8.11.x` (including 9.0.0), you should use extraction service version `0.3.x`.\n \n You can run the service with the following command:\n ",
+      "scores": {
+        "correctness": 0.7,
+        "completeness": 0.9,
+        "code_reuse": 1.0,
+        "best_practices": 0.5,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.82,
+      "rationale": "The agent correctly updated the version information in connectors-content-extraction.asciidoc by changing 'For version `8.11.x`' to 'For versions after `8.11.x`' and adding a parenthetical note about version inclusion. However, the agent used a hardcoded version '9.0.0' instead of the dynamic '{version}' placeholder that the ground truth uses. This is a significant difference because the ground truth uses an AsciiDoc attribute that would automatically resolve to the current documentation version, making the documentation maintainable across versions. The agent's approach requires manual updates for each version, which violates documentation best practices for version-aware content. The change is functionally correct and complete in terms of the semantic update (clarifying that versions after 8.11.x use extraction service 0.3.x), but the implementation method is less flexible and maintainable.",
+      "llm_rating": 0.81,
+      "llm_summary": "Updated version information in connectors-content-extraction.asciidoc from 'For version `8.11.x`' to 'For versions after `8.11.x` (including 9.0.0)' but used hardcoded version string instead of dynamic '{version}' placeholder",
+      "errors": []
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "All three agents successfully modified the same file and line, but with different approaches to the version information update. auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 both changed the text to 'versions after 8.11.x' and kept extraction service version 0.3.x, while claude-code:claude-sonnet-4-5 updated to version 9.0.x with extraction service version 0.4.x, which deviates significantly from the expected change.",
+    "best_agent": "auggie:sonnet4.5",
+    "best_agent_reasoning": "auggie:sonnet4.5 achieved the highest aggregate score (0.82) and produced a diff that most closely matches the ground truth. The agent correctly changed 'For version 8.11.x' to 'For versions after 8.11.x (including 9.0.0)' and maintained the extraction service version as 0.3.x. The only minor difference from the ground truth is using a hardcoded version '9.0.0' instead of the variable '{version}', which is a reasonable interpretation given the lack of context about available variables.",
+    "approach_differences": "auggie:sonnet4.5 and factory:claude-sonnet-4-5-20250929 took nearly identical approaches, both updating the text to indicate 'versions after 8.11.x' and keeping extraction service version 0.3.x. The key difference between them is that auggie:sonnet4.5 used backticks around '9.0.0' while factory:claude-sonnet-4-5-20250929 did not. In stark contrast, claude-code:claude-sonnet-4-5 took a fundamentally different approach by updating both the Elastic stack version to 9.0.x and the extraction service version to 0.4.x, which contradicts the ground truth requirement to keep the extraction service at 0.3.x.",
+    "ranking": [
+      "auggie:sonnet4.5",
+      "factory:claude-sonnet-4-5-20250929",
+      "claude-code:claude-sonnet-4-5"
+    ]
+  },
+  "timestamp": "2025-11-06T22:08:13.854715",
+  "analysis_run_id": "91a30d55"
+}

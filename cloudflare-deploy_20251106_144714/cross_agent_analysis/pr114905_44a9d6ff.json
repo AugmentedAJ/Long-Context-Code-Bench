@@ -1,0 +1,86 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114905,
+  "base_commit": "a703b2013efa8aabec76caf98974f180fb3a3a64",
+  "head_commit": "d23e3032996ddd5b6cd5b952dba66a2ade6219e5",
+  "task_instructions": "You are working on a codebase. Your task is to make the necessary code changes to accomplish the following:\n\n[8.x] ESQL: adapt to new range in ToDatetimeTests (#114605)\n\nBackports the following commits to 8.x:\n - ESQL: adapt to new range in ToDatetimeTests (#114605)\n\nPlease make all necessary code changes to complete this task.",
+  "ground_truth_diff": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\nindex 7799c3c756f2..2852b92ba156 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n@@ -134,9 +134,9 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, -62135596800001L)),\n+                    \"<date string before -9999-12-31T23:59:59.999Z>\",\n+                    // millis before \"-9999-12-31T23:59:59.999Z\"\n+                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, -377736739200000L)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -154,8 +154,8 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n+                    \"<date string after 9999-12-31T23:59:59.999Z>\",\n+                    // millis after \"9999-12-31T23:59:59.999Z\"\n                     () -> new BytesRef(randomDateString(253402300800000L, Long.MAX_VALUE)),\n                     DataType.KEYWORD\n                 )",
+  "judge_mode": "comparative",
+  "judge_model": "openai/claude-sonnet-4-5-20250929",
+  "test_label": "v0",
+  "agent_results": [
+    {
+      "runner": "auggie",
+      "model": "sonnet4.5",
+      "edit_run_id": "a9463435",
+      "status": "success",
+      "elapsed_ms": 449081,
+      "patch_unified": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\nindex 7799c3c7..a015132a 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n@@ -121,7 +121,7 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n                 new TestCaseSupplier.TypedDataSupplier(\n                     \"<date string>\",\n                     // millis past \"0001-01-01T00:00:00.000Z\" to match the default formatter\n-                    () -> new BytesRef(randomDateString(-62135596800000L, 253402300799999L)),\n+                    () -> new BytesRef(randomDateString(-62135596800000L, 253400659199999L)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -156,7 +156,7 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n                 new TestCaseSupplier.TypedDataSupplier(\n                     \"<date string before 0001-01-01T00:00:00.000Z>\",\n                     // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(253402300800000L, Long.MAX_VALUE)),\n+                    () -> new BytesRef(randomDateString(253400659200000L, Long.MAX_VALUE)),\n                     DataType.KEYWORD\n                 )\n             ),",
+      "scores": {
+        "correctness": -0.8,
+        "completeness": -0.6,
+        "code_reuse": 1.0,
+        "best_practices": 0.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.12000000000000002,
+      "rationale": "The agent made changes to ToDatetimeTests.java but modified completely different lines than the ground truth. Ground truth updates lines 137-139 and 157-158 to change date range boundaries and comments from '0001-01-01' to '-9999-12-31' and '9999-12-31', while the agent modified lines 124 and 159 with different timestamp values (253402300799999L to 253400659199999L and 253402300800000L to 253400659200000L). The agent's changes appear to adjust upper bounds of date ranges but miss the critical updates to lower bound validation (before -9999) and all comment updates. The changes are semantically different and don't accomplish the intended task of adapting to new range boundaries as specified in the PR title.",
+      "llm_rating": 0.22,
+      "llm_summary": "Modified different timestamp boundaries in ToDatetimeTests.java lines 124 and 159 by adjusting upper range limits, but completely missed the ground truth changes to lines 137-139 and 157-158 that update lower bound validation from '0001-01-01' to '-9999-12-31' and corresponding comments",
+      "errors": []
+    },
+    {
+      "runner": "claude-code",
+      "model": "claude-sonnet-4-5",
+      "edit_run_id": "c7a3f90a",
+      "status": "success",
+      "elapsed_ms": 128595,
+      "patch_unified": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\nindex 7799c3c7..2db135d0 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n@@ -120,8 +120,8 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n                     \"<date string>\",\n-                    // millis past \"0001-01-01T00:00:00.000Z\" to match the default formatter\n-                    () -> new BytesRef(randomDateString(-62135596800000L, 253402300799999L)),\n+                    // millis past \"-9999-01-01T00:00:00.000Z\" to match the default formatter\n+                    () -> new BytesRef(randomDateString(DateUtils.MAX_MILLIS_BEFORE_MINUS_9999, DateUtils.MAX_MILLIS_BEFORE_9999)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -134,9 +134,9 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, -62135596800001L)),\n+                    \"<date string before -9999-01-01T00:00:00.000Z>\",\n+                    // millis before \"-9999-01-01T00:00:00.000Z\"\n+                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, DateUtils.MAX_MILLIS_BEFORE_MINUS_9999 - 1)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -154,9 +154,9 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(253402300800000L, Long.MAX_VALUE)),\n+                    \"<date string after 9999-12-31T23:59:59.999Z>\",\n+                    // millis after \"9999-12-31T23:59:59.999Z\"\n+                    () -> new BytesRef(randomDateString(DateUtils.MAX_MILLIS_BEFORE_9999 + 1, Long.MAX_VALUE)),\n                     DataType.KEYWORD\n                 )\n             ),",
+      "scores": {
+        "correctness": 0.7,
+        "completeness": 0.6,
+        "code_reuse": 0.9,
+        "best_practices": 0.8,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 0.8,
+      "rationale": "The agent correctly updated the date range boundaries and comments in ToDatetimeTests.java, but with key differences from ground truth. Ground truth uses hardcoded millisecond values (-377736739200000L for the lower bound and 253402300800000L for the upper bound), while the agent uses DateUtils constants (MAX_MILLIS_BEFORE_MINUS_9999 and MAX_MILLIS_BEFORE_9999). The agent also made an additional change on line 123 not present in ground truth, replacing hardcoded values with DateUtils constants. The date strings in comments differ slightly: ground truth uses '-9999-12-31T23:59:59.999Z' while agent uses '-9999-01-01T00:00:00.000Z'. The agent's approach is more maintainable through constant reuse, but deviates from the exact ground truth implementation. All three test case suppliers were updated as required, though with different implementation details.",
+      "llm_rating": 0.74,
+      "llm_summary": "Updated ToDatetimeTests.java date range boundaries using DateUtils constants instead of hardcoded millisecond values, modified all three test case suppliers including an additional change on line 123, and used slightly different date strings in comments compared to ground truth",
+      "errors": []
+    },
+    {
+      "runner": "factory",
+      "model": "claude-sonnet-4-5-20250929",
+      "edit_run_id": "074538b9",
+      "status": "success",
+      "elapsed_ms": 79729,
+      "patch_unified": "diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\nindex 7799c3c7..2852b92b 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/scalar/convert/ToDatetimeTests.java\n@@ -134,9 +134,9 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n-                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, -62135596800001L)),\n+                    \"<date string before -9999-12-31T23:59:59.999Z>\",\n+                    // millis before \"-9999-12-31T23:59:59.999Z\"\n+                    () -> new BytesRef(randomDateString(Long.MIN_VALUE, -377736739200000L)),\n                     DataType.KEYWORD\n                 )\n             ),\n@@ -154,8 +154,8 @@ public class ToDatetimeTests extends AbstractScalarFunctionTestCase {\n             \"ToDatetimeFromStringEvaluator[field=\" + read + \"]\",\n             List.of(\n                 new TestCaseSupplier.TypedDataSupplier(\n-                    \"<date string before 0001-01-01T00:00:00.000Z>\",\n-                    // millis before \"0001-01-01T00:00:00.000Z\"\n+                    \"<date string after 9999-12-31T23:59:59.999Z>\",\n+                    // millis after \"9999-12-31T23:59:59.999Z\"\n                     () -> new BytesRef(randomDateString(253402300800000L, Long.MAX_VALUE)),\n                     DataType.KEYWORD\n                 )",
+      "scores": {
+        "correctness": 1.0,
+        "completeness": 1.0,
+        "code_reuse": 1.0,
+        "best_practices": 1.0,
+        "unsolicited_docs": 1.0
+      },
+      "aggregate": 1.0,
+      "rationale": "The agent's diff is identical to the ground truth diff. All changes are present and correct: (1) Updated the first test case supplier description from 'before 0001-01-01T00:00:00.000Z' to 'before -9999-12-31T23:59:59.999Z' with corresponding comment and timestamp value change from -62135596800001L to -377736739200000L, and (2) Updated the second test case supplier description from 'before 0001-01-01T00:00:00.000Z' to 'after 9999-12-31T23:59:59.999Z' with corresponding comment. The changes correctly adapt the ToDatetimeTests to use a new valid date range. No unsolicited documentation was added, and the code follows existing patterns perfectly.",
+      "llm_rating": 1.0,
+      "llm_summary": "Updated ToDatetimeTests.java to change date range boundaries from year 0001 to -9999/9999 by modifying test case supplier descriptions, comments, and the lower bound timestamp from -62135596800001L to -377736739200000L, matching ground truth exactly.",
+      "errors": []
+    }
+  ],
+  "comparative_analysis": {
+    "summary": "factory:claude-sonnet-4-5-20250929 produced a perfect solution matching the ground truth exactly, while claude-code:claude-sonnet-4-5 attempted to use constants that don't exist in the codebase, and auggie:sonnet4.5 modified the wrong lines entirely. The task required updating date range boundaries and their associated comments in test cases.",
+    "best_agent": "factory:claude-sonnet-4-5-20250929",
+    "best_agent_reasoning": "factory:claude-sonnet-4-5-20250929 achieved a perfect score by making exactly the changes specified in the ground truth diff. It correctly updated the date range boundaries from year 0001 to -9999/9999, changed the millisecond values to -377736739200000L and 253402300800000L, and updated all associated comments accurately. The solution demonstrates precise understanding of the task requirements.",
+    "approach_differences": "factory:claude-sonnet-4-5-20250929 used hardcoded millisecond values matching the ground truth exactly. claude-code:claude-sonnet-4-5 attempted to introduce DateUtils constants (MAX_MILLIS_BEFORE_MINUS_9999, MAX_MILLIS_BEFORE_9999) that don't exist in the codebase, showing an over-engineered approach that would fail compilation. auggie:sonnet4.5 misunderstood the task entirely and modified different lines (121 and 156) with incorrect values (253400659199999L and 253400659200000L), missing the actual target lines that needed changes.",
+    "ranking": [
+      "factory:claude-sonnet-4-5-20250929",
+      "claude-code:claude-sonnet-4-5",
+      "auggie:sonnet4.5"
+    ]
+  },
+  "timestamp": "2025-11-06T21:49:17.541366",
+  "analysis_run_id": "44a9d6ff"
+}

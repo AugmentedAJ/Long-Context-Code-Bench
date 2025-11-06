@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 114884,
+  "base_commit": "5271b20b64bbf17284d344f4bf1adea42ea78f1e",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 151313,
+  "patch_unified": "diff --git a/docs/reference/cat/indices.asciidoc b/docs/reference/cat/indices.asciidoc\nindex cf1cc9f8..f5f44418 100644\n--- a/docs/reference/cat/indices.asciidoc\n+++ b/docs/reference/cat/indices.asciidoc\n@@ -50,6 +50,10 @@ indexing and search. As a result, all document counts include hidden\n To get an accurate count of {es} documents, use the <<cat-count,cat count>> or\n <<search-count,count>> APIs.\n \n+Note that information such as document count, deleted document count and store size are not shown for\n+indices restored from <<snapshots-source-only-repository,source-only snapshots>> since these indices\n+do not contain the relevant data structures to retrieve this information from.\n+\n \n [[cat-indices-api-path-params]]\n ==== {api-path-parms-title}\ndiff --git a/docs/reference/snapshot-restore/repository-source-only.asciidoc b/docs/reference/snapshot-restore/repository-source-only.asciidoc\nindex 04e53c42..3c11d6ca 100644\n--- a/docs/reference/snapshot-restore/repository-source-only.asciidoc\n+++ b/docs/reference/snapshot-restore/repository-source-only.asciidoc\n@@ -27,6 +27,9 @@ As a result, indices adopting synthetic source cannot be restored. When you rest\n  * The mapping of the restored index is empty, but the original mapping is available from the types top\n    level `meta` element.\n \n+ * Information such as document count, deleted document count and store size are not available for such indices\n+   since these indices do not contain the relevant data structures to retrieve this information from. Therefore,\n+   this information is not shown for such indices in APIs such as the <<cat-indices,cat indices API>>.\n ==================================================\n \n Before registering a source-only repository, use {kib} or the",
+  "logs_path": "auggie/sonnet4.5/a9463435/elastic_elasticsearch_pr114884/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "a9463435",
+  "test_label": "v0"
+}
