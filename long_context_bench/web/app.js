@@ -4,6 +4,7 @@
 
 // Global state
 let currentSummaries = [];
+let filteredSummaries = [];
 let currentSort = { field: 'mean_aggregate', ascending: false };
 
 /**
@@ -16,13 +17,14 @@ async function loadLeaderboard() {
 
         // Display leaderboard
         displayLeaderboard(currentSummaries);
-        
+
         // Update charts
         if (currentSummaries.length > 0) {
             createScoreDistributionChart('score-distribution-chart', currentSummaries);
             createSuccessRateChart('success-rate-chart', currentSummaries);
+            updateLeaderboardCharts();  // Initialize the top agents comparison chart
         }
-        
+
         // Update timestamp
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);
     } catch (error) {
@@ -168,15 +170,16 @@ function filterLeaderboard() {
     const runner = document.getElementById('filter-runner').value;
     const model = document.getElementById('filter-model').value;
     const label = document.getElementById('filter-label').value;
-    
-    const filtered = currentSummaries.filter(s => {
+
+    filteredSummaries = currentSummaries.filter(s => {
         if (runner && s.runner !== runner) return false;
         if (model && s.model !== model) return false;
         if (label && s.test_label !== label) return false;
         return true;
     });
-    
-    displayLeaderboard(filtered);
+
+    displayLeaderboard(filteredSummaries);
+    updateLeaderboardCharts();  // Update charts when filter changes
 }
 
 /**
