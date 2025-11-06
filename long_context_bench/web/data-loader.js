@@ -3,8 +3,9 @@
  */
 
 // API base path - auto-detect based on environment
-// Use /api when served by Node.js server, otherwise use relative paths for static hosting
-const API_BASE = window.location.port === '3000' ? '/api' : '.';
+// Use /api when served by Node.js server, otherwise use parent directory for static hosting
+// (web files are in output/web/, data files are in output/)
+const API_BASE = window.location.port === '3000' ? '/api' : '..';
 
 // Global data cache
 const dataCache = {
@@ -421,7 +422,7 @@ function formatScore(score) {
  */
 function formatPercentage(value) {
     if (value === null || value === undefined) return '-';
-    return `${(value * 100).toFixed(1)}%`;
+    return `<span class="win-rate">${(value * 100).toFixed(1)}%</span>`;
 }
 
 /**
