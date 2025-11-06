@@ -149,6 +149,7 @@ def _run_single_agent(
     judge_mode: str,
     judge_model: Optional[str],
     dataset_version: str,
+    stream_output: bool = False,
 ) -> Dict[str, Any]:
     """Run a single agent configuration on all samples.
 
@@ -203,6 +204,7 @@ def _run_single_agent(
                 cache_dir=cache_dir,
                 force=force,
                 test_label=test_label,
+                stream_output=stream_output,
             )
             edits.append(edit)
 
@@ -255,6 +257,7 @@ def run_pipeline(
     pr_indices: Optional[str],
     cache_dir: Path,
     force: bool = False,
+    stream_output: bool = False,
     agent_configs: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
@@ -401,6 +404,7 @@ def run_pipeline(
             judge_mode=judge_mode,
             judge_model=judge_model,
             dataset_version=dataset_version,
+            stream_output=stream_output,
         )
         all_agent_results.append(result)
     else:
@@ -428,6 +432,7 @@ def run_pipeline(
                     judge_mode=judge_mode,
                     judge_model=judge_model,
                     dataset_version=dataset_version,
+                    stream_output=stream_output,
                 )
                 futures[future] = f"{cfg['runner']}/{cfg['model']}"
 

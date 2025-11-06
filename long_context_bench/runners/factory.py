@@ -46,6 +46,7 @@ class FactoryAdapter(RunnerAdapter):
             "exec",  # Non-interactive execution mode (headless)
             "--skip-permissions-unsafe",  # Allow all operations in isolated workspace
             task_instructions,  # Task prompt
+            "--output-format", "stream-json",  # Enable streaming JSON output
         ]
 
         # Add model if specified
@@ -96,6 +97,22 @@ class FactoryAdapter(RunnerAdapter):
                     "returncode": returncode,
                 }
                 f.write(json.dumps(log_entry) + "\n")
+
+            # Also write human-readable logs
+            readable_log_path = logs_path.parent / "logs_readable.txt"
+            with open(readable_log_path, "w") as f:
+                f.write("=" * 80 + "\n")
+                f.write("FACTORY (DROID) RUN LOG\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Model: {self.model or 'default (from config)'}\n")
+                f.write(f"Command: {' '.join(cmd)}\n")
+                f.write(f"Workspace: {workspace_path}\n")
+                f.write(f"Timeout: {self.timeout}s\n")
+                f.write(f"Return Code: {returncode}\n\n")
+                f.write("=" * 80 + "\n")
+                f.write("STDOUT (stream-json format)\n")
+                f.write("=" * 80 + "\n")
+                f.write(stdout or "(empty)\n\n")
 
             elapsed_ms = int((time.time() - start_time) * 1000)
 

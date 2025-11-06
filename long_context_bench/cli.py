@@ -224,6 +224,7 @@ def judge(
 @click.option("--pr-indices", help="Comma-separated list of PR indices to run (0-based, e.g., '0,1,2')")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-run all stages even if outputs already exist")
+@click.option("--stream-output", is_flag=True, help="Stream agent output to console in real-time")
 def pipeline(
     runner: str,
     model: str,
@@ -245,6 +246,7 @@ def pipeline(
     pr_indices: Optional[str],
     cache_dir: str,
     force: bool,
+    stream_output: bool,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
 
@@ -259,6 +261,8 @@ def pipeline(
     click.echo(f"Running complete pipeline on dataset {dataset_version}")
     if test_label:
         click.echo(f"Test label: {test_label}")
+    if stream_output:
+        click.echo("Streaming agent output enabled")
     run_pipeline(
         runner=runner,
         model=model,
@@ -280,6 +284,7 @@ def pipeline(
         pr_indices=pr_indices,
         cache_dir=Path(cache_dir),
         force=force,
+        stream_output=stream_output,
     )
     click.echo("Pipeline completed")
 
