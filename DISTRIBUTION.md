@@ -4,10 +4,10 @@ This guide explains how to share benchmark results with your team for debugging 
 
 ## Two Distribution Methods
 
-### Method 1: Public Results (Lightweight, No Logs)
-**Best for:** Sharing results publicly, quick demos, stakeholder reviews
+### Method 1: Standard Package (Recommended)
+**Best for:** Sharing results publicly or with team, deployment to static hosting
 
-**Size:** ~4MB (444KB compressed)
+**Size:** ~30MB uncompressed (4-5MB compressed)
 
 **What's included:**
 - Web dashboard (all HTML/JS/CSS)
@@ -15,7 +15,7 @@ This guide explains how to share benchmark results with your team for debugging 
 - Judge evaluations and rationale
 - Code diffs (ground truth vs agent submissions)
 - Sample task descriptions
-- ❌ No agent logs (stdout/stderr)
+- ✅ **Full agent logs** (stdout/stderr for every task)
 
 **How to share:**
 ```bash
@@ -26,10 +26,10 @@ This guide explains how to share benchmark results with your team for debugging 
 # Upload long-context-bench-v0-results_*.tar.gz to:
 # - GitHub Releases
 # - Google Drive / Dropbox
-# - Email (small enough!)
+# - Email (4-5MB)
 # - Slack / Teams
 
-# Or deploy to static hosting
+# Or deploy to static hosting (RECOMMENDED)
 # Drag and drop the web/ folder to:
 # - Cloudflare Pages: https://pages.cloudflare.com/
 # - Netlify: https://app.netlify.com/drop
@@ -45,16 +45,15 @@ cd long-context-bench-v0-results_*/
 
 ---
 
-### Method 2: Full Results with Logs (For Team Debugging)
-**Best for:** Internal team debugging, detailed analysis, reproducing issues
+### Method 2: Full Output Archive (For Local Development)
+**Best for:** Local development, preserving exact directory structure
 
-**Size:** ~2-4GB (depends on log verbosity)
+**Size:** ~60MB uncompressed (9-10MB compressed)
 
 **What's included:**
 - Everything from Method 1
-- ✅ Full agent logs (stdout/stderr) for every task
-- ✅ Raw edit outputs
-- ✅ Complete execution traces
+- ✅ Exact `output/` directory structure with symlinks
+- ✅ Suitable for local development and testing
 
 **How to share:**
 
@@ -203,19 +202,20 @@ gh release create v0-results \
 | Edit data (diffs) | ~2MB | ✅ | ✅ |
 | Judge data | ~500KB | ✅ | ✅ |
 | Sample data | ~200KB | ✅ | ✅ |
-| **Logs** | **~2-3GB** | ❌ | ✅ |
-| **Total** | **~4MB / ~3GB** | **444KB** | **~1-2GB** |
+| **Logs** | **~25MB** | ✅ | ✅ |
+| **Total uncompressed** | **~30MB** | **~30MB** | **~60MB** |
+| **Total compressed** | **~4-5MB** | **~4-5MB** | **~9-10MB** |
 
 ---
 
 ## Quick Commands Reference
 
 ```bash
-# Create lightweight package (no logs)
+# Create standard package (with logs, for deployment)
 ./scripts/package_results.sh
 
-# Create full archive with logs
-tar -czf long-context-bench-v0-full-output.tar.gz output/
+# Create full output archive (exact directory structure)
+./scripts/archive_full_output.sh
 
 # Upload to S3
 aws s3 cp long-context-bench-v0-full-output.tar.gz s3://your-bucket/

@@ -36,17 +36,17 @@ cp "$OUTPUT_DIR/index.json" "$PACKAGE_DIR/web/"
 mkdir -p "$PACKAGE_DIR/web/summaries"
 cp -r "$OUTPUT_DIR/summaries"/* "$PACKAGE_DIR/web/summaries/"
 
-# Copy edit data (only edit.json files, not logs or patches to save space)
+# Copy edit data (edit.json and logs.jsonl files)
 echo "📝 Copying edit data..."
 if [ -d "$OUTPUT_DIR/edits" ]; then
     mkdir -p "$PACKAGE_DIR/web/edits"
-    # Copy directory structure and edit.json files only
-    find "$OUTPUT_DIR/edits" -name "edit.json" | while read -r edit_file; do
+    # Copy directory structure, edit.json, and logs.jsonl files
+    find "$OUTPUT_DIR/edits" \( -name "edit.json" -o -name "logs.jsonl" \) | while read -r file; do
         # Get relative path from output/edits/
-        rel_path="${edit_file#$OUTPUT_DIR/edits/}"
+        rel_path="${file#$OUTPUT_DIR/edits/}"
         target_dir="$PACKAGE_DIR/web/edits/$(dirname "$rel_path")"
         mkdir -p "$target_dir"
-        cp "$edit_file" "$target_dir/"
+        cp "$file" "$target_dir/"
     done
 fi
 
@@ -97,7 +97,7 @@ The `web/` directory is a fully static site - just drag and drop to:
 The `output/web/` folder uses symlinks which don't work on static hosting platforms.
 This packaged version contains actual copies of all data files.
 
-No build step required! All data is included (~4MB).
+No build step required! All data is included (~60MB with logs).
 
 ### Option 3: Local Python Server (No Node.js required)
 
@@ -124,9 +124,12 @@ Then open http://localhost:3000 in your browser.
   - `index.html` - Main leaderboard page
   - `comparison.html` - Agent comparison charts
   - `summary.html` - Individual run summaries
-  - `task.html` - Per-task detailed results
+  - `task.html` - Per-task detailed results with **full logs**
   - `index.json` - Results index
-  - `summaries/` - Detailed result data
+  - `summaries/` - Aggregate statistics
+  - `edits/` - Agent submissions with **logs.jsonl** files
+  - `judges/` - Judge evaluations
+  - `samples/` - Task descriptions
 
 ## Results Summary
 

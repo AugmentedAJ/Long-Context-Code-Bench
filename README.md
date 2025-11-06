@@ -714,51 +714,37 @@ Package your results for easy sharing with an interactive web UI:
 ./scripts/package_results.sh
 ```
 
-This creates a lightweight archive (~100KB) containing:
+This creates an archive (~4-5MB compressed, ~30MB uncompressed) containing:
 - Interactive web dashboard (all HTML/JS/CSS files)
-- Result data (summaries and index)
+- Result data (summaries, edits, judges, samples)
+- **Full agent logs** (stdout/stderr for every task)
 - Quick-start launchers (`start.sh` / `start.bat`)
 
 **Sharing options:**
 
-1. **GitHub Releases** - Upload the `.tar.gz` file for downloads
+1. **Cloudflare Pages** - Drag & drop `web/` folder to https://pages.cloudflare.com/ (recommended)
 2. **Netlify/Vercel** - Deploy the `web/` folder for instant live URL (drag & drop to netlify.com/drop)
-3. **GitHub Pages** - Host permanently with version control
-4. **Email/Drive** - Share the 100KB archive directly
+3. **GitHub Releases** - Upload the `.tar.gz` file for downloads
+4. **GitHub Pages** - Host permanently with version control
+5. **Email/Drive** - Share the 4-5MB archive directly
 
-Recipients can extract and run `./start.sh` to view results locally, or you can deploy to any static hosting service for a live URL.
+Recipients can extract and run `./start.sh` to view results locally, or you can deploy to any static hosting service for a live URL with full logs available.
 
-### Sharing Full Results with Logs (Team Debugging)
+### Alternative: Full Output Archive (For Local Development)
 
-For internal team debugging with full agent logs:
+If you need the complete `output/` directory structure for local development:
 
 ```bash
-# Archive the complete output directory with logs
+# Archive the complete output directory
 ./scripts/archive_full_output.sh
 ```
 
-This creates a larger archive (~10-50MB depending on log verbosity) containing:
-- Everything from the lightweight package
-- **Full agent logs** (stdout/stderr) for every task
-- Complete execution traces
+This creates a larger archive (~9-10MB compressed, ~60MB uncompressed) with the exact `output/` directory structure including symlinks. Useful for:
+- Local development and testing
+- Sharing with team members who will run locally
+- Preserving the exact directory structure
 
-**Recommended distribution workflow:**
-
-1. **Upload to shared storage:**
-   ```bash
-   # AWS S3 (recommended)
-   aws s3 cp long-context-bench-v0-full-output_*.tar.gz s3://your-bucket/benchmarks/
-   aws s3 presign s3://your-bucket/benchmarks/long-context-bench-v0-full-output_*.tar.gz --expires-in 604800
-
-   # Or Google Drive, Dropbox, internal file server, etc.
-   ```
-
-2. **Share instructions with team:**
-   - Send the download link + the generated `*_INSTRUCTIONS.txt` file
-   - Team members clone the repo, download the archive, and extract to repo root
-   - Run `cd output/web && npm start` to view with full logs
-
-**Security note:** Full archives contain agent logs which may include internal paths, error traces, and reasoning. Share only with trusted team members.
+**Note:** The standard package (`package_results.sh`) already includes all logs and is recommended for most use cases, including deployment to static hosting.
 
 See [DISTRIBUTION.md](DISTRIBUTION.md) for detailed distribution strategies and security considerations.
 
