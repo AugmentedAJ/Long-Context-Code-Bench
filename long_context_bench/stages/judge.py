@@ -171,7 +171,7 @@ def compute_llm_scores(
     ground_truth_diff: str,
     task_instructions: str,
     judge_model: str,
-) -> tuple[Scores, str]:
+) -> tuple[Scores, str, float, str]:
     """Compute scores using LLM judge.
 
     Per R-3.12: LLM-based judge with temperature 0.0, fixed prompt and seed.
@@ -183,7 +183,11 @@ def compute_llm_scores(
         judge_model: Judge model name
 
     Returns:
-        Tuple of (Scores, rationale)
+        Tuple of (Scores, rationale, rating, summary)
+        - Scores: Individual metric scores
+        - rationale: Detailed explanation
+        - rating: Overall rating from 0.00 to 1.00
+        - summary: One-line summary
     """
     # Construct the judge prompt
     prompt = f"""You are an expert code reviewer evaluating an AI coding agent's output against ground truth.
@@ -230,6 +234,27 @@ Evaluate the agent's diff against the ground truth on the following 5 metrics. E
    - 0.0: Minor documentation additions
    - -1.0: Significant unsolicited documentation (README, CHANGELOG, etc.)
 
+**Rating Calculation (0.00 to 1.00):**
+
+The rating should be an objective measure of solution quality based on this formula:
+- Start with base score = (sum of 5 metrics + 5) / 10  (converts -1..1 range to 0..1)
+- Apply penalties:
+  - Critical errors (breaks functionality, deletes required code): -0.3 to -0.5
+  - Major omissions (missing core functionality): -0.2 to -0.3
+  - Minor issues (style, incomplete edge cases): -0.05 to -0.1
+- Final rating = max(0.0, min(1.0, base_score - penalties))
+
+**Summary Guidelines:**
+
+The summary must be a single sentence that:
+1. States what the agent DID (not what it failed to do)
+2. Highlights the SPECIFIC approach or changes made
+3. Mentions KEY DIFFERENCES from ground truth (if any)
+4. Uses concrete technical terms (file names, function names, patterns)
+
+Good example: "Renamed test file and added try-catch in RestBulkAction but used instance variable instead of local variable for randomization"
+Bad example: "Agent partially implemented the changes but missed some requirements"
+
 **Output Format:**
 
 Respond with ONLY a valid JSON object in this exact format (no markdown, no code blocks, no additional text):
@@ -240,7 +265,9 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
   "code_reuse": <float between -1.0 and 1.0>,
   "best_practices": <float between -1.0 and 1.0>,
   "unsolicited_docs": <float between -1.0 and 1.0>,
-  "rationale": "<brief explanation of your scoring>"
+  "rationale": "<brief explanation of your scoring>",
+  "rating": <float between 0.00 and 1.00, calculated using the formula above>,
+  "summary": "<one-line summary following the guidelines above>"
 }}"""
 
     try:
@@ -285,9 +312,11 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
         )
 
         rationale = result.get("rationale", "No rationale provided")
+        rating = max(0.0, min(1.0, float(result.get("rating", 0.5))))
+        summary = result.get("summary", "No summary provided")
 
         console.print(f"[green]✓ LLM judge completed[/green]")
-        return scores, rationale
+        return scores, rationale, rating, summary
 
     except json.JSONDecodeError as e:
         console.print(f"[yellow]Warning: Failed to parse LLM response as JSON: {e}[/yellow]")
@@ -295,14 +324,18 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
         # Fall back to deterministic
         scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
         rationale = f"LLM judge failed (JSON parse error), fell back to deterministic: {str(e)}"
-        return scores, rationale
+        rating = 0.0
+        summary = "LLM judge failed"
+        return scores, rationale, rating, summary
 
     except Exception as e:
         console.print(f"[yellow]Warning: LLM judge failed: {e}[/yellow]")
         # Fall back to deterministic
         scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
         rationale = f"LLM judge failed, fell back to deterministic: {str(e)}"
-        return scores, rationale
+        rating = 0.0
+        summary = "LLM judge failed"
+        return scores, rationale, rating, summary
 
 
 def judge_edit(
@@ -404,7 +437,7 @@ def judge_edit(
         # Compute scores
         console.print(f"  Computing scores...")
         if judge_mode == "llm" and judge_model:
-            scores, rationale = compute_llm_scores(
+            scores, rationale, _, _ = compute_llm_scores(
                 edit.patch_unified,
                 ground_truth_diff,
                 sample.task_instructions,

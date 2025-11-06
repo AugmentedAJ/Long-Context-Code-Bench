@@ -43,6 +43,7 @@ function displayAnalysisList(analyses) {
                         <th>Repository</th>
                         <th>Agents Compared</th>
                         <th>Best Agent</th>
+                        <th>Comparative Summary</th>
                         <th>Judge Mode</th>
                         <th>Test Label</th>
                         <th>Timestamp</th>
@@ -50,22 +51,31 @@ function displayAnalysisList(analyses) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${analyses.map(analysis => `
-                        <tr>
-                            <td><strong>${analysis.pr_number}</strong></td>
-                            <td>${getRepoName(analysis.repo_url)}</td>
-                            <td>${analysis.agent_results.length} agents</td>
-                            <td>${analysis.comparative_analysis ? analysis.comparative_analysis.best_agent : 'N/A'}</td>
-                            <td><span class="badge">${analysis.judge_mode}</span></td>
-                            <td>${analysis.test_label || 'N/A'}</td>
-                            <td>${formatTimestamp(analysis.timestamp)}</td>
-                            <td>
-                                <button class="btn-primary" onclick="showAnalysisDetail('${analysis.analysis_run_id}')">
-                                    View Details
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
+                    ${analyses.map(analysis => {
+                        // Get comparative summary if available
+                        const bestAgentName = analysis.comparative_analysis ? analysis.comparative_analysis.best_agent : null;
+                        const comparativeSummary = analysis.comparative_analysis && analysis.comparative_analysis.summary
+                            ? analysis.comparative_analysis.summary
+                            : 'N/A';
+
+                        return `
+                            <tr>
+                                <td><strong>${analysis.pr_number}</strong></td>
+                                <td>${getRepoName(analysis.repo_url)}</td>
+                                <td>${analysis.agent_results.length} agents</td>
+                                <td>${bestAgentName || 'N/A'}</td>
+                                <td style="max-width: 500px; font-size: 0.9em;">${comparativeSummary}</td>
+                                <td><span class="badge">${analysis.judge_mode}</span></td>
+                                <td>${analysis.test_label || 'N/A'}</td>
+                                <td>${formatTimestamp(analysis.timestamp)}</td>
+                                <td>
+                                    <button class="btn-primary" onclick="showAnalysisDetail('${analysis.analysis_run_id}')">
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         </div>
@@ -131,11 +141,21 @@ function displayAgentResults(agentResults, comparativeAnalysis) {
         const rankInComparative = ranking.indexOf(agentName) + 1;
         const displayRank = rankInComparative > 0 ? rankInComparative : index + 1;
 
+        // Format LLM rating and summary
+        const llmRating = result.llm_rating !== null && result.llm_rating !== undefined
+            ? `<strong>${result.llm_rating.toFixed(2)}</strong>`
+            : '<span style="color: #999;">N/A</span>';
+        const llmSummary = result.llm_summary
+            ? `<span style="font-size: 0.9em;">${result.llm_summary}</span>`
+            : '<span style="color: #999;">N/A</span>';
+
         return `
             <tr>
                 <td><strong>${displayRank}</strong></td>
                 <td>${result.runner}<br><small>${result.model}</small></td>
                 <td><span class="badge badge-${result.status}">${result.status}</span></td>
+                <td>${llmRating}</td>
+                <td style="max-width: 300px;">${llmSummary}</td>
                 <td><strong>${result.aggregate.toFixed(2)}</strong></td>
                 <td>${result.scores.correctness.toFixed(2)}</td>
                 <td>${result.scores.completeness.toFixed(2)}</td>

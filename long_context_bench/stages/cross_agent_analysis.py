@@ -296,7 +296,7 @@ def run_cross_agent_analysis(
         
         # Compute scores
         if judge_mode in ["llm", "comparative"] and judge_model:
-            scores, rationale = compute_llm_scores(
+            scores, rationale, llm_rating, llm_summary = compute_llm_scores(
                 edit.patch_unified,
                 ground_truth_diff,
                 sample.task_instructions,
@@ -305,7 +305,9 @@ def run_cross_agent_analysis(
         else:
             scores = compute_deterministic_scores(edit.patch_unified, ground_truth_diff)
             rationale = None
-        
+            llm_rating = None
+            llm_summary = None
+
         aggregate = (
             scores.correctness +
             scores.completeness +
@@ -313,7 +315,7 @@ def run_cross_agent_analysis(
             scores.best_practices +
             scores.unsolicited_docs
         ) / 5.0
-        
+
         agent_result = AgentResult(
             runner=edit.runner,
             model=edit.model,
@@ -324,10 +326,16 @@ def run_cross_agent_analysis(
             scores=scores,
             aggregate=aggregate,
             rationale=rationale,
+            llm_rating=llm_rating,
+            llm_summary=llm_summary,
             errors=edit.errors,
         )
         agent_results.append(agent_result)
-        console.print(f"  Aggregate: {aggregate:.2f}")
+
+        if llm_rating is not None:
+            console.print(f"  Aggregate: {aggregate:.2f} | Rating: {llm_rating:.2f} | {llm_summary}")
+        else:
+            console.print(f"  Aggregate: {aggregate:.2f}")
     
     # Generate comparative analysis if in comparative mode
     comparative_analysis = None
