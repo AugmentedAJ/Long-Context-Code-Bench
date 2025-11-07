@@ -231,8 +231,11 @@ function createAgentScoresChart(agentResults) {
  */
 function displayAgentDetails(agentResults) {
     const container = document.getElementById('agent-details-container');
-    
-    const html = agentResults.map(result => `
+
+    const html = agentResults.map(result => {
+        const agentId = `${result.runner}-${result.model}-${result.edit_run_id}`.replace(/[^a-zA-Z0-9-]/g, '-');
+
+        return `
         <div class="card">
             <h4>${result.runner}:${result.model}</h4>
             <div class="agent-detail-content">
@@ -259,10 +262,115 @@ function displayAgentDetails(agentResults) {
                 <summary>View Diff</summary>
                 <pre class="code-block">${escapeHtml(result.patch_unified)}</pre>
             </details>
+            ${result.logs_path ? `
+                <details>
+                    <summary>View Agent Logs</summary>
+                    <div id="logs-${agentId}" class="logs-container">
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <em>Loading logs...</em>
+                        </div>
+                    </div>
+                </details>
+            ` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     container.innerHTML = html;
+
+    // Load logs for each agent that has logs_path
+    agentResults.forEach(result => {
+        if (result.logs_path) {
+            const agentId = `${result.runner}-${result.model}-${result.edit_run_id}`.replace(/[^a-zA-Z0-9-]/g, '-');
+            loadAgentLogs(result.logs_path, agentId);
+        }
+    });
+}
+
+/**
+ * Load and display agent logs
+ */
+async function loadAgentLogs(logsPath, agentId) {
+    const container = document.getElementById(`logs-${agentId}`);
+
+    try {
+        const response = await fetch(`${API_BASE}/${logsPath}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const text = await response.text();
+        const lines = text.trim().split('\n');
+        const logEntries = lines.map(line => {
+            try {
+                return JSON.parse(line);
+            } catch (e) {
+                return { raw: line };
+            }
+        });
+
+        container.innerHTML = formatLogs(logEntries);
+    } catch (error) {
+        container.innerHTML = `
+            <div style="color: #d32f2f; padding: 10px;">
+                <strong>Error loading logs:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+/**
+ * Format JSONL log entries for display
+ */
+function formatLogs(logEntries) {
+    if (!logEntries || logEntries.length === 0) {
+        return '<div style="padding: 10px; color: #666;"><em>No logs available</em></div>';
+    }
+
+    const html = logEntries.map(entry => {
+        if (entry.raw) {
+            // Unparseable line
+            return `<div class="log-entry log-raw">${escapeHtml(entry.raw)}</div>`;
+        }
+
+        const timestamp = entry.timestamp
+            ? new Date(entry.timestamp * 1000).toISOString().replace('T', ' ').substring(0, 19)
+            : '';
+        const event = entry.event || 'unknown';
+
+        let content = '';
+        let eventClass = 'log-info';
+
+        if (event === 'agent_start') {
+            eventClass = 'log-start';
+            content = `<strong>Agent Started</strong><br>
+                Runner: ${entry.runner || 'N/A'}<br>
+                Model: ${entry.model || 'N/A'}<br>
+                Timeout: ${entry.timeout_s || 'N/A'}s`;
+        } else if (event === 'agent_end') {
+            eventClass = entry.exit_code === 0 ? 'log-success' : 'log-error';
+            content = `<strong>Agent Ended</strong><br>
+                Exit Code: ${entry.exit_code !== undefined ? entry.exit_code : 'N/A'}`;
+        } else if (event === 'agent_run') {
+            eventClass = 'log-output';
+            const output = entry.stdout || entry.stderr || '';
+            content = `<strong>Agent Output</strong><br>
+                <pre class="log-output-text">${escapeHtml(output)}</pre>`;
+        } else {
+            // Generic event
+            content = `<strong>${event}</strong><br>
+                <pre class="log-output-text">${escapeHtml(JSON.stringify(entry, null, 2))}</pre>`;
+        }
+
+        return `
+            <div class="log-entry ${eventClass}">
+                <div class="log-timestamp">${timestamp}</div>
+                <div class="log-content">${content}</div>
+            </div>
+        `;
+    }).join('');
+
+    return `<div class="logs-list">${html}</div>`;
 }
 
 /**
