@@ -75,3 +75,8 @@ Thumbs.db
 long-context-bench-v0-results_*/
 long-context-bench-v0-full-output_*.tar.gz
 long-context-bench-v0-full-output_*_INSTRUCTIONS.txt
+cloudflare-deploy_*/
+v0-LCB-public/
+
+# Temporary scripts
+scripts/add_logs_path.py
