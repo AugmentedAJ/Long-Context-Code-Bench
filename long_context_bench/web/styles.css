@@ -287,7 +287,8 @@ nav a.active {
     min-width: 150px;
 }
 
-.control-group button {
+.control-group button,
+.btn-secondary {
     padding: 6px 16px;
     border: 1px solid var(--border-color);
     border-radius: 3px;
@@ -298,9 +299,27 @@ nav a.active {
     transition: all 0.2s;
 }
 
-.control-group button:hover {
+.control-group button:hover,
+.btn-secondary:hover {
     background: var(--bg-secondary);
     border-color: var(--accent-color);
+}
+
+.btn-primary {
+    padding: 6px 16px;
+    border: 1px solid var(--accent-color);
+    border-radius: 3px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    background: var(--accent-color);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+    border-color: #0052a3;
 }
 
 .hidden {

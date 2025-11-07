@@ -9,6 +9,12 @@ let currentSort = { field: 'win_rate', ascending: false };
 let crossAgentAnalyses = [];
 let crossAgentLeaderboard = [];
 
+// Lazy loading state
+let leaderboardDisplayCount = 3; // Start with top 3
+let crossAgentDisplayCount = 10; // Start with top 10
+const LEADERBOARD_INCREMENT = 10;
+const CROSS_AGENT_INCREMENT = 20;
+
 /**
  * Load and display leaderboard
  */
@@ -108,9 +114,9 @@ function populateSelect(selectId, values) {
 }
 
 /**
- * Display leaderboard table
+ * Display leaderboard table with lazy loading
  */
-function displayLeaderboard(summaries) {
+function displayLeaderboard(summaries, limit = null) {
     const tbody = document.getElementById('leaderboard-body');
     if (!tbody) return;
 
@@ -126,8 +132,13 @@ function displayLeaderboard(summaries) {
         return currentSort.ascending ? aVal - bVal : bVal - aVal;
     });
 
+    // Apply limit for lazy loading
+    const displayLimit = limit || leaderboardDisplayCount;
+    const itemsToDisplay = sorted.slice(0, displayLimit);
+    const hasMore = sorted.length > displayLimit;
+
     tbody.innerHTML = '';
-    sorted.forEach((summary, index) => {
+    itemsToDisplay.forEach((summary, index) => {
         const row = document.createElement('tr');
 
         // Check if this is cross-agent data or regular summary
@@ -164,6 +175,19 @@ function displayLeaderboard(summaries) {
         tbody.appendChild(row);
     });
 
+    // Add "Load More" button if there are more items
+    if (hasMore) {
+        const loadMoreRow = document.createElement('tr');
+        loadMoreRow.innerHTML = `
+            <td colspan="8" style="text-align: center; padding: 16px;">
+                <button class="btn-secondary" onclick="loadMoreLeaderboard()">
+                    Load More (${sorted.length - displayLimit} remaining)
+                </button>
+            </td>
+        `;
+        tbody.appendChild(loadMoreRow);
+    }
+
     // Add sort handlers
     document.querySelectorAll('th.sortable').forEach(th => {
         th.onclick = () => {
@@ -177,6 +201,14 @@ function displayLeaderboard(summaries) {
             displayLeaderboard(filteredSummaries.length > 0 ? filteredSummaries : currentSummaries);
         };
     });
+}
+
+/**
+ * Load more leaderboard entries
+ */
+function loadMoreLeaderboard() {
+    leaderboardDisplayCount += LEADERBOARD_INCREMENT;
+    displayLeaderboard(filteredSummaries.length > 0 ? filteredSummaries : currentSummaries);
 }
 
 /**

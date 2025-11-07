@@ -6,6 +6,10 @@ let currentAnalyses = [];
 let currentAnalysis = null;
 let agentScoresChart = null;
 
+// Lazy loading state for cross-agent analysis list
+let analysisDisplayCount = 10; // Start with top 10
+const ANALYSIS_INCREMENT = 20;
+
 /**
  * Load all cross-agent analyses
  */
@@ -21,11 +25,11 @@ async function loadCrossAgentAnalyses() {
 }
 
 /**
- * Display list of analyses
+ * Display list of analyses with lazy loading
  */
-function displayAnalysisList(analyses) {
+function displayAnalysisList(analyses, limit = null) {
     const container = document.getElementById('analysis-list');
-    
+
     if (analyses.length === 0) {
         container.innerHTML = '<p class="empty-state">No cross-agent analyses found. Run <code>long-context-bench analyze-pr</code> to create one.</p>';
         return;
@@ -33,6 +37,42 @@ function displayAnalysisList(analyses) {
 
     // Sort by PR number
     analyses.sort((a, b) => a.pr_number - b.pr_number);
+
+    // Apply limit for lazy loading
+    const displayLimit = limit || analysisDisplayCount;
+    const itemsToDisplay = analyses.slice(0, displayLimit);
+    const hasMore = analyses.length > displayLimit;
+
+    const tableRows = itemsToDisplay.map(analysis => {
+        // Get best agent and summary if available
+        const bestAgentName = analysis.comparative_analysis ? analysis.comparative_analysis.best_agent : null;
+        const comparativeSummary = analysis.comparative_analysis && analysis.comparative_analysis.summary
+            ? analysis.comparative_analysis.summary
+            : 'N/A';
+
+        return `
+            <tr>
+                <td><strong>${analysis.pr_number}</strong></td>
+                <td>${bestAgentName || 'N/A'}</td>
+                <td style="max-width: 600px; font-size: 0.9em;">${comparativeSummary}</td>
+                <td>
+                    <button class="btn-primary" onclick="showAnalysisDetail('${analysis.analysis_run_id}')">
+                        View Details
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const loadMoreButton = hasMore ? `
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 16px;">
+                <button class="btn-secondary" onclick="loadMoreAnalyses()">
+                    Load More (${analyses.length - displayLimit} remaining)
+                </button>
+            </td>
+        </tr>
+    ` : '';
 
     const html = `
         <div class="table-container">
@@ -46,32 +86,22 @@ function displayAnalysisList(analyses) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${analyses.map(analysis => {
-                        // Get best agent and summary if available
-                        const bestAgentName = analysis.comparative_analysis ? analysis.comparative_analysis.best_agent : null;
-                        const comparativeSummary = analysis.comparative_analysis && analysis.comparative_analysis.summary
-                            ? analysis.comparative_analysis.summary
-                            : 'N/A';
-
-                        return `
-                            <tr>
-                                <td><strong>${analysis.pr_number}</strong></td>
-                                <td>${bestAgentName || 'N/A'}</td>
-                                <td style="max-width: 600px; font-size: 0.9em;">${comparativeSummary}</td>
-                                <td>
-                                    <button class="btn-primary" onclick="showAnalysisDetail('${analysis.analysis_run_id}')">
-                                        View Details
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
+                    ${tableRows}
+                    ${loadMoreButton}
                 </tbody>
             </table>
         </div>
     `;
 
     container.innerHTML = html;
+}
+
+/**
+ * Load more analyses
+ */
+function loadMoreAnalyses() {
+    analysisDisplayCount += ANALYSIS_INCREMENT;
+    displayAnalysisList(currentAnalyses);
 }
 
 /**
