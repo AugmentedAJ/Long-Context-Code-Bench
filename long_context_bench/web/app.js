@@ -133,26 +133,28 @@ function displayLeaderboard(summaries) {
         // Check if this is cross-agent data or regular summary
         const isCrossAgent = summary.wins !== undefined;
 
+        // Medal emojis for top 3
+        const medals = ['🥇', '🥈', '🥉'];
+        const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
+
         if (isCrossAgent) {
             row.innerHTML = `
-                <td>${index + 1}</td>
+                <td>${rankDisplay}</td>
                 <td>${summary.runner || '-'}</td>
                 <td>${summary.model || '-'}</td>
                 <td>${formatPercentage(summary.win_rate)}</td>
                 <td>${summary.wins || 0}</td>
-                <td>${formatScore(summary.mean_aggregate)}</td>
                 <td>${formatScore(summary.mean_correctness)}</td>
                 <td>${formatScore(summary.mean_completeness)}</td>
                 <td>${formatScore(summary.mean_code_reuse)}</td>
             `;
         } else {
             row.innerHTML = `
-                <td>${index + 1}</td>
+                <td>${rankDisplay}</td>
                 <td>${summary.runner || '-'}</td>
                 <td>${summary.model || '-'}</td>
                 <td>-</td>
                 <td>-</td>
-                <td>${formatScore(summary.mean_aggregate)}</td>
                 <td>${formatScore(summary.mean_correctness)}</td>
                 <td>${formatScore(summary.mean_completeness)}</td>
                 <td>${formatScore(summary.mean_code_reuse)}</td>
