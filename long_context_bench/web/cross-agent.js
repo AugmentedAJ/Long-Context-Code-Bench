@@ -199,39 +199,31 @@ function displayAgentDetails(agentResults) {
         return `
         <div class="card">
             <h4>${result.runner}:${result.model}</h4>
-            <div class="agent-detail-content">
-                <div class="metric-card">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value"><span class="badge badge-${result.status}">${result.status}</span></div>
-                </div>
-                <div class="metric-card">
-                    <div class="stat-label">Aggregate Score</div>
-                    <div class="stat-value">${result.aggregate.toFixed(2)}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="stat-label">Time</div>
-                    <div class="stat-value">${(result.elapsed_ms / 1000).toFixed(1)}s</div>
-                </div>
-            </div>
             ${result.rationale ? `
                 <div class="rationale-section">
                     <h5>Judge Rationale</h5>
                     <p>${result.rationale}</p>
                 </div>
             ` : ''}
-            <details>
-                <summary>View Diff</summary>
+            <div class="agent-actions">
+                <button class="btn-action" onclick="toggleSection('diff-${agentId}')">
+                    <span class="btn-icon">📄</span> View Diff
+                </button>
+                ${result.logs_path ? `
+                    <button class="btn-action" onclick="toggleSection('logs-${agentId}')">
+                        <span class="btn-icon">📋</span> View Logs
+                    </button>
+                ` : ''}
+            </div>
+            <div id="diff-${agentId}" class="collapsible-section" style="display: none;">
                 <pre class="code-block">${colorizeDiff(result.patch_unified)}</pre>
-            </details>
+            </div>
             ${result.logs_path ? `
-                <details>
-                    <summary>View Agent Logs</summary>
-                    <div id="logs-${agentId}" class="logs-container">
-                        <div style="text-align: center; padding: 20px; color: #666;">
-                            <em>Loading logs...</em>
-                        </div>
+                <div id="logs-${agentId}" class="collapsible-section logs-container" style="display: none;">
+                    <div style="text-align: center; padding: 20px; color: #666;">
+                        <em>Loading logs...</em>
                     </div>
-                </details>
+                </div>
             ` : ''}
         </div>
         `;
@@ -365,6 +357,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Toggle collapsible section visibility
+ */
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    }
 }
 
 /**

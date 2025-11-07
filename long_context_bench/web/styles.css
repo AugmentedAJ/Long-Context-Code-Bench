@@ -251,6 +251,49 @@ nav a.active {
     margin-top: 16px;
 }
 
+#agent-details-container .card h4 {
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.rationale-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 4px;
+}
+
+.rationale-section h5 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rationale-section p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.agent-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.collapsible-section {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
 /* Controls */
 .controls {
     background: var(--bg-primary);
@@ -320,6 +363,32 @@ nav a.active {
 .btn-primary:hover {
     background: #0052a3;
     border-color: #0052a3;
+}
+
+.btn-action {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-action:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-icon {
+    font-size: 16px;
+    line-height: 1;
 }
 
 .hidden {

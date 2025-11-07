@@ -55,12 +55,24 @@ app.get('/api/summaries/:runId(*)/summary.json', (req, res) => {
 app.get('/api/edits/:runner/:model/:editRunId/:prId/edit.json', (req, res) => {
     const { runner, model, editRunId, prId } = req.params;
     const editPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit.json');
-    
+
     if (!fs.existsSync(editPath)) {
         return res.status(404).json({ error: `Edit not found` });
     }
-    
+
     res.sendFile(editPath);
+});
+
+// API endpoint to get logs data
+app.get('/api/edits/:runner/:model/:editRunId/:prId/logs.jsonl', (req, res) => {
+    const { runner, model, editRunId, prId } = req.params;
+    const logsPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'logs.jsonl');
+
+    if (!fs.existsSync(logsPath)) {
+        return res.status(404).json({ error: `Logs not found` });
+    }
+
+    res.sendFile(logsPath);
 });
 
 // API endpoint to get judge data

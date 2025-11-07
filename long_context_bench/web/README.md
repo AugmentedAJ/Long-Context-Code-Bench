@@ -4,9 +4,21 @@ Interactive web dashboard for visualizing benchmark results.
 
 ## Quick Start
 
-The web app is automatically deployed when you run any benchmark command.
+### For Development (editing web UI files)
 
-To view results:
+Run the server from the source directory:
+
+```bash
+cd long_context_bench/web
+npm install  # First time only
+npm start
+```
+
+Changes to HTML/CSS/JS files are immediately visible (just refresh browser).
+
+### For Viewing Results (production)
+
+The web app is automatically deployed to `output/web/` when you run benchmark commands.
 
 ```bash
 cd output/web
@@ -15,6 +27,13 @@ npm start
 ```
 
 Then open http://localhost:3000 in your browser.
+
+## Directory Structure
+
+- **`long_context_bench/web/`** - Source files (edit here during development)
+- **`output/web/`** - Deployed copy with benchmark data (auto-generated)
+
+The pipeline automatically copies files from source to output via `deploy_web_app()`.
 
 ## Features
 
