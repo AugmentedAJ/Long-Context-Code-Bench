@@ -299,7 +299,7 @@ def run_cross_agent_analysis(
     agent_results = []
     for edit, edit_file in edits:
         console.print(f"[cyan]Judging {edit.runner}:{edit.model}...[/cyan]")
-        
+
         # Compute scores
         if judge_mode in ["llm", "comparative"] and judge_model:
             scores, rationale, llm_rating, llm_summary = compute_llm_scores(
@@ -322,6 +322,22 @@ def run_cross_agent_analysis(
             scores.unsolicited_docs
         ) / 5.0
 
+        # Compute relative logs path for web UI
+        # edit_file is like: output/edits/{runner}/{model}/{run_id}/{pr_id}/edit.json
+        # logs_path should be: edits/{runner}/{model}/{run_id}/{pr_id}/logs.jsonl
+        logs_file = edit_file.parent / "logs.jsonl"
+        logs_path = None
+        if logs_file.exists():
+            # Get path relative to output directory
+            try:
+                # Find 'edits' in the path and construct relative path from there
+                path_parts = edit_file.parts
+                edits_idx = path_parts.index("edits")
+                logs_path = str(Path(*path_parts[edits_idx:]).parent / "logs.jsonl")
+            except (ValueError, IndexError):
+                # Fallback: use edit.logs_path if available
+                logs_path = edit.logs_path if hasattr(edit, 'logs_path') else None
+
         agent_result = AgentResult(
             runner=edit.runner,
             model=edit.model,
@@ -335,6 +351,7 @@ def run_cross_agent_analysis(
             llm_rating=llm_rating,
             llm_summary=llm_summary,
             errors=edit.errors,
+            logs_path=logs_path,
         )
         agent_results.append(agent_result)
 

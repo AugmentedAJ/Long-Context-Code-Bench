@@ -162,6 +162,7 @@ class AgentResult(BaseModel):
     llm_rating: Optional[float] = Field(None, ge=0.0, le=1.0)  # LLM judge rating 0.00-1.00
     llm_summary: Optional[str] = None  # One-line summary from LLM judge
     errors: List[str] = []
+    logs_path: Optional[str] = None  # Relative path to logs.jsonl file
 
 
 class ComparativeAnalysis(BaseModel):
