@@ -1118,3 +1118,32 @@ footer {
     word-break: break-word;
 }
 
+/* Agent Header with Score */
+.agent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.agent-header h4 {
+    margin: 0;
+}
+
+.agent-score {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+}
+
+.score-positive {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.score-negative {
+    background: #ffebee;
+    color: #c62828;
+}

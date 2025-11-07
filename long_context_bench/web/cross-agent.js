@@ -196,9 +196,16 @@ function displayAgentDetails(agentResults) {
     const html = agentResults.map(result => {
         const agentId = `${result.runner}-${result.model}-${result.edit_run_id}`.replace(/[^a-zA-Z0-9-]/g, '-');
 
+        // Format aggregate score with color
+        const aggregateScore = result.aggregate.toFixed(2);
+        const scoreClass = result.aggregate >= 0 ? 'score-positive' : 'score-negative';
+
         return `
         <div class="card">
-            <h4>${result.runner}:${result.model}</h4>
+            <div class="agent-header">
+                <h4>${result.runner}:${result.model}</h4>
+                <span class="agent-score ${scoreClass}">${aggregateScore}</span>
+            </div>
             ${result.rationale ? `
                 <div class="rationale-section">
                     <h5>Judge Rationale</h5>
