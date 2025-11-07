@@ -18,11 +18,6 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
 - 📝 Traceable: complete provenance tracking for all runs
 
-### Vision & RFC
-
-For the broader vision, competitive landscape, GTM, and roadmap, see:
-- docs/rfcs/0001-enterprise-standard-for-ai-coding-agents.md
-
 ## Installation
 
 ### Prerequisites

@@ -4,7 +4,6 @@
 
 let currentAnalyses = [];
 let currentAnalysis = null;
-let agentScoresChart = null;
 
 // Lazy loading state for cross-agent analysis list
 let analysisDisplayCount = 10; // Start with top 10
@@ -145,7 +144,7 @@ async function showAnalysisDetail(analysisRunId) {
 }
 
 /**
- * Display agent results table and chart
+ * Display agent results table
  */
 function displayAgentResults(agentResults, comparativeAnalysis) {
     // Sort by aggregate score (descending)
@@ -186,74 +185,6 @@ function displayAgentResults(agentResults, comparativeAnalysis) {
             </tr>
         `;
     }).join('');
-
-    // Create chart
-    createAgentScoresChart(sortedResults);
-}
-
-/**
- * Create agent scores comparison chart
- */
-function createAgentScoresChart(agentResults) {
-    if (agentScoresChart) {
-        agentScoresChart.destroy();
-    }
-
-    const ctx = document.getElementById('agent-scores-chart');
-    if (!ctx) return;
-
-    const labels = agentResults.map(r => `${r.runner}\n${r.model}`);
-    
-    agentScoresChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Correctness',
-                    data: agentResults.map(r => r.scores.correctness),
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)'
-                },
-                {
-                    label: 'Completeness',
-                    data: agentResults.map(r => r.scores.completeness),
-                    backgroundColor: 'rgba(75, 192, 192, 0.7)'
-                },
-                {
-                    label: 'Code Reuse',
-                    data: agentResults.map(r => r.scores.code_reuse),
-                    backgroundColor: 'rgba(255, 206, 86, 0.7)'
-                },
-                {
-                    label: 'Best Practices',
-                    data: agentResults.map(r => r.scores.best_practices),
-                    backgroundColor: 'rgba(153, 102, 255, 0.7)'
-                },
-                {
-                    label: 'Unsolicited Docs',
-                    data: agentResults.map(r => r.scores.unsolicited_docs),
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    min: -1,
-                    max: 1
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Score Breakdown by Agent'
-                }
-            }
-        }
-    });
 }
 
 /**
@@ -290,7 +221,7 @@ function displayAgentDetails(agentResults) {
             ` : ''}
             <details>
                 <summary>View Diff</summary>
-                <pre class="code-block">${escapeHtml(result.patch_unified)}</pre>
+                <pre class="code-block">${colorizeDiff(result.patch_unified)}</pre>
             </details>
             ${result.logs_path ? `
                 <details>
@@ -434,5 +365,30 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Colorize diff text with git-style formatting
+ */
+function colorizeDiff(diffText) {
+    if (!diffText) return '';
+
+    const lines = diffText.split('\n');
+    const colorizedLines = lines.map(line => {
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+            return `<span class="diff-line-add">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('-') && !line.startsWith('---')) {
+            return `<span class="diff-line-del">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('@@')) {
+            return `<span class="diff-line-hunk">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('diff ') || line.startsWith('index ') ||
+                   line.startsWith('---') || line.startsWith('+++')) {
+            return `<span class="diff-line-meta">${escapeHtml(line)}</span>`;
+        } else {
+            return escapeHtml(line);
+        }
+    });
+
+    return colorizedLines.join('\n');
 }
 

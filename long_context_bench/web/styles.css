@@ -796,6 +796,27 @@ footer {
     overflow-y: auto;
 }
 
+/* Git diff coloring */
+.diff-line-add {
+    background-color: #e6ffec;
+    color: #24292e;
+}
+
+.diff-line-del {
+    background-color: #ffebe9;
+    color: #24292e;
+}
+
+.diff-line-meta {
+    background-color: #f1f8ff;
+    color: #0366d6;
+}
+
+.diff-line-hunk {
+    background-color: #f6f8fa;
+    color: #6a737d;
+}
+
 .side-by-side-container {
     display: grid;
     grid-template-columns: 1fr 1fr;

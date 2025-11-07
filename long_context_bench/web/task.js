@@ -280,21 +280,59 @@ function displayTaskStats(sample) {
 }
 
 /**
+ * Colorize diff text with git-style formatting
+ */
+function colorizeDiff(diffText) {
+    if (!diffText) return '';
+
+    const lines = diffText.split('\n');
+    const colorizedLines = lines.map(line => {
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+            return `<span class="diff-line-add">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('-') && !line.startsWith('---')) {
+            return `<span class="diff-line-del">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('@@')) {
+            return `<span class="diff-line-hunk">${escapeHtml(line)}</span>`;
+        } else if (line.startsWith('diff ') || line.startsWith('index ') ||
+                   line.startsWith('---') || line.startsWith('+++')) {
+            return `<span class="diff-line-meta">${escapeHtml(line)}</span>`;
+        } else {
+            return escapeHtml(line);
+        }
+    });
+
+    return colorizedLines.join('\n');
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Display diffs
  */
 function displayDiffs(groundTruthDiff, edit) {
     const submissionDiff = edit ? edit.patch_unified : '';
 
     // Ground truth diff
-    document.querySelector('#ground-truth-diff pre').textContent = groundTruthDiff || 'No ground truth diff available';
+    const gtPre = document.querySelector('#ground-truth-diff pre');
+    gtPre.innerHTML = groundTruthDiff ? colorizeDiff(groundTruthDiff) : 'No ground truth diff available';
 
     // Submission diff
-    document.querySelector('#submission-diff pre').textContent = submissionDiff || 'No submission diff available';
+    const subPre = document.querySelector('#submission-diff pre');
+    subPre.innerHTML = submissionDiff ? colorizeDiff(submissionDiff) : 'No submission diff available';
 
     // Side-by-side
     const sideBySideContainer = document.querySelector('#side-by-side-diff .side-by-side-container');
-    sideBySideContainer.querySelector('.diff-column:first-child pre').textContent = groundTruthDiff || 'No ground truth diff available';
-    sideBySideContainer.querySelector('.diff-column:last-child pre').textContent = submissionDiff || 'No submission diff available';
+    sideBySideContainer.querySelector('.diff-column:first-child pre').innerHTML =
+        groundTruthDiff ? colorizeDiff(groundTruthDiff) : 'No ground truth diff available';
+    sideBySideContainer.querySelector('.diff-column:last-child pre').innerHTML =
+        submissionDiff ? colorizeDiff(submissionDiff) : 'No submission diff available';
 }
 
 /**
