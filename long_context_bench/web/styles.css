@@ -1120,14 +1120,24 @@ footer {
 
 /* Agent Header with Score */
 .agent-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 16px;
 }
 
 .agent-header h4 {
     margin: 0;
+}
+
+.judged-score-section {
+    margin-bottom: 16px;
+}
+
+.judged-score-section h5 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .agent-score {
@@ -1136,6 +1146,7 @@ footer {
     padding: 6px 12px;
     border-radius: 4px;
     font-family: var(--font-mono);
+    display: inline-block;
 }
 
 .score-positive {

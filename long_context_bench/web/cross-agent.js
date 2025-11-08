@@ -204,6 +204,9 @@ function displayAgentDetails(agentResults) {
         <div class="card">
             <div class="agent-header">
                 <h4>${result.runner}:${result.model}</h4>
+            </div>
+            <div class="judged-score-section">
+                <h5>Judged Score</h5>
                 <span class="agent-score ${scoreClass}">${aggregateScore}</span>
             </div>
             ${result.rationale ? `
