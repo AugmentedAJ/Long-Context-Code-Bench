@@ -7,7 +7,6 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
-import difflib
 
 import git
 from rich.console import Console
@@ -79,91 +78,6 @@ def get_ground_truth_diff(sample: Sample, cache_dir: Optional[Path] = None) -> s
 
             diff = repo.git.diff(sample.base_commit, sample.head_commit, unified=True)
             return diff
-
-
-def compute_deterministic_scores(agent_diff: str, ground_truth_diff: str) -> Scores:
-    """Compute deterministic scores based on diff comparison.
-    
-    Per R-3.12: Deterministic baseline judge using exact-match/overlap heuristics.
-    
-    Args:
-        agent_diff: Agent-produced diff
-        ground_truth_diff: Ground truth diff
-        
-    Returns:
-        Scores object
-    """
-    # Normalize diffs (remove whitespace variations)
-    agent_lines = [line.strip() for line in agent_diff.split("\n") if line.strip()]
-    gt_lines = [line.strip() for line in ground_truth_diff.split("\n") if line.strip()]
-    
-    # Exact match
-    if agent_diff.strip() == ground_truth_diff.strip():
-        return Scores(
-            correctness=1.0,
-            completeness=1.0,
-            code_reuse=1.0,
-            best_practices=1.0,
-            unsolicited_docs=1.0,
-        )
-    
-    # Empty agent diff
-    if not agent_lines:
-        return Scores(
-            correctness=-1.0,
-            completeness=-1.0,
-            code_reuse=0.0,
-            best_practices=0.0,
-            unsolicited_docs=1.0,
-        )
-    
-    # Compute similarity using SequenceMatcher
-    matcher = difflib.SequenceMatcher(None, agent_lines, gt_lines)
-    similarity = matcher.ratio()
-    
-    # Compute line overlap
-    agent_set = set(agent_lines)
-    gt_set = set(gt_lines)
-    
-    if gt_set:
-        overlap = len(agent_set & gt_set) / len(gt_set)
-    else:
-        overlap = 0.0
-    
-    # Heuristic scoring
-    # Correctness: Based on similarity
-    correctness = 2 * similarity - 1  # Map [0, 1] to [-1, 1]
-    
-    # Completeness: Based on overlap
-    completeness = 2 * overlap - 1
-    
-    # Code reuse: Penalize if agent diff is much larger than ground truth
-    if gt_lines:
-        size_ratio = len(agent_lines) / len(gt_lines)
-        if size_ratio > 2.0:
-            code_reuse = -0.5
-        elif size_ratio > 1.5:
-            code_reuse = 0.0
-        else:
-            code_reuse = 0.5
-    else:
-        code_reuse = 0.0
-    
-    # Best practices: Neutral for deterministic judge
-    best_practices = 0.0
-    
-    # Unsolicited docs: Check for documentation patterns
-    doc_patterns = ["README", "CHANGELOG", "TODO", "# Documentation", "## Documentation"]
-    has_unsolicited_docs = any(pattern in agent_diff for pattern in doc_patterns)
-    unsolicited_docs = -0.5 if has_unsolicited_docs else 1.0
-    
-    return Scores(
-        correctness=max(-1.0, min(1.0, correctness)),
-        completeness=max(-1.0, min(1.0, completeness)),
-        code_reuse=max(-1.0, min(1.0, code_reuse)),
-        best_practices=max(-1.0, min(1.0, best_practices)),
-        unsolicited_docs=max(-1.0, min(1.0, unsolicited_docs)),
-    )
 
 
 def compute_llm_scores(
@@ -341,21 +255,19 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
 def judge_edit(
     sample: Sample,
     edit: Edit,
-    judge_mode: str,
-    judge_model: Optional[str],
+    judge_model: str,
     output_dir: Path,
     judge_run_id: str,
     cache_dir: Optional[Path] = None,
     force: bool = False,
     test_label: Optional[str] = None,
 ) -> Judge:
-    """Judge a single edit.
+    """Judge a single edit using LLM.
 
     Args:
         sample: Sample object
         edit: Edit object
-        judge_mode: Judge mode (deterministic|llm)
-        judge_model: Optional judge model
+        judge_model: Judge model (required)
         output_dir: Output directory
         judge_run_id: Judge run ID
         cache_dir: Optional cache directory for repositories
@@ -367,8 +279,8 @@ def judge_edit(
     """
     pr_id = f"{sample.repo_url.split('/')[-2]}_{sample.repo_url.split('/')[-1].replace('.git', '')}_pr{sample.pr_number}"
 
-    # Create output directory
-    judge_dir = output_dir / judge_mode / (judge_model or "default") / judge_run_id / pr_id
+    # Create output directory (always use "llm" subdirectory)
+    judge_dir = output_dir / "llm" / judge_model / judge_run_id / pr_id
     judge_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if judge already exists (current run)
@@ -383,8 +295,8 @@ def judge_edit(
 
     # If test_label is provided, check if this PR was already judged in any run with the same test_label
     if test_label and not force:
-        # Check in staged mode (judge_run_manifest.json in judge_mode/model/run_id/)
-        judge_mode_dir = output_dir / judge_mode / (judge_model or "default")
+        # Check in staged mode (judge_run_manifest.json in llm/model/run_id/)
+        judge_mode_dir = output_dir / "llm" / judge_model
         if judge_mode_dir.exists():
             for other_run_dir in judge_mode_dir.iterdir():
                 if not other_run_dir.is_dir() or other_run_dir.name == judge_run_id:
@@ -417,9 +329,9 @@ def judge_edit(
                 if manifest_file.exists():
                     with open(manifest_file) as f:
                         manifest = RunManifest(**json.load(f))
-                        if manifest.test_label == test_label and manifest.judge_mode == judge_mode:
+                        if manifest.test_label == test_label and manifest.judge_mode == "llm":
                             # Check if this PR was judged in that run
-                            other_judge_file = output_dir / judge_mode / (judge_model or "default") / other_run_dir.name / pr_id / "judge.json"
+                            other_judge_file = output_dir / "llm" / judge_model / other_run_dir.name / pr_id / "judge.json"
                             if other_judge_file.exists():
                                 console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                 # Load and return existing judge
@@ -434,18 +346,14 @@ def judge_edit(
         console.print(f"  Fetching ground truth diff...")
         ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-        # Compute scores
-        console.print(f"  Computing scores...")
-        if judge_mode == "llm" and judge_model:
-            scores, rationale, _, _ = compute_llm_scores(
-                edit.patch_unified,
-                ground_truth_diff,
-                sample.task_instructions,
-                judge_model,
-            )
-        else:
-            scores = compute_deterministic_scores(edit.patch_unified, ground_truth_diff)
-            rationale = None
+        # Compute scores using LLM
+        console.print(f"  Computing scores with {judge_model}...")
+        scores, rationale, _, _ = compute_llm_scores(
+            edit.patch_unified,
+            ground_truth_diff,
+            sample.task_instructions,
+            judge_model,
+        )
 
         # Compute aggregate score
         aggregate = (
@@ -462,7 +370,7 @@ def judge_edit(
             pr_number=sample.pr_number,
             base_commit=sample.base_commit,
             head_commit=sample.head_commit,
-            judge_mode=judge_mode,
+            judge_mode="llm",
             judge_model=judge_model,
             scores=scores,
             aggregate=aggregate,
@@ -478,17 +386,17 @@ def judge_edit(
 
         console.print(f"[green]✓ Judged {pr_id} (aggregate: {aggregate:.2f})[/green]")
         return judge
-        
+
     except Exception as e:
         console.print(f"[red]✗ Judge failed for {pr_id}: {e}[/red]")
-        
+
         # Create error judge artifact with neutral scores
         judge = Judge(
             repo_url=sample.repo_url,
             pr_number=sample.pr_number,
             base_commit=sample.base_commit,
             head_commit=sample.head_commit,
-            judge_mode=judge_mode,
+            judge_mode="llm",
             judge_model=judge_model,
             scores=Scores(
                 correctness=0.0,
@@ -527,21 +435,19 @@ def load_sample(sample_path: Path) -> Sample:
 def run_judge_stage(
     sample_path: Optional[Path],
     edit_path: Optional[Path],
-    judge_mode: str,
-    judge_model: Optional[str],
+    judge_model: str,
     output_dir: Path,
     edit_run_ids: Optional[List[str]] = None,
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
 ) -> str:
-    """Run the judge stage.
+    """Run the judge stage using LLM.
 
     Args:
         sample_path: Path to sample.json or directory of samples (optional if edit_run_ids provided)
         edit_path: Path to edit.json or directory of edits (optional if edit_run_ids provided)
-        judge_mode: Judge mode
-        judge_model: Optional judge model
+        judge_model: Judge model (required)
         output_dir: Output directory
         edit_run_ids: Optional list of edit run IDs to evaluate (for batch mode)
         test_label: Optional label for grouping runs for comparison
@@ -557,9 +463,7 @@ def run_judge_stage(
     judge_run_id = str(uuid.uuid4())[:8]
 
     console.print(f"[bold]Starting judge run {judge_run_id}[/bold]")
-    console.print(f"  Judge mode: {judge_mode}")
-    if judge_model:
-        console.print(f"  Judge model: {judge_model}")
+    console.print(f"  Judge model: {judge_model}")
     if test_label:
         console.print(f"  Test label: {test_label}")
 
@@ -601,7 +505,6 @@ def run_judge_stage(
                 judge = judge_edit(
                     sample=sample,
                     edit=edit,
-                    judge_mode=judge_mode,
                     judge_model=judge_model,
                     output_dir=output_dir,
                     judge_run_id=judge_run_id,
@@ -623,7 +526,6 @@ def run_judge_stage(
             judge = judge_edit(
                 sample=sample,
                 edit=edit,
-                judge_mode=judge_mode,
                 judge_model=judge_model,
                 output_dir=output_dir,
                 judge_run_id=judge_run_id,
@@ -642,17 +544,18 @@ def run_judge_stage(
     # Create and save manifest
     manifest = JudgeRunManifest(
         harness_version=__version__,
-        judge_mode=judge_mode,
+        judge_mode="llm",
         judge_model=judge_model,
         edit_run_ids=evaluated_edit_run_ids,
         os=platform.system(),
         python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         timestamp=datetime.utcnow().isoformat(),
         judge_run_id=judge_run_id,
+        test_label=test_label,
     )
 
-    # Save manifest in the judge_mode/model/run_id directory
-    manifest_dir = output_dir / judge_mode / (judge_model or "default") / judge_run_id
+    # Save manifest in the llm/model/run_id directory
+    manifest_dir = output_dir / "llm" / judge_model / judge_run_id
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest_file = manifest_dir / "judge_run_manifest.json"
     with open(manifest_file, "w") as f:

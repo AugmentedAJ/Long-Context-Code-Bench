@@ -62,7 +62,7 @@ class Judge(BaseModel):
     pr_number: int
     base_commit: str
     head_commit: str
-    judge_mode: str  # deterministic|llm
+    judge_mode: str = "llm"  # Always 'llm' (kept for backward compatibility)
     judge_model: Optional[str] = None
     scores: Scores
     aggregate: float = Field(ge=-1.0, le=1.0)
@@ -93,7 +93,7 @@ class EditRunManifest(BaseModel):
 class JudgeRunManifest(BaseModel):
     """Manifest for a judge run (evaluation)."""
     harness_version: str
-    judge_mode: str
+    judge_mode: str = "llm"  # Always 'llm' (kept for backward compatibility)
     judge_model: Optional[str] = None
     edit_run_ids: List[str]  # Edit runs being evaluated
     os: str
@@ -110,7 +110,7 @@ class RunManifest(BaseModel):
     runner: str
     runner_version: Optional[str] = None
     model: str
-    judge_mode: str
+    judge_mode: Optional[str] = "llm"  # Always 'llm' if judge_model provided (kept for backward compatibility)
     judge_model: Optional[str] = None
     os: str
     python_version: str
@@ -182,7 +182,7 @@ class CrossAgentJudge(BaseModel):
     head_commit: str
     task_instructions: str
     ground_truth_diff: str
-    judge_mode: str  # deterministic|llm|comparative
+    judge_mode: str = "llm"  # 'llm' or 'comparative' (kept for backward compatibility)
     judge_model: Optional[str] = None
     test_label: Optional[str] = None
     agent_results: List[AgentResult]  # Results from each agent

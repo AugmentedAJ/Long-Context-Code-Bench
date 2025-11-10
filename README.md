@@ -408,11 +408,11 @@ Scores agent edits against ground truth. Can evaluate one or more edit runs:
 # Evaluate specific edit run(s)
 long-context-bench judge \
   --edit-run-ids a1b2c3d4,b2c3d4e5 \
-  --judge-mode deterministic \
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
   --output-dir output/judges
 ```
 
-**Output:** `output/judges/<judge_mode>/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
+**Output:** `output/judges/llm/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
 **Returns:** Judge run ID (e.g., `e5f6g7h8`)
 
 #### 4. Summary
@@ -439,16 +439,16 @@ long-context-bench edit --runner auggie --model gpt-4 output/samples/v0
 # Returns: Edit run ID: bbbb2222
 
 # Evaluate both
-long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-mode deterministic
+long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model anthropic/claude-3-5-sonnet-20241022
 ```
 
 **Re-evaluate with Different Judge:**
 ```bash
-# Initial evaluation
-long-context-bench judge --edit-run-ids aaaa1111 --judge-mode deterministic
+# Initial evaluation with Claude
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model anthropic/claude-3-5-sonnet-20241022
 
-# Re-evaluate with LLM judge
-long-context-bench judge --edit-run-ids aaaa1111 --judge-mode llm --judge-model gpt-4
+# Re-evaluate with GPT-4
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model gpt-4
 ```
 
 ## Evaluation Metrics
@@ -463,54 +463,32 @@ Each sample is scored on five primary metrics (range: -1.0 to 1.0):
 
 **Aggregate Score**: Unweighted average of the five metrics
 
-### Judge Modes
+### LLM Judge
 
-The benchmark supports two judge modes:
-
-#### Deterministic Judge (default)
-
-Uses exact-match and overlap heuristics to score diffs:
-- Fast and reproducible
-- No API costs
-- Good baseline for comparison
-
-```bash
-long-context-bench judge \
-  --edit-run-ids a1b2c3d4 \
-  --judge-mode deterministic
-```
-
-#### LLM Judge
-
-Uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
-- More nuanced evaluation
+The benchmark uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
+- Nuanced evaluation of code quality
 - Provides rationale for scores
 - Supports any model via LiteLLM (OpenAI, Anthropic, etc.)
-- Deterministic settings (temperature=0.0, seed=42)
+- Consistent settings (temperature=0.0, seed=42)
 
 ```bash
 # Using Claude (via Anthropic)
 export ANTHROPIC_API_KEY=your_key
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model anthropic/claude-3-5-sonnet-20241022
 
 # Using OpenAI
 export OPENAI_API_KEY=your_key
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model gpt-4o-mini
 
 # Using any LiteLLM-supported model
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model bedrock/anthropic.claude-v2
 ```
-
-**Note:** LLM judge falls back to deterministic scoring if the API call fails or returns invalid JSON.
 
 ### Cross-Agent Analysis
 
@@ -527,34 +505,34 @@ Compare multiple agents' solutions for the same PR to understand different appro
 #### Usage
 
 ```bash
-# Basic cross-agent analysis with LLM judge
+# Basic cross-agent analysis with comparative analysis
 export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --comparative
 
-# Analyze specific PR with deterministic scoring
+# Analyze specific PR without comparative analysis
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode deterministic
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --no-comparative
 
 # Using OpenAI for comparative analysis
 export OPENAI_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model gpt-4o
+  --judge-model gpt-4o \
+  --comparative
 ```
 
-#### Judge Modes
+#### Options
 
-- **deterministic**: Fast heuristic-based scoring (no API costs)
-- **llm**: Individual LLM evaluation of each agent (provides rationale)
-- **comparative**: LLM evaluation + cross-agent comparison and ranking (recommended)
+- `--comparative/--no-comparative`: Enable/disable cross-agent comparison and ranking (default: enabled)
+- `--judge-model`: LLM model to use for evaluation (required)
 
 #### Output
 
@@ -603,8 +581,8 @@ export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --comparative
 
 # Output shows:
 # - Individual scores for auggie:sonnet4.5, claude-code:claude-sonnet-4-5, factory:claude-sonnet-4-5-20250929
@@ -768,8 +746,7 @@ The generic runner passes task instructions via stdin.
 
 ### Judge Options
 
-- `--judge-mode`: Judge mode (`deterministic` or `llm`, default: `deterministic`)
-- `--judge-model`: Judge model (for LLM mode)
+- `--judge-model`: LLM judge model (optional, skips judge stage if not provided)
 
 ## Viewing Results
 
@@ -870,7 +847,7 @@ output/
 ├── edits/<runner>/<model>/<run_id>/<pr_id>/
 │   ├── edit.json
 │   └── logs.jsonl
-├── judges/<judge_mode>/<judge_model>/<run_id>/<pr_id>/judge.json
+├── judges/llm/<judge_model>/<run_id>/<pr_id>/judge.json
 └── summaries/<run_id>/
     ├── summary.json
     ├── summary.csv
@@ -894,7 +871,7 @@ All runs record complete provenance for traceability:
 - **Test labels** to group related runs for comparison
 - **Complete provenance tracking** to understand what produced each result
 
-The **judge stage** (evaluation) is deterministic when using `--judge-mode deterministic` (default), ensuring consistent scoring of the same agent output.
+The **judge stage** (evaluation) uses LLM-based evaluation with consistent settings (temperature=0.0, seed=42) to provide nuanced scoring of agent outputs.
 
 ## Dataset
 
