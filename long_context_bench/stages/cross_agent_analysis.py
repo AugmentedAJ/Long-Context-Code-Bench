@@ -16,7 +16,7 @@ from long_context_bench.models import (
     Sample, Edit, Scores, AgentResult, ComparativeAnalysis, CrossAgentJudge
 )
 from long_context_bench.stages.judge import (
-    load_sample, load_edit, get_ground_truth_diff, compute_deterministic_scores, compute_llm_scores
+    load_sample, load_edit, get_ground_truth_diff, compute_llm_scores
 )
 
 console = Console()
@@ -239,33 +239,32 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks):
 def run_cross_agent_analysis(
     pr_number: int,
     output_dir: Path,
-    judge_mode: str = "llm",
-    judge_model: Optional[str] = None,
+    judge_model: str,
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    comparative: bool = True,
 ) -> Optional[str]:
-    """Run cross-agent analysis for a specific PR.
-    
+    """Run cross-agent analysis for a specific PR using LLM judge.
+
     Args:
         pr_number: PR number to analyze
         output_dir: Output directory (should contain samples/ and edits/)
-        judge_mode: Judge mode (deterministic|llm|comparative)
-        judge_model: Judge model (required for llm/comparative modes)
+        judge_model: Judge model (required for LLM judge)
         test_label: Optional test label to filter edits
         cache_dir: Optional cache directory for repositories
         force: If True, re-analyze even if output exists
-        
+        comparative: If True, generate comparative analysis across agents
+
     Returns:
         Analysis run ID or None if failed
     """
     analysis_run_id = str(uuid.uuid4())[:8]
-    
+
     console.print(f"[bold]Starting cross-agent analysis for PR {pr_number}[/bold]")
     console.print(f"  Analysis run ID: {analysis_run_id}")
-    console.print(f"  Judge mode: {judge_mode}")
-    if judge_model:
-        console.print(f"  Judge model: {judge_model}")
+    console.print(f"  Judge model: {judge_model}")
+    console.print(f"  Comparative analysis: {'enabled' if comparative else 'disabled'}")
     if test_label:
         console.print(f"  Test label: {test_label}")
     
@@ -295,24 +294,18 @@ def run_cross_agent_analysis(
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
     console.print(f"[green]✓ Ground truth diff fetched[/green]")
     
-    # Judge each agent's edit
+    # Judge each agent's edit using LLM
     agent_results = []
     for edit, edit_file in edits:
-        console.print(f"[cyan]Judging {edit.runner}:{edit.model}...[/cyan]")
+        console.print(f"[cyan]Judging {edit.runner}:{edit.model} with LLM...[/cyan]")
 
-        # Compute scores
-        if judge_mode in ["llm", "comparative"] and judge_model:
-            scores, rationale, llm_rating, llm_summary = compute_llm_scores(
-                edit.patch_unified,
-                ground_truth_diff,
-                sample.task_instructions,
-                judge_model,
-            )
-        else:
-            scores = compute_deterministic_scores(edit.patch_unified, ground_truth_diff)
-            rationale = None
-            llm_rating = None
-            llm_summary = None
+        # Compute scores using LLM judge
+        scores, rationale, llm_rating, llm_summary = compute_llm_scores(
+            edit.patch_unified,
+            ground_truth_diff,
+            sample.task_instructions,
+            judge_model,
+        )
 
         aggregate = (
             scores.correctness +
@@ -360,16 +353,16 @@ def run_cross_agent_analysis(
         else:
             console.print(f"  Aggregate: {aggregate:.2f}")
     
-    # Generate comparative analysis if in comparative mode
+    # Generate comparative analysis if enabled
     comparative_analysis = None
-    if judge_mode == "comparative" and judge_model:
+    if comparative:
         comparative_analysis = compute_comparative_analysis(
             agent_results,
             sample.task_instructions,
             ground_truth_diff,
             judge_model,
         )
-    
+
     # Create cross-agent judge artifact
     cross_agent_judge = CrossAgentJudge(
         repo_url=sample.repo_url,
@@ -378,7 +371,7 @@ def run_cross_agent_analysis(
         head_commit=sample.head_commit,
         task_instructions=sample.task_instructions,
         ground_truth_diff=ground_truth_diff,
-        judge_mode=judge_mode,
+        judge_mode="comparative" if comparative else "llm",
         judge_model=judge_model,
         test_label=test_label,
         agent_results=agent_results,

@@ -402,17 +402,17 @@ The output is still saved to log files even when streaming is enabled.
 
 #### 3. Judge Stage
 
-Scores agent edits against ground truth. Can evaluate one or more edit runs:
+Scores agent edits against ground truth using LLM judge. Can evaluate one or more edit runs:
 
 ```bash
 # Evaluate specific edit run(s)
 long-context-bench judge \
   --edit-run-ids a1b2c3d4,b2c3d4e5 \
-  --judge-mode deterministic \
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
   --output-dir output/judges
 ```
 
-**Output:** `output/judges/<judge_mode>/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
+**Output:** `output/judges/llm/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
 **Returns:** Judge run ID (e.g., `e5f6g7h8`)
 
 #### 4. Summary
@@ -439,16 +439,16 @@ long-context-bench edit --runner auggie --model gpt-4 output/samples/v0
 # Returns: Edit run ID: bbbb2222
 
 # Evaluate both
-long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-mode deterministic
+long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model anthropic/claude-3-5-sonnet-20241022
 ```
 
-**Re-evaluate with Different Judge:**
+**Re-evaluate with Different Judge Model:**
 ```bash
-# Initial evaluation
-long-context-bench judge --edit-run-ids aaaa1111 --judge-mode deterministic
+# Initial evaluation with Claude
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model anthropic/claude-3-5-sonnet-20241022
 
-# Re-evaluate with LLM judge
-long-context-bench judge --edit-run-ids aaaa1111 --judge-mode llm --judge-model gpt-4
+# Re-evaluate with GPT-4
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model gpt-4
 ```
 
 ## Evaluation Metrics
@@ -463,27 +463,10 @@ Each sample is scored on five primary metrics (range: -1.0 to 1.0):
 
 **Aggregate Score**: Unweighted average of the five metrics
 
-### Judge Modes
+### LLM Judge
 
-The benchmark supports two judge modes:
-
-#### Deterministic Judge (default)
-
-Uses exact-match and overlap heuristics to score diffs:
-- Fast and reproducible
-- No API costs
-- Good baseline for comparison
-
-```bash
-long-context-bench judge \
-  --edit-run-ids a1b2c3d4 \
-  --judge-mode deterministic
-```
-
-#### LLM Judge
-
-Uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
-- More nuanced evaluation
+The benchmark uses LLM-based evaluation (via LiteLLM) to score diffs with detailed reasoning:
+- Nuanced evaluation of code changes
 - Provides rationale for scores
 - Supports any model via LiteLLM (OpenAI, Anthropic, etc.)
 - Deterministic settings (temperature=0.0, seed=42)
@@ -493,24 +476,19 @@ Uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
 export ANTHROPIC_API_KEY=your_key
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model anthropic/claude-3-5-sonnet-20241022
 
 # Using OpenAI
 export OPENAI_API_KEY=your_key
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model gpt-4o-mini
 
 # Using any LiteLLM-supported model
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-mode llm \
   --judge-model bedrock/anthropic.claude-v2
 ```
-
-**Note:** LLM judge falls back to deterministic scoring if the API call fails or returns invalid JSON.
 
 ### Cross-Agent Analysis
 
@@ -519,42 +497,41 @@ Compare multiple agents' solutions for the same PR to understand different appro
 #### Features
 
 - **Multi-Agent Comparison**: Analyzes all agent attempts for a specific PR
-- **Individual Scoring**: Judges each agent's solution independently
-- **Comparative Analysis**: LLM-generated side-by-side comparison (in comparative mode)
+- **Individual Scoring**: Judges each agent's solution independently using LLM
+- **Comparative Analysis**: Optional LLM-generated side-by-side comparison
 - **Ranking**: Automatically ranks agents by performance
 - **Approach Analysis**: Identifies key differences in how agents solved the problem
 
 #### Usage
 
 ```bash
-# Basic cross-agent analysis with LLM judge
+# Cross-agent analysis with comparative mode (recommended)
 export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --comparative
 
-# Analyze specific PR with deterministic scoring
+# Without comparative analysis (just individual scoring)
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode deterministic
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --no-comparative
 
 # Using OpenAI for comparative analysis
 export OPENAI_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model gpt-4o
+  --judge-model gpt-4o \
+  --comparative
 ```
 
-#### Judge Modes
+#### Options
 
-- **deterministic**: Fast heuristic-based scoring (no API costs)
-- **llm**: Individual LLM evaluation of each agent (provides rationale)
-- **comparative**: LLM evaluation + cross-agent comparison and ranking (recommended)
+- `--comparative` / `--no-comparative`: Enable/disable LLM-generated cross-agent comparison and ranking (default: enabled)
 
 #### Output
 
@@ -603,8 +580,8 @@ export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-mode comparative \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --comparative
 
 # Output shows:
 # - Individual scores for auggie:sonnet4.5, claude-code:claude-sonnet-4-5, factory:claude-sonnet-4-5-20250929
@@ -768,80 +745,9 @@ The generic runner passes task instructions via stdin.
 
 ### Judge Options
 
-- `--judge-mode`: Judge mode (`deterministic` or `llm`, default: `deterministic`)
-- `--judge-model`: Judge model (for LLM mode)
+- `--judge-model`: Judge model (LLM model for evaluation, required)
 
 ## Viewing Results
-
-### Web Dashboard (Recommended)
-
-The benchmark automatically generates an interactive web dashboard for visualizing results.
-
-#### Starting the Web Server
-
-After running any benchmark command, start the web server:
-
-```bash
-cd output/web
-npm install  # First time only
-npm start
-```
-
-Then open http://localhost:3000 in your browser.
-
-The web app provides:
-- **Leaderboard**: Compare all runs with filtering and sorting
-- **Run Details**: Deep dive into individual run metrics and per-PR results
-- **Agent Comparison**: Side-by-side comparison with interactive charts
-- **Real-time Updates**: Refresh to see latest results
-
-The web app is automatically deployed and updated when you run:
-- `long-context-bench pipeline`
-- `long-context-bench summary`
-- `long-context-bench stats`
-- `long-context-bench compare`
-
-### Packaging and Sharing Results
-
-Package your results for easy sharing with an interactive web UI:
-
-```bash
-./scripts/package_results.sh
-```
-
-This creates an archive (~4-5MB compressed, ~30MB uncompressed) containing:
-- Interactive web dashboard (all HTML/JS/CSS files)
-- Result data (summaries, edits, judges, samples)
-- **Full agent logs** (stdout/stderr for every task)
-- Quick-start launchers (`start.sh` / `start.bat`)
-
-**Sharing options:**
-
-1. **Cloudflare Pages** - Drag & drop `web/` folder to https://pages.cloudflare.com/ (recommended)
-2. **Netlify/Vercel** - Deploy the `web/` folder for instant live URL (drag & drop to netlify.com/drop)
-3. **GitHub Releases** - Upload the `.tar.gz` file for downloads
-4. **GitHub Pages** - Host permanently with version control
-5. **Email/Drive** - Share the 4-5MB archive directly
-
-Recipients can extract and run `./start.sh` to view results locally, or you can deploy to any static hosting service for a live URL with full logs available.
-
-### Alternative: Full Output Archive (For Local Development)
-
-If you need the complete `output/` directory structure for local development:
-
-```bash
-# Archive the complete output directory
-./scripts/archive_full_output.sh
-```
-
-This creates a larger archive (~9-10MB compressed, ~60MB uncompressed) with the exact `output/` directory structure including symlinks. Useful for:
-- Local development and testing
-- Sharing with team members who will run locally
-- Preserving the exact directory structure
-
-**Note:** The standard package (`package_results.sh`) already includes all logs and is recommended for most use cases, including deployment to static hosting.
-
-See [DISTRIBUTION.md](DISTRIBUTION.md) for detailed distribution strategies and security considerations.
 
 ### Generate Statistics (CLI)
 
@@ -861,16 +767,12 @@ Results are saved in the following structure:
 
 ```
 output/
-├── web/                          # Interactive web dashboard
-│   ├── index.html               # Leaderboard view
-│   ├── summary.html             # Run details view
-│   └── comparison.html          # Agent comparison view
-├── index.json                   # Manifest for web app
 ├── samples/v0/<pr_id>/sample.json
 ├── edits/<runner>/<model>/<run_id>/<pr_id>/
 │   ├── edit.json
 │   └── logs.jsonl
-├── judges/<judge_mode>/<judge_model>/<run_id>/<pr_id>/judge.json
+├── judges/llm/<judge_model>/<run_id>/<pr_id>/judge.json
+├── cross_agent_analysis/pr{number}_{run_id}.json
 └── summaries/<run_id>/
     ├── summary.json
     ├── summary.csv
@@ -894,7 +796,7 @@ All runs record complete provenance for traceability:
 - **Test labels** to group related runs for comparison
 - **Complete provenance tracking** to understand what produced each result
 
-The **judge stage** (evaluation) is deterministic when using `--judge-mode deterministic` (default), ensuring consistent scoring of the same agent output.
+The **judge stage** (evaluation) uses LLM-based scoring with deterministic settings (temperature=0.0, seed=42) to provide consistent evaluation.
 
 ## Dataset
 

@@ -146,7 +146,6 @@ def _run_single_agent(
     cache_dir: Path,
     force: bool,
     test_label: Optional[str],
-    judge_mode: str,
     judge_model: Optional[str],
     dataset_version: str,
     stream_output: bool = False,
@@ -170,8 +169,7 @@ def _run_single_agent(
         cache_dir: Cache directory
         force: Force re-run
         test_label: Test label
-        judge_mode: Judge mode
-        judge_model: Judge model
+        judge_model: Optional judge model (if None, skips judge stage)
         dataset_version: Dataset version
 
     Returns:
@@ -208,20 +206,22 @@ def _run_single_agent(
             )
             edits.append(edit)
 
-            # Judge stage
-            console.print(f"\n[bold cyan]═══ Judge Stage ({runner}/{model}) ═══[/bold cyan]")
-            judge = judge_edit(
-                sample=sample,
-                edit=edit,
-                judge_mode=judge_mode,
-                judge_model=judge_model,
-                output_dir=judges_dir,
-                judge_run_id=run_id,
-                cache_dir=cache_dir,
-                force=force,
-                test_label=test_label,
-            )
-            judges.append(judge)
+            # Judge stage (only if judge_model is provided)
+            if judge_model:
+                console.print(f"\n[bold cyan]═══ Judge Stage ({runner}/{model}) ═══[/bold cyan]")
+                judge = judge_edit(
+                    sample=sample,
+                    edit=edit,
+                    judge_model=judge_model,
+                    output_dir=judges_dir,
+                    judge_run_id=run_id,
+                    cache_dir=cache_dir,
+                    force=force,
+                    test_label=test_label,
+                )
+                judges.append(judge)
+            else:
+                console.print(f"\n[yellow]Skipping judge stage (no judge model provided)[/yellow]")
 
         except Exception as e:
             import traceback
@@ -246,7 +246,6 @@ def run_pipeline(
     concurrency: int,
     total_shards: int,
     shard_index: int,
-    judge_mode: str,
     judge_model: Optional[str],
     test_label: Optional[str],
     github_token: Optional[str],
@@ -272,8 +271,7 @@ def run_pipeline(
         concurrency: Max concurrent tasks
         total_shards: Total number of shards
         shard_index: Current shard index
-        judge_mode: Judge mode
-        judge_model: Optional judge model
+        judge_model: Optional judge model (if None, skips judge stage)
         test_label: Optional label for grouping runs for comparison
         github_token: Optional GitHub token
         disable_retrieval: Disable retrieval
@@ -401,7 +399,6 @@ def run_pipeline(
             cache_dir=cache_dir,
             force=force,
             test_label=test_label,
-            judge_mode=judge_mode,
             judge_model=judge_model,
             dataset_version=dataset_version,
             stream_output=stream_output,
@@ -429,7 +426,6 @@ def run_pipeline(
                     cache_dir=cache_dir,
                     force=force,
                     test_label=test_label,
-                    judge_mode=judge_mode,
                     judge_model=judge_model,
                     dataset_version=dataset_version,
                     stream_output=stream_output,
@@ -476,7 +472,7 @@ def run_pipeline(
             runner=agent_runner,
             runner_version=None,  # TODO: Get from adapter
             model=agent_model,
-            judge_mode=judge_mode,
+            judge_mode="llm" if judge_model else None,
             judge_model=judge_model,
             os=platform.system(),
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
@@ -523,7 +519,6 @@ def run_pipeline(
     df.to_csv(csv_file, index=False)
 
     # For each agent, also create a separate run directory with summary.json
-    # so it shows up in the web dashboard
     for summary in all_summaries:
         agent_run_dir = summaries_dir.parent / f"{run_id}_{summary.runner}_{summary.model}"
         agent_run_dir.mkdir(parents=True, exist_ok=True)
@@ -531,10 +526,6 @@ def run_pipeline(
         agent_summary_file = agent_run_dir / "summary.json"
         with open(agent_summary_file, "w") as f:
             f.write(summary.model_dump_json(indent=2))
-
-    # Update web app
-    from long_context_bench.stats import update_web_app
-    update_web_app(output_dir)
 
     console.print(f"\n[bold green]Pipeline complete![/bold green]")
     console.print(f"  Run ID: {run_id}")
