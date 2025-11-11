@@ -111,13 +111,12 @@ async function loadTaskEdit(runEntry, prNumber) {
  * Load judge data for a specific task
  */
 async function loadTaskJudge(runEntry, prNumber) {
-    // Judge path: judges/{judge_mode}/{judge_model}/{judge_run_id}/{pr_id}/judge.json
-    // Default to 'deterministic' and 'default' if not specified
-    const judgeMode = runEntry.judge_mode || 'deterministic';
+    // Judge path: judges/llm/{judge_model}/{judge_run_id}/{pr_id}/judge.json
+    // judge_mode is always 'llm' now (kept in data for backward compatibility)
     const judgeModel = runEntry.judge_model || 'default';
     // Use judge_run_id if available, otherwise fall back to run_id
     const runIdToUse = runEntry.judge_run_id || runEntry.run_id;
-    const judgePath = `judges/${judgeMode}/${judgeModel}/${runIdToUse}`;
+    const judgePath = `judges/llm/${judgeModel}/${runIdToUse}`;
     const prId = `elastic_elasticsearch_pr${prNumber}`; // TODO: Make this more generic
 
     try {
