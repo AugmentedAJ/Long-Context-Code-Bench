@@ -106,7 +106,7 @@ def test_cross_agent_judge():
         head_commit="def456",
         task_instructions="Fix the bug",
         ground_truth_diff="diff --git...",
-        judge_mode="comparative",
+        judge_mode="llm",
         judge_model="anthropic/claude-3-5-sonnet-20241022",
         test_label="v0",
         agent_results=[result1, result2],
@@ -114,11 +114,11 @@ def test_cross_agent_judge():
         timestamp="2025-11-06T00:00:00",
         analysis_run_id="xyz789",
     )
-    
+
     assert judge.pr_number == 114869
     assert len(judge.agent_results) == 2
     assert judge.comparative_analysis.best_agent == "auggie:sonnet4.5"
-    assert judge.judge_mode == "comparative"
+    assert judge.judge_mode == "llm"
 
 
 def test_cross_agent_judge_serialization():

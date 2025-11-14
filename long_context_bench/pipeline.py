@@ -146,7 +146,6 @@ def _run_single_agent(
     cache_dir: Path,
     force: bool,
     test_label: Optional[str],
-    judge_mode: str,
     judge_model: Optional[str],
     dataset_version: str,
     stream_output: bool = False,
@@ -170,8 +169,7 @@ def _run_single_agent(
         cache_dir: Cache directory
         force: Force re-run
         test_label: Test label
-        judge_mode: Judge mode
-        judge_model: Judge model
+        judge_model: Optional judge model
         dataset_version: Dataset version
 
     Returns:
@@ -208,20 +206,22 @@ def _run_single_agent(
             )
             edits.append(edit)
 
-            # Judge stage
-            console.print(f"\n[bold cyan]═══ Judge Stage ({runner}/{model}) ═══[/bold cyan]")
-            judge = judge_edit(
-                sample=sample,
-                edit=edit,
-                judge_mode=judge_mode,
-                judge_model=judge_model,
-                output_dir=judges_dir,
-                judge_run_id=run_id,
-                cache_dir=cache_dir,
-                force=force,
-                test_label=test_label,
-            )
-            judges.append(judge)
+            # Judge stage (optional)
+            if judge_model:
+                console.print(f"\n[bold cyan]═══ Judge Stage ({runner}/{model}) ═══[/bold cyan]")
+                judge = judge_edit(
+                    sample=sample,
+                    edit=edit,
+                    judge_model=judge_model,
+                    output_dir=judges_dir,
+                    judge_run_id=run_id,
+                    cache_dir=cache_dir,
+                    force=force,
+                    test_label=test_label,
+                )
+                judges.append(judge)
+            else:
+                console.print(f"\n[yellow]Skipping judge stage (no judge model provided)[/yellow]")
 
         except Exception as e:
             import traceback
@@ -246,7 +246,6 @@ def run_pipeline(
     concurrency: int,
     total_shards: int,
     shard_index: int,
-    judge_mode: str,
     judge_model: Optional[str],
     test_label: Optional[str],
     github_token: Optional[str],
@@ -272,7 +271,6 @@ def run_pipeline(
         concurrency: Max concurrent tasks
         total_shards: Total number of shards
         shard_index: Current shard index
-        judge_mode: Judge mode
         judge_model: Optional judge model
         test_label: Optional label for grouping runs for comparison
         github_token: Optional GitHub token
@@ -401,7 +399,6 @@ def run_pipeline(
             cache_dir=cache_dir,
             force=force,
             test_label=test_label,
-            judge_mode=judge_mode,
             judge_model=judge_model,
             dataset_version=dataset_version,
             stream_output=stream_output,
@@ -429,7 +426,6 @@ def run_pipeline(
                     cache_dir=cache_dir,
                     force=force,
                     test_label=test_label,
-                    judge_mode=judge_mode,
                     judge_model=judge_model,
                     dataset_version=dataset_version,
                     stream_output=stream_output,
@@ -476,7 +472,7 @@ def run_pipeline(
             runner=agent_runner,
             runner_version=None,  # TODO: Get from adapter
             model=agent_model,
-            judge_mode=judge_mode,
+            judge_mode="llm" if judge_model else None,
             judge_model=judge_model,
             os=platform.system(),
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
