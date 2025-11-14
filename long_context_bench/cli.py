@@ -261,10 +261,9 @@ def analyze_pr(
 @click.option("--pr-number", required=True, type=int, help="PR number to evaluate")
 @click.option("--test-label", help="Optional label to filter edits by")
 @click.option(
-    "--judge-config",
-    type=click.Path(),
-    default="config/judge_models.json",
-    help="Path to judge model mapping config (runner:model -> judge model)",
+    "--judge-model",
+    required=True,
+    help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022) used for all pairwise comparisons",
 )
 @click.option(
     "--include-codebase-context/--no-codebase-context",
@@ -277,7 +276,7 @@ def analyze_pr(
 def head_to_head_pr(
     pr_number: int,
     test_label: Optional[str],
-    judge_config: str,
+    judge_model: str,
     include_codebase_context: bool,
     output_dir: str,
     cache_dir: str,
@@ -286,8 +285,8 @@ def head_to_head_pr(
     """Run head-to-head LLM judging for a single PR across all agents.
 
     This command finds all agent edits for the specified PR (optionally
-    filtered by test_label), runs pairwise LLM judgments using judge models
-    from JUDGE_CONFIG, and writes a HeadToHeadPRResult artifact under
+    filtered by test_label), runs pairwise LLM judgments using the provided
+    JUDGE_MODEL, and writes a HeadToHeadPRResult artifact under
     output/head_to_head/.
     """
     from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
@@ -295,14 +294,14 @@ def head_to_head_pr(
     click.echo(f"Running head-to-head evaluation for PR {pr_number}")
     if test_label:
         click.echo(f"Test label filter: {test_label}")
-    click.echo(f"Judge config: {judge_config}")
+    click.echo(f"Judge model: {judge_model}")
     if include_codebase_context:
         click.echo("Including codebase context in prompts")
 
     run_id = run_head_to_head_for_pr(
         pr_number=pr_number,
         output_dir=Path(output_dir),
-        judge_config_path=Path(judge_config),
+        judge_model=judge_model,
         include_codebase_context=include_codebase_context,
         test_label=test_label,
         cache_dir=Path(cache_dir),

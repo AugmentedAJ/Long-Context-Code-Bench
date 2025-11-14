@@ -50,10 +50,9 @@ For each PR with edits from ≥2 agents:
 
 ## 4. Judge Model Mapping & Codebase Context
 
-1. **Judge model mapping** (`config/judge_models.json`)
-   - Map `"runner:model"` → `judge_model` (LLM name usable by `litellm`).
-   - Allows using each agent’s underlying model as a judge.
-   - Also allow a list of neutral judges (e.g. `neutral_judges: ["gpt-4.1", ...]`).
+1. **Judge model selection (CLI)**
+   - Use a single `judge_model` string passed via the `head-to-head-pr` CLI command.
+   - The same judge model is used for baseline per-agent scoring and for pairwise comparisons.
 
 2. **Codebase context retrieval** (`stages/head_to_head.py`)
    - Function `get_codebase_context_for_pr(sample, max_files, max_bytes, cache_dir)`:

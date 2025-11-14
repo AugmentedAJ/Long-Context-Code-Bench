@@ -36,36 +36,6 @@ from long_context_bench.stages.edit import materialize_workspace
 console = Console()
 
 
-def load_judge_config(config_path: Path) -> Tuple[Dict[str, str], List[str]]:
-    """Load judge model mapping and neutral judges from JSON config.
-
-    The config may either be of the form:
-        {"judge_models": {"runner:model": "model-id"}, "neutral_judges": [...]}  # noqa: E501
-    or a flat mapping plus optional "neutral_judges" key.
-    """
-
-    if not config_path.exists():
-        raise FileNotFoundError(f"Judge config not found: {config_path}")
-
-    with open(config_path) as f:
-        data = json.load(f)
-
-    mapping: Dict[str, str]
-    neutral: List[str]
-
-    if isinstance(data, dict) and "judge_models" in data:
-        mapping = dict(data.get("judge_models", {}) or {})
-        neutral = list(data.get("neutral_judges", []) or [])
-    elif isinstance(data, dict):
-        mapping = {k: v for k, v in data.items() if k != "neutral_judges"}
-        neutral = list(data.get("neutral_judges", []) or [])
-    else:
-        mapping = {}
-        neutral = []
-
-    return mapping, neutral
-
-
 def _extract_changed_files_from_diff(diff: str, max_files: int) -> List[str]:
     """Extract changed file paths from a unified diff (b/ paths)."""
 
@@ -278,7 +248,7 @@ Respond with ONLY a valid JSON object in this exact format (no prose):
 def run_head_to_head_for_pr(
     pr_number: int,
     output_dir: Path,
-    judge_config_path: Path,
+    judge_model: str,
     include_codebase_context: bool = False,
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
@@ -290,7 +260,9 @@ def run_head_to_head_for_pr(
     """
 
     head_to_head_run_id = str(uuid.uuid4())[:8]
-    console.print(f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number}[/bold]")
+    console.print(
+        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} with judge {judge_model}[/bold]"
+    )
 
     # Resolve sample
     samples_dir = output_dir / "samples"
@@ -333,9 +305,8 @@ def run_head_to_head_for_pr(
     console.print("  Fetching ground truth diff...")
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-    # Load judge config
-    judge_models_map, neutral_judges = load_judge_config(judge_config_path)
-    console.print(f"  Loaded {len(judge_models_map)} agent judge mappings, {len(neutral_judges)} neutral judge(s)")
+    # Single judge model for both baseline scoring and pairwise comparisons
+    console.print(f"  Using judge model: {judge_model}")
 
     # Build submissions list
     submissions = []
@@ -347,39 +318,25 @@ def run_head_to_head_for_pr(
             "runner_model": f"{edit.runner}:{edit.model}",
         })
 
-    # Optional baseline scores per submission (using first neutral judge if available)
-    baseline_judge_model = neutral_judges[0] if neutral_judges else (next(iter(judge_models_map.values())) if judge_models_map else None)
+    # Baseline scores per submission using the provided judge model
     agent_results: List[AgentResult] = []
 
     for sub in submissions:
         edit = sub["edit"]
-        if baseline_judge_model:
-            console.print(f"  Scoring {edit.runner}:{edit.model} with {baseline_judge_model}...")
-            scores, rationale, llm_rating, llm_summary = compute_llm_scores(
-                edit.patch_unified,
-                ground_truth_diff,
-                sample.task_instructions,
-                baseline_judge_model,
-            )
-            aggregate = (
-                scores.correctness
-                + scores.completeness
-                + scores.code_reuse
-                + scores.best_practices
-                + scores.unsolicited_docs
-            ) / 5.0
-        else:
-            scores = Scores(
-                correctness=0.0,
-                completeness=0.0,
-                code_reuse=0.0,
-                best_practices=0.0,
-                unsolicited_docs=0.0,
-            )
-            rationale = None
-            llm_rating = None
-            llm_summary = None
-            aggregate = 0.0
+        console.print(f"  Scoring {edit.runner}:{edit.model} with {judge_model}...")
+        scores, rationale, llm_rating, llm_summary = compute_llm_scores(
+            edit.patch_unified,
+            ground_truth_diff,
+            sample.task_instructions,
+            judge_model,
+        )
+        aggregate = (
+            scores.correctness
+            + scores.completeness
+            + scores.code_reuse
+            + scores.best_practices
+            + scores.unsolicited_docs
+        ) / 5.0
 
         agent_results.append(
             AgentResult(
@@ -419,48 +376,30 @@ def run_head_to_head_for_pr(
         for j in range(i + 1, len(submissions)):
             sub_i = submissions[i]
             sub_j = submissions[j]
-            key_i = sub_i["runner_model"]
-            key_j = sub_j["runner_model"]
 
-            judge_models_for_pair: List[str] = []
-            for key in (key_i, key_j):
-                jm = judge_models_map.get(key)
-                if jm and jm not in judge_models_for_pair:
-                    judge_models_for_pair.append(jm)
-            for jm in neutral_judges:
-                if jm not in judge_models_for_pair:
-                    judge_models_for_pair.append(jm)
+            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_model}"
+            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
+            if order_seed % 2 == 0:
+                a_sub, b_sub = sub_i, sub_j
+            else:
+                a_sub, b_sub = sub_j, sub_i
 
-            if not judge_models_for_pair:
-                console.print(
-                    f"[yellow]Warning: No judge models configured for pair {key_i} vs {key_j}, skipping[/yellow]"
-                )
-                continue
-
-            for jm in judge_models_for_pair:
-                seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{jm}"
-                order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
-                if order_seed % 2 == 0:
-                    a_sub, b_sub = sub_i, sub_j
-                else:
-                    a_sub, b_sub = sub_j, sub_i
-
-                console.print(
-                    f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with {jm}"
-                )
-                decision = run_pairwise_llm_judge(
-                    sample=sample,
-                    edit_a=a_sub["edit"],
-                    edit_b=b_sub["edit"],
-                    submission_a_id=a_sub["agent_id"],
-                    submission_b_id=b_sub["agent_id"],
-                    ground_truth_diff=ground_truth_diff,
-                    judge_model=jm,
-                    order_seed=order_seed,
-                    codebase_context=context,
-                    codebase_context_paths=context_paths,
-                )
-                pairwise_decisions.append(decision)
+            console.print(
+                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with {judge_model}"
+            )
+            decision = run_pairwise_llm_judge(
+                sample=sample,
+                edit_a=a_sub["edit"],
+                edit_b=b_sub["edit"],
+                submission_a_id=a_sub["agent_id"],
+                submission_b_id=b_sub["agent_id"],
+                ground_truth_diff=ground_truth_diff,
+                judge_model=judge_model,
+                order_seed=order_seed,
+                codebase_context=context,
+                codebase_context_paths=context_paths,
+            )
+            pairwise_decisions.append(decision)
 
     if not pairwise_decisions:
         console.print("[yellow]No pairwise decisions produced[/yellow]")
