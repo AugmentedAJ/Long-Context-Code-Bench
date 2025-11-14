@@ -372,7 +372,7 @@ def run_cross_agent_analysis(
         head_commit=sample.head_commit,
         task_instructions=sample.task_instructions,
         ground_truth_diff=ground_truth_diff,
-        judge_mode="comparative" if comparative else "llm",
+        judge_mode="llm",
         judge_model=judge_model,
         test_label=test_label,
         agent_results=agent_results,

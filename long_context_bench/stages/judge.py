@@ -329,7 +329,7 @@ def judge_edit(
                 if manifest_file.exists():
                     with open(manifest_file) as f:
                         manifest = RunManifest(**json.load(f))
-                        if manifest.test_label == test_label and manifest.judge_mode == "llm":
+                        if manifest.test_label == test_label:
                             # Check if this PR was judged in that run
                             other_judge_file = output_dir / "llm" / judge_model / other_run_dir.name / pr_id / "judge.json"
                             if other_judge_file.exists():

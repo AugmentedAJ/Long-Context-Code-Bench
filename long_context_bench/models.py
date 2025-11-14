@@ -182,7 +182,7 @@ class CrossAgentJudge(BaseModel):
     head_commit: str
     task_instructions: str
     ground_truth_diff: str
-    judge_mode: str = "llm"  # 'llm' or 'comparative' (kept for backward compatibility)
+    judge_mode: str = "llm"  # Always 'llm' (kept for backward compatibility)
     judge_model: Optional[str] = None
     test_label: Optional[str] = None
     agent_results: List[AgentResult]  # Results from each agent
