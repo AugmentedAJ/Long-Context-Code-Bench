@@ -263,12 +263,12 @@ def analyze_pr(
 @click.option(
     "--judge-model",
     required=True,
-    help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022) used for all pairwise comparisons",
+    help="LLM judge model whose scores should be reused for scalar per-agent metrics (e.g., anthropic/claude-3-5-sonnet-20241022)",
 )
 @click.option(
     "--include-codebase-context/--no-codebase-context",
     default=False,
-    help="Include codebase files from the base commit in LLM prompts",
+    help="Include codebase files from the base commit in agent judge prompts",
 )
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
@@ -282,12 +282,13 @@ def head_to_head_pr(
     cache_dir: str,
     force: bool,
 ) -> None:
-    """Run head-to-head LLM judging for a single PR across all agents.
+    """Run head-to-head evaluation for a single PR across all agents.
 
     This command finds all agent edits for the specified PR (optionally
-    filtered by test_label), runs pairwise LLM judgments using the provided
-    JUDGE_MODEL, and writes a HeadToHeadPRResult artifact under
-    output/head_to_head/.
+    filtered by test_label), reuses LLM judge scores from the given JUDGE_MODEL
+    for scalar per-agent metrics when available, and runs pairwise comparisons
+    where each agent acts as a judge over the others. Results are written as a
+    HeadToHeadPRResult artifact under output/head_to_head/.
     """
     from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
 

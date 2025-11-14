@@ -1,4 +1,4 @@
-"""Head-to-head LLM judging stage.
+"""Head-to-head agent-based judging stage.
 
 Implements pairwise comparisons between agent submissions for a single PR.
 """
@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import litellm
 from rich.console import Console
 
 from long_context_bench.models import (
@@ -24,14 +24,15 @@ from long_context_bench.models import (
     PairwiseJudgeDecision,
     HeadToHeadAgentStats,
     HeadToHeadPRResult,
+    CrossAgentJudge,
 )
 from long_context_bench.stages.judge import (
     load_sample,
     get_ground_truth_diff,
-    compute_llm_scores,
 )
 from long_context_bench.stages.cross_agent_analysis import find_edits_for_pr
 from long_context_bench.stages.edit import materialize_workspace
+from long_context_bench.runners import get_runner_adapter
 
 console = Console()
 
@@ -113,23 +114,41 @@ def _truncate(text: str, max_chars: int = 8000) -> str:
 
 
 
-def _call_llm_json(prompt: str, judge_model: str) -> dict:
-    """Call LLM with deterministic settings and parse JSON response."""
+def _load_agent_stdout_from_logs(logs_path: Path) -> str:
+    """Load stdout from the last agent_run event in a logs.jsonl file."""
 
-    litellm.drop_params = True  # Drop unsupported params instead of erroring
-    response = litellm.completion(
-        model=judge_model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.0,
-        seed=42,
-    )
+    if not logs_path.is_file():
+        return ""
 
-    content = response.choices[0].message.content.strip()
+    last_stdout = ""
+    with open(logs_path) as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except Exception:
+                continue
+            if record.get("event") == "agent_run":
+                last_stdout = str(record.get("stdout", ""))
+    return last_stdout
+
+
+def _parse_agent_judge_output(stdout: str) -> dict:
+    """Best-effort extraction of a JSON object from agent stdout."""
+
+    content = stdout.strip()
+    if not content:
+        raise ValueError("Empty stdout from judge runner")
+
+    # First try direct JSON parse
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        pass
 
     # Handle markdown code blocks
-    if content.startswith("```"):
+    if "```" in content:
         lines = content.split("\n")
-        json_lines = []
+        json_lines: List[str] = []
         in_code_block = False
         for line in lines:
             if line.strip().startswith("```"):
@@ -137,26 +156,81 @@ def _call_llm_json(prompt: str, judge_model: str) -> dict:
                 continue
             if in_code_block or (not line.strip().startswith("```")):
                 json_lines.append(line)
-        content = "\n".join(json_lines).strip()
+        candidate = "\n".join(json_lines).strip()
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            # fall through to brace search
+            content = candidate
 
-    return json.loads(content)
+    # Fallback: take text between first '{' and last '}'
+    start = content.find("{")
+    end = content.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = content[start : end + 1]
+        return json.loads(candidate)
+
+    raise ValueError("Could not parse JSON from judge runner stdout")
 
 
-def run_pairwise_llm_judge(
+def _load_cross_agent_results_for_pr(
+    pr_number: int,
+    output_dir: Path,
+    test_label: Optional[str],
+    judge_model: str,
+) -> Dict[str, AgentResult]:
+    """Load AgentResult entries from an existing CrossAgentJudge artifact.
+
+    Returns a mapping from agent_id (runner:model:edit_run_id) to AgentResult.
+    If no suitable artifact is found, returns an empty dict.
+    """
+
+    ca_dir = output_dir / "cross_agent_analysis"
+    if not ca_dir.exists():
+        return {}
+
+    # Prefer artifacts that match both test_label and judge_model
+    for ca_file in sorted(ca_dir.glob(f"pr{pr_number}_*.json")):
+        try:
+            with open(ca_file) as f:
+                data = json.load(f)
+            ca = CrossAgentJudge(**data)
+        except Exception:
+            continue
+
+        if test_label is not None and ca.test_label != test_label:
+            continue
+        if ca.judge_model is not None and ca.judge_model != judge_model:
+            continue
+
+        result: Dict[str, AgentResult] = {}
+        for ar in ca.agent_results:
+            agent_id = f"{ar.runner}:{ar.model}:{ar.edit_run_id}"
+            result[agent_id] = ar
+        return result
+
+    return {}
+
+
+def run_agent_pairwise_judge(
     sample: Sample,
+    judge_runner: str,
+    judge_model: Optional[str],
     edit_a: Edit,
     edit_b: Edit,
     submission_a_id: str,
     submission_b_id: str,
     ground_truth_diff: str,
-    judge_model: str,
     order_seed: int,
+    output_dir: Path,
+    head_to_head_run_id: str,
     codebase_context: Optional[Dict[str, str]] = None,
     codebase_context_paths: Optional[List[str]] = None,
+    cache_dir: Optional[Path] = None,
 ) -> PairwiseJudgeDecision:
-    """Run a single LLM-based pairwise judgment and return the decision model."""
+    """Use a CLI agent as judge to compare two submissions and return a decision."""
 
-    # Build codebase context block
+    # Build codebase context block (optional)
     context_block = ""
     if codebase_context:
         parts = []
@@ -164,8 +238,13 @@ def run_pairwise_llm_judge(
             parts.append(f"### {path}\n```\n{_truncate(content, 2000)}\n```")
         context_block = "\n**Codebase Context (Base Commit):**\n" + "\n\n".join(parts)
 
-    prompt = f"""You are an expert code reviewer comparing two AI coding agents' diffs
+    prompt = f"""You are an expert code reviewer acting as an automated judge for TWO AI coding agents' diffs
 for the same GitHub pull request task.
+
+You are in a read-only evaluation mode:
+- Do NOT modify any files.
+- You may inspect the repository in the workspace if that helps you reason.
+- Your job is only to decide which diff is better and explain why.
 
 **Task Instructions:**
 {sample.task_instructions}
@@ -190,7 +269,7 @@ You must decide which submission better implements the task according to the
 following criteria: correctness, completeness, code quality, and integration
 with the existing codebase.
 
-Respond with ONLY a valid JSON object in this exact format (no prose):
+Respond with ONLY a valid JSON object in this exact format (no markdown, no prose before or after):
 
 {{
   "winner": "A" | "B" | "tie",
@@ -206,43 +285,86 @@ Respond with ONLY a valid JSON object in this exact format (no prose):
 }}"""
 
     try:
-        result = _call_llm_json(prompt, judge_model)
-    except Exception as e:  # pragma: no cover - network/LLM failures
-        console.print(f"[yellow]Warning: Pairwise LLM judge failed: {e}[/yellow]")
-        result = {
-            "winner": "tie",
-            "correctness_preference": "tie",
-            "completeness_preference": "tie",
-            "code_quality_preference": "tie",
-            "integration_preference": "tie",
-            "rationale": f"LLM judge failed: {e}",
-            "raw_scores": None,
-        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir) / "workspace"
+            _ = materialize_workspace(sample, workspace_path, cache_dir)
 
-    winner = str(result.get("winner", "tie")).lower()
-    if winner not in {"a", "b", "tie"}:
-        winner = "tie"
+            logs_dir = output_dir / "head_to_head" / "logs" / f"pr{sample.pr_number}_{head_to_head_run_id}"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            logs_hash = hashlib.sha256(
+                f"{submission_a_id}|{submission_b_id}|{judge_runner}|{order_seed}".encode("utf-8")
+            ).hexdigest()[:8]
+            logs_path = logs_dir / f"{judge_runner}_{logs_hash}.jsonl"
 
-    decision = PairwiseJudgeDecision(
+            adapter = get_runner_adapter(
+                judge_runner,
+                model=judge_model or "",
+                agent_binary=None,
+                timeout=1800,
+                disable_retrieval=False,
+                disable_shell=False,
+                enable_mcp_codebase_qa=False,
+                stream_output=False,
+            )
+            result = adapter.run(
+                workspace_path=workspace_path,
+                task_instructions=prompt,
+                logs_path=logs_path,
+                env=os.environ.copy(),
+            )
+
+            if result.status != "success":
+                raise RuntimeError(f"Judge runner exited with status {result.status}")
+
+            stdout = _load_agent_stdout_from_logs(logs_path)
+            if not stdout.strip():
+                raise RuntimeError("No stdout captured from judge runner")
+
+            raw = _parse_agent_judge_output(stdout)
+
+    except Exception as e:
+        console.print(f"[yellow]Warning: Agent judge {judge_runner} failed: {e}[/yellow]")
+        return PairwiseJudgeDecision(
+            repo_url=sample.repo_url,
+            pr_number=sample.pr_number,
+            submission_a_id=submission_a_id,
+            submission_b_id=submission_b_id,
+            judge_model=judge_model,
+            judge_runner=judge_runner,
+            order_seed=order_seed,
+            winner="tie",
+            correctness_preference="tie",
+            completeness_preference="tie",
+            code_quality_preference="tie",
+            integration_preference="tie",
+            raw_scores=None,
+            rationale=f"Agent judge {judge_runner} failed: {e}",
+            timestamp=datetime.utcnow().isoformat(),
+            codebase_context_files=codebase_context_paths,
+        )
+
+    winner = str(raw.get("winner", "tie")).upper()
+    if winner not in {"A", "B", "TIE"}:
+        winner = "TIE"
+
+    return PairwiseJudgeDecision(
         repo_url=sample.repo_url,
         pr_number=sample.pr_number,
         submission_a_id=submission_a_id,
         submission_b_id=submission_b_id,
         judge_model=judge_model,
-        judge_runner=None,
+        judge_runner=judge_runner,
         order_seed=order_seed,
-        winner="A" if winner == "a" else "B" if winner == "b" else "tie",
-        correctness_preference=result.get("correctness_preference"),
-        completeness_preference=result.get("completeness_preference"),
-        code_quality_preference=result.get("code_quality_preference"),
-        integration_preference=result.get("integration_preference"),
-        raw_scores=result.get("raw_scores"),
-        rationale=result.get("rationale"),
+        winner="A" if winner == "A" else "B" if winner == "B" else "tie",
+        correctness_preference=raw.get("correctness_preference"),
+        completeness_preference=raw.get("completeness_preference"),
+        code_quality_preference=raw.get("code_quality_preference"),
+        integration_preference=raw.get("integration_preference"),
+        raw_scores=raw.get("raw_scores"),
+        rationale=raw.get("rationale"),
         timestamp=datetime.utcnow().isoformat(),
         codebase_context_files=codebase_context_paths,
     )
-
-    return decision
 
 
 def run_head_to_head_for_pr(
@@ -261,7 +383,7 @@ def run_head_to_head_for_pr(
 
     head_to_head_run_id = str(uuid.uuid4())[:8]
     console.print(
-        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} with judge {judge_model}[/bold]"
+        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} (agents as judges, scores from {judge_model})[/bold]"
     )
 
     # Resolve sample
@@ -305,8 +427,8 @@ def run_head_to_head_for_pr(
     console.print("  Fetching ground truth diff...")
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-    # Single judge model for both baseline scoring and pairwise comparisons
-    console.print(f"  Using judge model: {judge_model}")
+    console.print("  Using agents as judges (no LLM calls in this stage)")
+    console.print(f"  Reusing scalar scores from judge model: {judge_model}")
 
     # Build submissions list
     submissions = []
@@ -318,43 +440,52 @@ def run_head_to_head_for_pr(
             "runner_model": f"{edit.runner}:{edit.model}",
         })
 
-    # Baseline scores per submission using the provided judge model
+    # Baseline scores per submission using existing cross-agent results (if any)
     agent_results: List[AgentResult] = []
+    cross_agent_results = _load_cross_agent_results_for_pr(
+        pr_number=pr_number,
+        output_dir=output_dir,
+        test_label=test_label,
+        judge_model=judge_model,
+    )
+    if cross_agent_results:
+        console.print(f"  Loaded cross-agent scores for {len(cross_agent_results)} agent(s)")
+    else:
+        console.print("  No cross-agent scores found; using neutral placeholder scores")
 
     for sub in submissions:
         edit = sub["edit"]
-        console.print(f"  Scoring {edit.runner}:{edit.model} with {judge_model}...")
-        scores, rationale, llm_rating, llm_summary = compute_llm_scores(
-            edit.patch_unified,
-            ground_truth_diff,
-            sample.task_instructions,
-            judge_model,
-        )
-        aggregate = (
-            scores.correctness
-            + scores.completeness
-            + scores.code_reuse
-            + scores.best_practices
-            + scores.unsolicited_docs
-        ) / 5.0
+        agent_id = sub["agent_id"]
+        existing = cross_agent_results.get(agent_id)
 
-        agent_results.append(
-            AgentResult(
-                runner=edit.runner,
-                model=edit.model,
-                edit_run_id=edit.edit_run_id,
-                status=edit.status,
-                elapsed_ms=edit.elapsed_ms,
-                patch_unified=edit.patch_unified,
-                scores=scores,
-                aggregate=aggregate,
-                rationale=rationale,
-                llm_rating=llm_rating,
-                llm_summary=llm_summary,
-                errors=edit.errors,
-                logs_path=edit.logs_path,
+        if existing is not None:
+            agent_results.append(existing)
+        else:
+            # Neutral placeholder scores when no prior LLM judge outputs are available
+            scores = Scores(
+                correctness=0.0,
+                completeness=0.0,
+                code_reuse=0.0,
+                best_practices=0.0,
+                unsolicited_docs=0.0,
             )
-        )
+            agent_results.append(
+                AgentResult(
+                    runner=edit.runner,
+                    model=edit.model,
+                    edit_run_id=edit.edit_run_id,
+                    status=edit.status,
+                    elapsed_ms=edit.elapsed_ms,
+                    patch_unified=edit.patch_unified,
+                    scores=scores,
+                    aggregate=0.0,
+                    rationale="No cross-agent LLM scores available; neutral scores used.",
+                    llm_rating=None,
+                    llm_summary=None,
+                    errors=edit.errors,
+                    logs_path=edit.logs_path,
+                )
+            )
 
     # Optional codebase context
     context: Optional[Dict[str, str]] = None
@@ -370,14 +501,18 @@ def run_head_to_head_for_pr(
         )
         console.print(f"  Included {len(context_paths or [])} context file(s)")
 
-    # Pairwise decisions
+    # Pairwise decisions using agents as judges
     pairwise_decisions: List[PairwiseJudgeDecision] = []
     for i in range(len(submissions)):
         for j in range(i + 1, len(submissions)):
             sub_i = submissions[i]
             sub_j = submissions[j]
 
-            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_model}"
+            # First: agent i as judge
+            judge_edit = sub_i["edit"]
+            judge_runner = judge_edit.runner
+            judge_runner_model = judge_edit.model
+            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
             order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
             if order_seed % 2 == 0:
                 a_sub, b_sub = sub_i, sub_j
@@ -385,21 +520,57 @@ def run_head_to_head_for_pr(
                 a_sub, b_sub = sub_j, sub_i
 
             console.print(
-                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with {judge_model}"
+                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
             )
-            decision = run_pairwise_llm_judge(
+            decision_i = run_agent_pairwise_judge(
                 sample=sample,
+                judge_runner=judge_runner,
+                judge_model=judge_runner_model,
                 edit_a=a_sub["edit"],
                 edit_b=b_sub["edit"],
                 submission_a_id=a_sub["agent_id"],
                 submission_b_id=b_sub["agent_id"],
                 ground_truth_diff=ground_truth_diff,
-                judge_model=judge_model,
                 order_seed=order_seed,
+                output_dir=output_dir,
+                head_to_head_run_id=head_to_head_run_id,
                 codebase_context=context,
                 codebase_context_paths=context_paths,
+                cache_dir=cache_dir,
             )
-            pairwise_decisions.append(decision)
+            pairwise_decisions.append(decision_i)
+
+            # Second: agent j as judge
+            judge_edit = sub_j["edit"]
+            judge_runner = judge_edit.runner
+            judge_runner_model = judge_edit.model
+            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
+            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
+            if order_seed % 2 == 0:
+                a_sub, b_sub = sub_i, sub_j
+            else:
+                a_sub, b_sub = sub_j, sub_i
+
+            console.print(
+                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
+            )
+            decision_j = run_agent_pairwise_judge(
+                sample=sample,
+                judge_runner=judge_runner,
+                judge_model=judge_runner_model,
+                edit_a=a_sub["edit"],
+                edit_b=b_sub["edit"],
+                submission_a_id=a_sub["agent_id"],
+                submission_b_id=b_sub["agent_id"],
+                ground_truth_diff=ground_truth_diff,
+                order_seed=order_seed,
+                output_dir=output_dir,
+                head_to_head_run_id=head_to_head_run_id,
+                codebase_context=context,
+                codebase_context_paths=context_paths,
+                cache_dir=cache_dir,
+            )
+            pairwise_decisions.append(decision_j)
 
     if not pairwise_decisions:
         console.print("[yellow]No pairwise decisions produced[/yellow]")
