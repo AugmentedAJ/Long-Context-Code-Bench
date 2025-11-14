@@ -1,0 +1,9 @@
+{
+  "judge_models": {
+    "example-runner:example-model": "anthropic/claude-3-5-sonnet-20241022"
+  },
+  "neutral_judges": [
+    "anthropic/claude-3-5-sonnet-20241022"
+  ]
+}
+

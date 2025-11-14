@@ -8,6 +8,7 @@ let filteredSummaries = [];
 let currentSort = { field: 'win_rate', ascending: false };
 let crossAgentAnalyses = [];
 let crossAgentLeaderboard = [];
+let headToHeadLeaderboard = [];
 
 // Lazy loading state
 let leaderboardDisplayCount = 3; // Start with top 3
@@ -52,11 +53,72 @@ async function loadLeaderboard() {
 }
 
 /**
+ * Load and display head-to-head leaderboard (Elo-based).
+ */
+async function loadHeadToHeadLeaderboard() {
+    const tbody = document.getElementById('h2h-leaderboard-body');
+
+    try {
+        const results = await loadAllHeadToHeadResults();
+
+        if (!results || results.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found</td></tr>';
+            }
+            return;
+        }
+
+        headToHeadLeaderboard = aggregateHeadToHeadData(results);
+        displayHeadToHeadLeaderboard(headToHeadLeaderboard);
+    } catch (error) {
+        console.error('Error loading head-to-head leaderboard:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading head-to-head results</td></tr>';
+        }
+    }
+}
+
+/**
+ * Display head-to-head leaderboard table.
+ */
+function displayHeadToHeadLeaderboard(leaderboard) {
+    const tbody = document.getElementById('h2h-leaderboard-body');
+    if (!tbody) return;
+
+    if (!leaderboard || leaderboard.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    const medals = ['🥇', '🥈', '🥉'];
+
+    leaderboard.forEach((agent, index) => {
+        const row = document.createElement('tr');
+        const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
+
+        row.innerHTML = `
+            <td>${rankDisplay}</td>
+            <td>${agent.runner || ''}:${agent.model || ''}</td>
+            <td>${agent.wins}</td>
+            <td>${agent.losses}</td>
+            <td>${agent.ties}</td>
+            <td>${formatPercentage(agent.win_rate)}</td>
+            <td>${agent.elo_rating.toFixed(1)}</td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
+
+/**
  * Update overview statistics
  */
 function updateOverviewStats(index, summaries) {
     document.getElementById('total-runs').textContent = summaries.length;
-    
+
     const uniqueAgents = new Set();
     summaries.forEach(s => {
         if (s.runner && s.model) {
@@ -64,7 +126,7 @@ function updateOverviewStats(index, summaries) {
         }
     });
     document.getElementById('total-agents').textContent = uniqueAgents.size;
-    
+
     const totalSamples = summaries.reduce((sum, s) => sum + (s.total_samples || 0), 0);
     document.getElementById('total-samples').textContent = totalSamples;
 
@@ -86,7 +148,7 @@ function populateFilters(index) {
     const runners = getUniqueValues(index.runs, 'runner');
     const models = getUniqueValues(index.runs, 'model');
     const labels = getUniqueValues(index.runs, 'test_label');
-    
+
     populateSelect('filter-runner', runners);
     populateSelect('filter-model', models);
     populateSelect('filter-label', labels);
@@ -98,18 +160,18 @@ function populateFilters(index) {
 function populateSelect(selectId, values) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    
+
     // Keep the "All" option
     const currentValue = select.value;
     select.innerHTML = '<option value="">All</option>';
-    
+
     values.forEach(value => {
         const option = document.createElement('option');
         option.value = value;
         option.textContent = value;
         select.appendChild(option);
     });
-    
+
     select.value = currentValue;
 }
 
@@ -279,14 +341,14 @@ async function loadRunSummary(identifier) {
         const data = identifier.startsWith('summaries/')
             ? await loadRunDetailsByPath(identifier)
             : await loadRunDetails(identifier);
-        
+
         if (!data || !data.summary) {
             alert('Failed to load run data');
             return;
         }
-        
+
         const { summary, edits, judges, samples } = data;
-        
+
         // Update run info
         document.getElementById('info-run-id').textContent = summary.run_id || '-';
         document.getElementById('info-runner').textContent = summary.runner || '-';
@@ -294,7 +356,7 @@ async function loadRunSummary(identifier) {
         document.getElementById('info-test-label').textContent = summary.test_label || '-';
         document.getElementById('info-edit-run-id').textContent = summary.edit_run_id || '-';
         document.getElementById('info-judge-run-id').textContent = summary.judge_run_id || '-';
-        
+
         // Update metrics
         document.getElementById('metric-aggregate').textContent = summary.mean_aggregate.toFixed(2);
         document.getElementById('metric-std').textContent = summary.std_aggregate.toFixed(2);
@@ -308,14 +370,14 @@ async function loadRunSummary(identifier) {
         document.getElementById('metric-unsolicited-docs').textContent = summary.mean_unsolicited_docs.toFixed(2);
         document.getElementById('metric-tasks-per-hour').textContent = summary.tasks_per_hour.toFixed(2);
         document.getElementById('metric-elapsed').textContent = summary.mean_elapsed_ms.toFixed(0);
-        
+
         // Update charts
         createScoreBreakdownChart('score-breakdown-chart', summary);
         createRunScoreDistribution('score-distribution-chart', judges);
-        
+
         // Display PR results
         displayPRResults(edits, judges, samples);
-        
+
         // Update timestamp
         const index = await loadIndex();
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);

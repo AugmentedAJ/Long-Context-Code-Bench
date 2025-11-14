@@ -256,6 +256,68 @@ def analyze_pr(
         click.echo("Cross-agent analysis failed")
 
 
+
+@main.command(name="head-to-head-pr")
+@click.option("--pr-number", required=True, type=int, help="PR number to evaluate")
+@click.option("--test-label", help="Optional label to filter edits by")
+@click.option(
+    "--judge-config",
+    type=click.Path(),
+    default="config/judge_models.json",
+    help="Path to judge model mapping config (runner:model -> judge model)",
+)
+@click.option(
+    "--include-codebase-context/--no-codebase-context",
+    default=False,
+    help="Include codebase files from the base commit in LLM prompts",
+)
+@click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
+@click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
+@click.option("--force", is_flag=True, help="Re-run even if head-to-head result already exists")
+def head_to_head_pr(
+    pr_number: int,
+    test_label: Optional[str],
+    judge_config: str,
+    include_codebase_context: bool,
+    output_dir: str,
+    cache_dir: str,
+    force: bool,
+) -> None:
+    """Run head-to-head LLM judging for a single PR across all agents.
+
+    This command finds all agent edits for the specified PR (optionally
+    filtered by test_label), runs pairwise LLM judgments using judge models
+    from JUDGE_CONFIG, and writes a HeadToHeadPRResult artifact under
+    output/head_to_head/.
+    """
+    from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
+
+    click.echo(f"Running head-to-head evaluation for PR {pr_number}")
+    if test_label:
+        click.echo(f"Test label filter: {test_label}")
+    click.echo(f"Judge config: {judge_config}")
+    if include_codebase_context:
+        click.echo("Including codebase context in prompts")
+
+    run_id = run_head_to_head_for_pr(
+        pr_number=pr_number,
+        output_dir=Path(output_dir),
+        judge_config_path=Path(judge_config),
+        include_codebase_context=include_codebase_context,
+        test_label=test_label,
+        cache_dir=Path(cache_dir),
+        force=force,
+    )
+
+    if run_id:
+        click.echo(f"Head-to-head run completed. Run ID: {run_id}")
+        click.echo(
+            f"Results saved to: {Path(output_dir) / 'head_to_head' / f'pr{pr_number}_{run_id}.json'}"
+        )
+    else:
+        click.echo("Head-to-head evaluation failed or was skipped")
+
+
 @main.command()
 @click.option("--runner", required=True, help="Agent runner name")
 @click.option("--model", required=True, help="Model name")
@@ -497,8 +559,8 @@ def summary(
 @click.argument("results_dir", type=click.Path(exists=True))
 @click.argument("test_label")
 @click.option("--output-file", type=click.Path(), help="Output file for comparison report (.json or .csv)")
-@click.option("--format", type=click.Choice(["comparison", "leaderboard"]), default="comparison",
-              help="Output format: comparison (side-by-side) or leaderboard (ranked)")
+@click.option("--format", type=click.Choice(["comparison", "leaderboard", "head-to-head"]), default="comparison",
+              help="Output format: comparison (side-by-side), leaderboard (ranked), or head-to-head")
 @click.option("--rank-by", default="mean_aggregate",
               help="Metric to rank by (mean_aggregate, success_rate, tasks_per_hour, etc.)")
 def compare(results_dir: str, test_label: str, output_file: Optional[str], format: str, rank_by: str) -> None:
@@ -518,16 +580,25 @@ def compare(results_dir: str, test_label: str, output_file: Optional[str], forma
         # Leaderboard ranked by success rate
         long-context-bench compare output/ "v0-leaderboard" --format leaderboard --rank-by success_rate
     """
-    from long_context_bench.stats import generate_comparison
+    from long_context_bench.stats import generate_comparison, generate_head_to_head_summary
 
     click.echo(f"Generating {format} for test label: {test_label}")
-    generate_comparison(
-        results_dir=Path(results_dir),
-        test_label=test_label,
-        output_file=Path(output_file) if output_file else None,
-        format=format,
-        rank_by=rank_by,
-    )
+
+    if format == "head-to-head":
+        generate_head_to_head_summary(
+            results_dir=Path(results_dir),
+            test_label=test_label,
+            output_file=Path(output_file) if output_file else None,
+        )
+    else:
+        generate_comparison(
+            results_dir=Path(results_dir),
+            test_label=test_label,
+            output_file=Path(output_file) if output_file else None,
+            format=format,
+            rank_by=rank_by,
+        )
+
     click.echo(f"{format.capitalize()} generation completed")
 
 

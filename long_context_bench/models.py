@@ -190,3 +190,90 @@ class CrossAgentJudge(BaseModel):
     timestamp: str
     analysis_run_id: str  # Unique ID for this cross-agent analysis run
 
+
+
+
+class PairwiseJudgeDecision(BaseModel):
+    """Pairwise head-to-head judgment between two submissions on a PR.
+
+    Submissions are identified by stable agent IDs (e.g. "runner:model:edit_run_id").
+    """
+
+    # Identity
+    repo_url: str
+    pr_number: int
+    submission_a_id: str
+    submission_b_id: str
+    judge_model: Optional[str] = None  # LLM ID used as judge
+    judge_runner: Optional[str] = None  # If a CLI agent acted as judge
+    order_seed: Optional[int] = None  # Seed used when randomizing A/B order
+
+    # Verdict
+    winner: str  # "A" | "B" | "tie"
+    correctness_preference: Optional[str] = None  # "A" | "B" | "tie"
+    completeness_preference: Optional[str] = None  # "A" | "B" | "tie"
+    code_quality_preference: Optional[str] = None  # "A" | "B" | "tie"
+    integration_preference: Optional[str] = None  # "A" | "B" | "tie"
+    raw_scores: Optional[dict[str, dict[str, float]]] = None  # Optional per-submission scores
+    rationale: Optional[str] = None
+
+    # Metadata
+    timestamp: str
+    codebase_context_files: Optional[List[str]] = None
+
+
+class HeadToHeadAgentStats(BaseModel):
+    """Per-agent head-to-head stats for a single PR."""
+
+    agent_id: str  # runner:model:edit_run_id
+    wins: int
+    losses: int
+    ties: int
+
+
+class HeadToHeadPRResult(BaseModel):
+    """Head-to-head comparison results for a single PR."""
+
+    # PR/sample metadata
+    repo_url: str
+    pr_number: int
+    base_commit: str
+    head_commit: str
+    task_instructions: str
+    test_label: Optional[str] = None
+
+    # Per-agent results and pairwise decisions
+    agent_results: List[AgentResult]
+    pairwise_decisions: List[PairwiseJudgeDecision]
+    agent_stats: List[HeadToHeadAgentStats]
+
+    # Run metadata
+    head_to_head_run_id: str
+    timestamp: str
+
+
+class HeadToHeadAgentSummary(BaseModel):
+    """Cross-PR head-to-head summary for a single agent."""
+
+    agent_id: str  # runner:model[:edit_run_id] identifier used in comparisons
+    runner: str
+    model: str
+    test_label: Optional[str] = None
+
+    wins: int
+    losses: int
+    ties: int
+    matches: int
+    win_rate: float
+
+    elo_rating: float
+    elo_uncertainty: Optional[float] = None
+
+
+class HeadToHeadGlobalSummary(BaseModel):
+    """Global head-to-head summary across PRs for a test label."""
+
+    test_label: Optional[str] = None
+    agents: List[HeadToHeadAgentSummary]
+    # Optional nested matrix: [agent_id][opponent_id] -> {wins, losses, ties}
+    head_to_head_matrix: Optional[dict[str, dict[str, dict[str, int]]]] = None

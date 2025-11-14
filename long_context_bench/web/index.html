@@ -65,6 +65,33 @@
                 </div>
             </section>
 
+            <section class="leaderboard">
+                <h2>Head-to-Head Elo Leaderboard</h2>
+                <p class="section-description">
+                    Aggregated pairwise head-to-head LLM judgments, converted to Elo ratings per agent.
+                </p>
+                <div class="table-container">
+                    <table id="h2h-leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Agent</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                                <th>Ties</th>
+                                <th>Win Rate</th>
+                                <th>Elo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="h2h-leaderboard-body">
+                            <tr>
+                                <td colspan="7" class="loading">Loading head-to-head results...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <section class="cross-agent-details">
                 <h2>Cross-Agent Analysis Details</h2>
                 <p class="section-description">Detailed comparative analysis for each PR</p>
@@ -154,6 +181,10 @@
         // Initialize leaderboard page
         document.addEventListener('DOMContentLoaded', async () => {
             await loadLeaderboard();
+
+            if (typeof loadHeadToHeadLeaderboard === 'function') {
+                await loadHeadToHeadLeaderboard();
+            }
 
             // Back button handler for detail view
             const backButton = document.getElementById('back-button');

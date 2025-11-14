@@ -9,7 +9,7 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-from long_context_bench.models import Sample, Edit, Judge, AggregateSummary
+from long_context_bench.models import Sample, Edit, Judge, AggregateSummary, HeadToHeadPRResult, HeadToHeadAgentSummary, HeadToHeadGlobalSummary
 
 console = Console()
 
@@ -117,38 +117,38 @@ def compute_aggregate_summary(
 
 def load_results_from_dir(results_dir: Path) -> tuple[List[Sample], List[Edit], List[Judge]]:
     """Load all results from a directory.
-    
+
     Args:
         results_dir: Results directory
-        
+
     Returns:
         Tuple of (samples, edits, judges)
     """
     samples = []
     edits = []
     judges = []
-    
+
     # Load samples
     samples_dir = results_dir / "samples"
     if samples_dir.exists():
         for sample_file in samples_dir.rglob("sample.json"):
             with open(sample_file) as f:
                 samples.append(Sample(**json.load(f)))
-    
+
     # Load edits
     edits_dir = results_dir / "edits"
     if edits_dir.exists():
         for edit_file in edits_dir.rglob("edit.json"):
             with open(edit_file) as f:
                 edits.append(Edit(**json.load(f)))
-    
+
     # Load judges
     judges_dir = results_dir / "judges"
     if judges_dir.exists():
         for judge_file in judges_dir.rglob("judge.json"):
             with open(judge_file) as f:
                 judges.append(Judge(**json.load(f)))
-    
+
     return samples, edits, judges
 
 
@@ -407,8 +407,145 @@ def generate_comparison(
 
         console.print(f"\n[green]Comparison written to {output_file}[/green]")
 
-    # Update web app
+
+
+def generate_head_to_head_summary(
+    results_dir: Path,
+    test_label: str,
+    output_file: Optional[Path] = None,
+) -> Optional[HeadToHeadGlobalSummary]:
+    """Generate global head-to-head summary for a given test label.
+
+    This reads all HeadToHeadPRResult artifacts under results_dir/head_to_head,
+    filters by test_label (if present), and aggregates pairwise decisions into
+    per-agent win/loss/tie counts and Elo ratings.
+    """
+
+    console.print(f"[bold]Generating head-to-head summary for test label: {test_label}[/bold]")
+
+    h2h_dir = results_dir / "head_to_head"
+    if not h2h_dir.exists():
+        console.print(f"[yellow]No head_to_head directory found under {results_dir}[/yellow]")
+        return None
+
+    # Load all head-to-head results
+    results: List[HeadToHeadPRResult] = []
+    for result_file in h2h_dir.glob("pr*_*.json"):
+        try:
+            with open(result_file) as f:
+                data = json.load(f)
+            result = HeadToHeadPRResult(**data)
+            if result.test_label is None or result.test_label == test_label:
+                results.append(result)
+        except Exception as e:  # pragma: no cover - defensive
+            console.print(f"[yellow]Warning: Failed to load {result_file}: {e}[/yellow]")
+
+    if not results:
+        console.print(f"[yellow]No head-to-head results found for test label '{test_label}'[/yellow]")
+        return None
+
+    # Collect all pairwise decisions
+    all_decisions = []
+    for r in results:
+        all_decisions.extend(r.pairwise_decisions)
+
+    from long_context_bench.ranking import compute_win_loss_matrix, compute_elo_ratings
+
+    matrix = compute_win_loss_matrix(all_decisions)
+    elo_ratings = compute_elo_ratings(all_decisions)
+
+    # Build per-agent summaries
+    agent_summaries = []
+    for agent_id, opponents in matrix.items():
+        wins = sum(v["wins"] for v in opponents.values())
+        losses = sum(v["losses"] for v in opponents.values())
+        ties = sum(v["ties"] for v in opponents.values())
+        matches = wins + losses + ties
+        win_rate = (wins + 0.5 * ties) / matches if matches > 0 else 0.0
+
+        # Parse runner/model from agent_id (runner:model:edit_run_id)
+        parts = agent_id.split(":", 2)
+        runner = parts[0] if len(parts) >= 1 else ""
+        model = parts[1] if len(parts) >= 2 else ""
+
+        agent_summaries.append(
+            {
+                "agent_id": agent_id,
+                "runner": runner,
+                "model": model,
+                "wins": wins,
+                "losses": losses,
+                "ties": ties,
+                "matches": matches,
+                "win_rate": win_rate,
+                "elo_rating": elo_ratings.get(agent_id, 1500.0),
+            }
+        )
+
+    # Sort by Elo rating (desc), then win_rate
+    agent_summaries.sort(key=lambda a: (a["elo_rating"], a["win_rate"]), reverse=True)
+
+    agents_model = [
+        HeadToHeadAgentSummary(
+            agent_id=summary["agent_id"],
+            runner=summary["runner"],
+            model=summary["model"],
+            test_label=test_label,
+            wins=summary["wins"],
+            losses=summary["losses"],
+            ties=summary["ties"],
+            matches=summary["matches"],
+            win_rate=summary["win_rate"],
+            elo_rating=summary["elo_rating"],
+            elo_uncertainty=None,
+        )
+        for summary in agent_summaries
+    ]
+
+    global_summary = HeadToHeadGlobalSummary(
+        test_label=test_label,
+        agents=agents_model,
+        head_to_head_matrix=matrix,
+    )
+
+    # Display table
+    table = Table(title=f"Head-to-Head Leaderboard: {test_label}")
+    table.add_column("Rank", style="yellow", justify="center", width=6)
+    table.add_column("Agent", style="cyan", width=30)
+    table.add_column("Wins", justify="right")
+    table.add_column("Losses", justify="right")
+    table.add_column("Ties", justify="right")
+    table.add_column("Win Rate", justify="right")
+    table.add_column("Elo", justify="right")
+
+    for idx, agent in enumerate(agents_model, start=1):
+        table.add_row(
+            str(idx),
+            f"{agent.runner}:{agent.model}",
+            str(agent.wins),
+            str(agent.losses),
+            str(agent.ties),
+            f"{agent.win_rate:.3f}",
+            f"{agent.elo_rating:.1f}",
+        )
+
+    console.print(table)
+
+    # Write output file if requested
+    if output_file:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        if output_file.suffix == ".json":
+            with open(output_file, "w") as f:
+                f.write(global_summary.model_dump_json(indent=2))
+        elif output_file.suffix == ".csv":
+            df = pd.DataFrame([a.model_dump() for a in agents_model])
+            df.to_csv(output_file, index=False)
+        console.print(f"[green]Head-to-head summary written to {output_file}[/green]")
+
+    # Update web app index and deployment
     update_web_app(results_dir)
+
+    return global_summary
 
 
 def _display_leaderboard(summaries: dict, test_label: str, rank_by: str) -> None:
@@ -696,10 +833,11 @@ def generate_index_manifest(output_dir: Path) -> None:
     index = {
         "runs": [],
         "cross_agent_runs": [],
+        "head_to_head_runs": [],
         "test_labels": set(),
         "runners": set(),
         "models": set(),
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": datetime.utcnow().isoformat(),
     }
 
     # Scan summaries directory
@@ -783,9 +921,30 @@ def generate_index_manifest(output_dir: Path) -> None:
                     }
 
                     index["cross_agent_runs"].append(cross_agent_info)
-
             except Exception as e:
                 console.print(f"[yellow]Warning: Failed to process {analysis_file}: {e}[/yellow]")
+
+    # Scan head-to-head directory
+    h2h_dir = output_dir / "head_to_head"
+    if h2h_dir.exists():
+        for h2h_file in h2h_dir.glob("pr*_*.json"):
+            try:
+                with open(h2h_file) as f:
+                    result = json.load(f)
+
+                h2h_info = {
+                    "file": h2h_file.name,
+                    "pr_number": result.get("pr_number"),
+                    "head_to_head_run_id": result.get("head_to_head_run_id"),
+                    "test_label": result.get("test_label"),
+                }
+
+                index["head_to_head_runs"].append(h2h_info)
+
+                if result.get("test_label"):
+                    index["test_labels"].add(result.get("test_label"))
+            except Exception as e:  # pragma: no cover - defensive
+                console.print(f"[yellow]Warning: Failed to process {h2h_file}: {e}[/yellow]")
 
     # Convert sets to sorted lists
     index["test_labels"] = sorted(list(index["test_labels"]))
@@ -806,6 +965,7 @@ def generate_index_manifest(output_dir: Path) -> None:
     console.print(f"[green]✓ Index manifest generated: {index_file}[/green]")
     console.print(f"  Found {len(index['runs'])} runs")
     console.print(f"  Found {len(index['cross_agent_runs'])} cross-agent analyses")
+    console.print(f"  Found {len(index['head_to_head_runs'])} head-to-head results")
 
 
 def update_web_app(output_dir: Path) -> None:
