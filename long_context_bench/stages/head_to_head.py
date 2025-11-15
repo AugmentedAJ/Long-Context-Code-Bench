@@ -133,42 +133,81 @@ def _load_agent_stdout_from_logs(logs_path: Path) -> str:
 
 
 def _parse_agent_judge_output(stdout: str) -> dict:
-    """Best-effort extraction of a JSON object from agent stdout."""
+    """Best-effort extraction of a JSON object from agent stdout.
+
+    Agents typically emit a long, chatty transcript with a final JSON code block
+    containing the decision. This helper tries several strategies, from most to
+    least specific, to recover that JSON.
+    """
 
     content = stdout.strip()
     if not content:
         raise ValueError("Empty stdout from judge runner")
 
-    # First try direct JSON parse
+    # 1) Some runners emit pure JSON
     try:
         return json.loads(content)
     except json.JSONDecodeError:
         pass
 
-    # Handle markdown code blocks
+    # 2) Extract JSON from markdown code blocks, preferring the last block which
+    # is usually the final answer.
     if "```" in content:
-        lines = content.split("\n")
-        json_lines: List[str] = []
-        in_code_block = False
-        for line in lines:
-            if line.strip().startswith("```"):
-                in_code_block = not in_code_block
+        blocks: List[str] = []
+        in_block = False
+        current: List[str] = []
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                if in_block:
+                    # end current block
+                    blocks.append("\n".join(current).strip())
+                    current = []
+                    in_block = False
+                else:
+                    # start new block
+                    in_block = True
                 continue
-            if in_code_block or (not line.strip().startswith("```")):
-                json_lines.append(line)
-        candidate = "\n".join(json_lines).strip()
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError:
-            # fall through to brace search
-            content = candidate
+            if in_block:
+                current.append(line)
+        if current:
+            blocks.append("\n".join(current).strip())
 
-    # Fallback: take text between first '{' and last '}'
-    start = content.find("{")
-    end = content.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        candidate = content[start : end + 1]
-        return json.loads(candidate)
+        # Try each block from last to first
+        for block in reversed(blocks):
+            if not block:
+                continue
+            try:
+                return json.loads(block)
+            except json.JSONDecodeError:
+                continue
+
+        # If we saw blocks at all, restrict subsequent heuristics to their
+        # combined content rather than the full transcript.
+        if blocks:
+            content = "\n".join(blocks)
+
+    # 3) Fallback: search for the first brace-delimited JSON object that parses.
+    # This handles cases where multiple JSON objects or extra text are present
+    # in the same stream.
+    text = content
+    length = len(text)
+    idx = 0
+    while idx < length:
+        if text[idx] != "{":
+            idx += 1
+            continue
+        end = idx + 1
+        while end < length:
+            if text[end] == "}":
+                candidate = text[idx : end + 1]
+                try:
+                    return json.loads(candidate)
+                except json.JSONDecodeError:
+                    # keep searching for a later closing brace
+                    pass
+            end += 1
+        idx += 1
 
     raise ValueError("Could not parse JSON from judge runner stdout")
 
