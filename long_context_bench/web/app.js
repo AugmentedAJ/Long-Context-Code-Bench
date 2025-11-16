@@ -23,6 +23,9 @@ async function loadLeaderboard() {
     try {
         const index = await loadIndex();
 
+        // Load and display agent leaderboard
+        await loadAgentLeaderboard();
+
         // Load cross-agent analyses
         await loadCrossAgentAnalyses();
 
@@ -35,6 +38,132 @@ async function loadLeaderboard() {
             listContainer.innerHTML = '<p class="loading">Error loading data. Make sure the benchmark has been run.</p>';
         }
     }
+}
+
+/**
+ * Load and display agent leaderboard
+ */
+async function loadAgentLeaderboard() {
+    const tbody = document.getElementById('leaderboard-body');
+
+    try {
+        const analyses = await loadAllCrossAgentAnalyses();
+
+        if (!analyses || analyses.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">No analyses found</td></tr>';
+            }
+            return;
+        }
+
+        // Compute agent statistics
+        const agentStats = computeAgentLeaderboard(analyses);
+
+        // Display leaderboard
+        displayAgentLeaderboard(agentStats);
+    } catch (error) {
+        console.error('Error loading agent leaderboard:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">Error loading leaderboard</td></tr>';
+        }
+    }
+}
+
+/**
+ * Compute agent leaderboard statistics from cross-agent analyses
+ */
+function computeAgentLeaderboard(analyses) {
+    const agentStats = {};
+
+    // Aggregate statistics for each agent
+    analyses.forEach(analysis => {
+        if (!analysis.agent_results) return;
+
+        analysis.agent_results.forEach(result => {
+            const agentKey = `${result.runner}:${result.model}`;
+
+            if (!agentStats[agentKey]) {
+                agentStats[agentKey] = {
+                    runner: result.runner,
+                    model: result.model,
+                    totalScore: 0,
+                    prCount: 0,
+                    bestAgentCount: 0,
+                    scores: []
+                };
+            }
+
+            // Add score if available
+            if (typeof result.aggregate === 'number') {
+                agentStats[agentKey].totalScore += result.aggregate;
+                agentStats[agentKey].scores.push(result.aggregate);
+                agentStats[agentKey].prCount++;
+            }
+
+            // Check if this agent is the best for this PR
+            if (analysis.comparative_analysis && analysis.comparative_analysis.best_agent) {
+                const bestAgent = analysis.comparative_analysis.best_agent;
+                if (bestAgent === agentKey) {
+                    agentStats[agentKey].bestAgentCount++;
+                }
+            }
+        });
+    });
+
+    // Compute derived statistics
+    const leaderboard = Object.keys(agentStats).map(agentKey => {
+        const stats = agentStats[agentKey];
+        const meanScore = stats.prCount > 0 ? stats.totalScore / stats.prCount : 0;
+        const winRate = stats.prCount > 0 ? stats.bestAgentCount / stats.prCount : 0;
+
+        return {
+            agentKey,
+            runner: stats.runner,
+            model: stats.model,
+            meanScore,
+            prCount: stats.prCount,
+            bestAgentCount: stats.bestAgentCount,
+            winRate
+        };
+    });
+
+    // Sort by mean score (descending)
+    leaderboard.sort((a, b) => b.meanScore - a.meanScore);
+
+    return leaderboard;
+}
+
+/**
+ * Display agent leaderboard table
+ */
+function displayAgentLeaderboard(leaderboard) {
+    const tbody = document.getElementById('leaderboard-body');
+    if (!tbody) return;
+
+    if (!leaderboard || leaderboard.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No agents found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    const medals = ['🥇', '🥈', '🥉'];
+
+    leaderboard.forEach((agent, index) => {
+        const row = document.createElement('tr');
+        const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
+
+        row.innerHTML = `
+            <td>${rankDisplay}</td>
+            <td><strong>${agent.runner}:${agent.model}</strong></td>
+            <td><strong>${formatScore(agent.meanScore)}</strong></td>
+            <td>${agent.prCount}</td>
+            <td>${agent.bestAgentCount}</td>
+            <td>${formatPercentage(agent.winRate)}</td>
+        `;
+
+        tbody.appendChild(row);
+    });
 }
 
 /**

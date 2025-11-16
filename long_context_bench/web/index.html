@@ -40,6 +40,33 @@
                 </div>
             </section>
 
+            <section class="leaderboard">
+                <h2>Agent Leaderboard</h2>
+                <p class="section-description">
+                    Ranked by mean aggregate score across all evaluated PRs. Scores are based on LLM judge evaluation
+                    of correctness, completeness, code quality, and best practices.
+                </p>
+                <div class="table-container">
+                    <table id="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Agent</th>
+                                <th>Mean Score</th>
+                                <th>PRs Evaluated</th>
+                                <th>Best Agent Count</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <tr>
+                                <td colspan="6" class="loading">Loading leaderboard...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <section class="cross-agent-details">
                 <h2>Cross-Agent Analysis by PR</h2>
                 <p class="section-description">View LLM judge evaluations and comparative analysis for each PR</p>
