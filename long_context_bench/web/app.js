@@ -75,9 +75,23 @@ async function loadAgentLeaderboard() {
 function computeAgentLeaderboard(analyses) {
     const agentStats = {};
 
-    // Aggregate statistics for each agent
+    // First pass: collect all agents that participated in each PR
+    const prAgents = {};
     analyses.forEach(analysis => {
         if (!analysis.agent_results) return;
+        const prKey = `${analysis.repo_url}:${analysis.pr_number}`;
+        prAgents[prKey] = {
+            agents: analysis.agent_results.map(r => `${r.runner}:${r.model}`),
+            bestAgent: analysis.comparative_analysis?.best_agent || null
+        };
+    });
+
+    // Second pass: aggregate statistics for each agent
+    analyses.forEach(analysis => {
+        if (!analysis.agent_results) return;
+
+        const prKey = `${analysis.repo_url}:${analysis.pr_number}`;
+        const prInfo = prAgents[prKey];
 
         analysis.agent_results.forEach(result => {
             const agentKey = `${result.runner}:${result.model}`;
@@ -88,7 +102,9 @@ function computeAgentLeaderboard(analyses) {
                     model: result.model,
                     totalScore: 0,
                     prCount: 0,
-                    bestAgentCount: 0,
+                    wins: 0,
+                    losses: 0,
+                    ties: 0,
                     scores: []
                 };
             }
@@ -100,12 +116,21 @@ function computeAgentLeaderboard(analyses) {
                 agentStats[agentKey].prCount++;
             }
 
-            // Check if this agent is the best for this PR
-            if (analysis.comparative_analysis && analysis.comparative_analysis.best_agent) {
-                const bestAgent = analysis.comparative_analysis.best_agent;
-                if (bestAgent === agentKey) {
-                    agentStats[agentKey].bestAgentCount++;
+            // Determine win/loss/tie for this PR
+            if (prInfo.bestAgent) {
+                if (prInfo.bestAgent === agentKey) {
+                    // This agent won
+                    agentStats[agentKey].wins++;
+                } else if (prInfo.bestAgent.includes('tie') || prInfo.bestAgent.includes('Tie')) {
+                    // It's a tie
+                    agentStats[agentKey].ties++;
+                } else {
+                    // This agent lost
+                    agentStats[agentKey].losses++;
                 }
+            } else {
+                // No best agent determined, count as tie
+                agentStats[agentKey].ties++;
             }
         });
     });
@@ -114,7 +139,7 @@ function computeAgentLeaderboard(analyses) {
     const leaderboard = Object.keys(agentStats).map(agentKey => {
         const stats = agentStats[agentKey];
         const meanScore = stats.prCount > 0 ? stats.totalScore / stats.prCount : 0;
-        const winRate = stats.prCount > 0 ? stats.bestAgentCount / stats.prCount : 0;
+        const winRate = stats.prCount > 0 ? stats.wins / stats.prCount : 0;
 
         return {
             agentKey,
@@ -122,13 +147,20 @@ function computeAgentLeaderboard(analyses) {
             model: stats.model,
             meanScore,
             prCount: stats.prCount,
-            bestAgentCount: stats.bestAgentCount,
+            wins: stats.wins,
+            losses: stats.losses,
+            ties: stats.ties,
             winRate
         };
     });
 
-    // Sort by mean score (descending)
-    leaderboard.sort((a, b) => b.meanScore - a.meanScore);
+    // Sort by win rate (descending), then by mean score
+    leaderboard.sort((a, b) => {
+        if (b.winRate !== a.winRate) {
+            return b.winRate - a.winRate;
+        }
+        return b.meanScore - a.meanScore;
+    });
 
     return leaderboard;
 }
@@ -141,7 +173,7 @@ function displayAgentLeaderboard(leaderboard) {
     if (!tbody) return;
 
     if (!leaderboard || leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">No agents found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No agents found</td></tr>';
         return;
     }
 
@@ -155,11 +187,13 @@ function displayAgentLeaderboard(leaderboard) {
 
         row.innerHTML = `
             <td>${rankDisplay}</td>
+            <td><strong>${formatPercentage(agent.winRate)}</strong></td>
             <td><strong>${agent.runner}:${agent.model}</strong></td>
-            <td><strong>${formatScore(agent.meanScore)}</strong></td>
+            <td>${agent.wins}</td>
+            <td>${agent.losses}</td>
+            <td>${agent.ties}</td>
+            <td>${formatScore(agent.meanScore)}</td>
             <td>${agent.prCount}</td>
-            <td>${agent.bestAgentCount}</td>
-            <td>${formatPercentage(agent.winRate)}</td>
         `;
 
         tbody.appendChild(row);

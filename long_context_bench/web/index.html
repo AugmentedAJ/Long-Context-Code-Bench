@@ -43,7 +43,7 @@
             <section class="leaderboard">
                 <h2>Agent Leaderboard</h2>
                 <p class="section-description">
-                    Ranked by mean aggregate score across all evaluated PRs. Scores are based on LLM judge evaluation
+                    Ranked by win rate (percentage of PRs where agent was best). Scores are based on LLM judge evaluation
                     of correctness, completeness, code quality, and best practices.
                 </p>
                 <div class="table-container">
@@ -51,16 +51,18 @@
                         <thead>
                             <tr>
                                 <th>Rank</th>
+                                <th>Win Rate</th>
                                 <th>Agent</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                                <th>Ties</th>
                                 <th>Mean Score</th>
                                 <th>PRs Evaluated</th>
-                                <th>Best Agent Count</th>
-                                <th>Win Rate</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr>
-                                <td colspan="6" class="loading">Loading leaderboard...</td>
+                                <td colspan="8" class="loading">Loading leaderboard...</td>
                             </tr>
                         </tbody>
                     </table>
