@@ -32,6 +32,7 @@ async function loadIndex() {
         // Return empty index if file doesn't exist yet
         return {
             runs: [],
+            cross_agent_runs: [],
             test_labels: [],
             runners: [],
             models: [],
@@ -290,7 +291,7 @@ async function loadRunDetails(runId) {
 
     const index = dataCache.index || await loadIndex();
     const run = index.runs.find(r => r.run_id === runId);
-    
+
     if (!run || !run.pr_ids) {
         return { summary, edits: [], judges: [], samples: [] };
     }

@@ -1,0 +1,111 @@
+refactor: Remove head-to-head evaluation, keep cross-agent analysis only
+
+This commit removes all head-to-head (pairwise agent-as-judge) evaluation
+functionality, simplifying the benchmark to focus exclusively on cross-agent
+LLM-based comparative evaluation.
+
+## Motivation
+
+The head-to-head evaluation approach had several limitations:
+- More complex to implement and maintain (~2,000 lines of code)
+- Less powerful than LLM-based comparative analysis
+- Redundant with cross-agent analysis which provides richer insights
+- Created confusion with two evaluation paradigms
+
+Cross-agent analysis is superior because:
+- Provides detailed comparative analysis and reasoning
+- More transparent and verifiable
+- Single, consistent evaluation method
+- Easier to understand and maintain
+
+## Changes
+
+### Backend (Python)
+- **models.py**: Removed 5 head-to-head data models (90 lines)
+  - PairwiseJudgeDecision, HeadToHeadAgentStats, HeadToHeadPRResult
+  - HeadToHeadAgentSummary, HeadToHeadGlobalSummary
+- **stages/head_to_head.py**: Deleted entire file (670 lines)
+- **ranking.py**: Deleted entire file (145 lines)
+  - Removed ELO rating and win/loss matrix computation
+- **cli.py**: Removed head-to-head-pr command (60 lines)
+  - Removed --format head-to-head option from compare command
+- **stats.py**: Removed generate_head_to_head_summary() (197 lines)
+  - Removed head_to_head_runs from index structure
+  - Removed h2h directory scanning logic
+
+### Tests
+- **test_head_to_head_parsing.py**: Deleted (89 lines)
+- **test_ranking.py**: Deleted (62 lines)
+- **test_models.py**: Removed h2h model tests (137 lines)
+
+### Web UI
+- **index.html**: Removed h2h leaderboard section (27 lines)
+  - Updated description to reflect cross-agent evaluation
+- **app.js**: Removed 7 h2h functions (286 lines)
+  - Updated to use cross-agent display functions
+- **data-loader.js**: Removed 4 h2h functions (175 lines)
+  - Removed head_to_head_runs from mock index
+- **comparison.html**: Removed win/loss matrix section (16 lines)
+- **server.js**: Removed h2h API endpoints (24 lines)
+
+### Data
+- Removed output/head_to_head/ directory (40 files)
+- Updated output/index.json to remove head_to_head_runs
+- Updated output/web/index.json to remove head_to_head_runs
+
+## Impact
+
+### Code Reduction
+- **Total lines removed**: ~1,954 lines
+- **Files deleted**: 5 (2 Python modules, 2 test files, 1 data directory)
+- **Files modified**: 11
+
+### Breaking Changes
+- CLI command `head-to-head-pr` no longer available
+- CLI option `compare --format head-to-head` no longer available
+- Web UI no longer shows head-to-head leaderboard
+- output/head_to_head/ directory no longer used
+
+### No Impact
+- ✅ Cross-agent analysis fully functional
+- ✅ All cross-agent data preserved (40 analyses)
+- ✅ All other CLI commands work
+- ✅ Core benchmark functionality intact
+- ✅ Web UI verified working with Playwright
+
+## Testing
+
+- Web UI tested with Playwright browser automation
+- All 40 cross-agent analyses load and display correctly
+- Detail views show comparative analysis, scores, and judgments
+- No JavaScript errors in console
+- Navigation works correctly (list view, detail view, back button)
+
+## Documentation
+
+Added comprehensive refactor documentation:
+- REFACTOR_PLAN_REMOVE_H2H.md - Complete refactoring guide
+- REFACTOR_STATUS.md - Progress tracking
+- REFACTOR_COMPLETE.md - Final summary with verification
+- scripts/complete_h2h_removal.sh - Automation script
+
+## Migration Guide
+
+For users of the head-to-head functionality:
+- Use `analyze-pr` command instead of `head-to-head-pr`
+- Use `compare --format leaderboard` instead of `--format head-to-head`
+- Cross-agent analysis provides richer insights than h2h comparisons
+
+## Future Work
+
+Optional documentation cleanup (non-critical):
+- Update README.md to remove h2h references
+- Update plan.md to remove h2h design sections
+- Simplify scripts/fix_duplicate_h2h.py
+
+---
+
+This refactor significantly simplifies the codebase while maintaining all
+core functionality. The benchmark now has a single, powerful evaluation
+method that is easier to understand, maintain, and extend.
+

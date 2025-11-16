@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 from long_context_bench.runners.base import RunnerAdapter, RunnerResult
-from long_context_bench.runners.stream_utils import run_with_streaming
+from long_context_bench.runners.stream_utils import run_with_streaming, run_with_pty
 
 
 class ClaudeCodeAdapter(RunnerAdapter):
@@ -103,8 +103,10 @@ class ClaudeCodeAdapter(RunnerAdapter):
                     "anthropic_api_key_present": api_key_present,
                 }) + "\n")
 
-            # Run agent with optional streaming
-            returncode, stdout = run_with_streaming(
+            # Run agent with optional streaming under a PTY to satisfy Claude Code's
+            # expectation of a TTY stdin. This avoids Ink raw-mode failures in
+            # non-interactive environments (e.g., CI, headless runners).
+            returncode, stdout = run_with_pty(
                 cmd=cmd,
                 cwd=str(workspace_path),
                 env=run_env,

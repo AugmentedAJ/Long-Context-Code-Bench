@@ -255,7 +255,6 @@ def analyze_pr(
     else:
         click.echo("Cross-agent analysis failed")
 
-
 @main.command()
 @click.option("--runner", required=True, help="Agent runner name")
 @click.option("--model", required=True, help="Model name")
@@ -521,6 +520,7 @@ def compare(results_dir: str, test_label: str, output_file: Optional[str], forma
     from long_context_bench.stats import generate_comparison
 
     click.echo(f"Generating {format} for test label: {test_label}")
+
     generate_comparison(
         results_dir=Path(results_dir),
         test_label=test_label,
@@ -528,6 +528,7 @@ def compare(results_dir: str, test_label: str, output_file: Optional[str], forma
         format=format,
         rank_by=rank_by,
     )
+
     click.echo(f"{format.capitalize()} generation completed")
 
 

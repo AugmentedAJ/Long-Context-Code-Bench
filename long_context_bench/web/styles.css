@@ -1158,3 +1158,48 @@ footer {
     background: #ffebee;
     color: #c62828;
 }
+
+/* Score Breakdown */
+.score-breakdown {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.score-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.score-item:last-child {
+    border-bottom: none;
+}
+
+.score-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.score-value {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.score-value.score-positive {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.score-value.score-negative {
+    background: #ffebee;
+    color: #c62828;
+}

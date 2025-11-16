@@ -200,14 +200,51 @@ function displayAgentDetails(agentResults) {
         const aggregateScore = result.aggregate.toFixed(2);
         const scoreClass = result.aggregate >= 0 ? 'score-positive' : 'score-negative';
 
+        // Format individual scores
+        const scoresHtml = result.scores ? `
+            <div class="score-breakdown">
+                <div class="score-item">
+                    <span class="score-label">Correctness:</span>
+                    <span class="score-value ${result.scores.correctness >= 0 ? 'score-positive' : 'score-negative'}">
+                        ${result.scores.correctness.toFixed(2)}
+                    </span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Completeness:</span>
+                    <span class="score-value ${result.scores.completeness >= 0 ? 'score-positive' : 'score-negative'}">
+                        ${result.scores.completeness.toFixed(2)}
+                    </span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Code Reuse:</span>
+                    <span class="score-value ${result.scores.code_reuse >= 0 ? 'score-positive' : 'score-negative'}">
+                        ${result.scores.code_reuse.toFixed(2)}
+                    </span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Best Practices:</span>
+                    <span class="score-value ${result.scores.best_practices >= 0 ? 'score-positive' : 'score-negative'}">
+                        ${result.scores.best_practices.toFixed(2)}
+                    </span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Unsolicited Docs:</span>
+                    <span class="score-value ${result.scores.unsolicited_docs >= 0 ? 'score-positive' : 'score-negative'}">
+                        ${result.scores.unsolicited_docs.toFixed(2)}
+                    </span>
+                </div>
+            </div>
+        ` : '';
+
         return `
         <div class="card">
             <div class="agent-header">
                 <h4>${result.runner}:${result.model}</h4>
             </div>
             <div class="judged-score-section">
-                <h5>Judged Score</h5>
+                <h5>Aggregate Score</h5>
                 <span class="agent-score ${scoreClass}">${aggregateScore}</span>
+                ${scoresHtml}
             </div>
             ${result.rationale ? `
                 <div class="rationale-section">

@@ -21,15 +21,16 @@
                     the ability to understand, modify, and integrate changes across massive real-world repositories.
                 </p>
                 <p>
-                    This leaderboard shows results from <strong>cross-agent comparative analysis</strong>, where an LLM judge evaluates
-                    multiple agents solving the same real GitHub PRs and ranks them based on correctness, completeness, code reuse,
-                    and best practices. Each agent is tested on recreating actual PR changes given only the PR description—no access
-                    to the solution or git history.
+                    This benchmark uses <strong>cross-agent LLM-based evaluation</strong>, where a powerful LLM judge evaluates
+                    all agent solutions to the same real GitHub PRs. Each agent is tested on recreating actual PR changes
+                    given only the PR description—no access to the solution or git history. The LLM judge then provides
+                    detailed comparative analysis, scoring each solution on correctness, completeness, code quality, and integration.
                 </p>
                 <p>
-                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view the LLM judge's detailed commentary,
-                    side-by-side diff comparisons, and complete agent execution logs—making this the most transparent and verifiable
-                    coding agent benchmark available. The entire benchmark is <strong>reproducible and fully open source</strong> at
+                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view the LLM judge's detailed
+                    rationale, comparative analysis, side-by-side diff comparisons, and complete agent execution logs—making this
+                    the most transparent and verifiable coding agent benchmark available. The entire benchmark is
+                    <strong>reproducible and fully open source</strong> at
                     <a href="https://github.com/AugmentedAJ/Long-Context-Code-Bench" target="_blank">github.com/AugmentedAJ/Long-Context-Code-Bench</a>.
                 </p>
                 <div class="version-notice">
@@ -41,24 +42,27 @@
 
             <section class="leaderboard">
                 <h2>Agent Leaderboard</h2>
-                <p class="section-description">Ranked by aggregate LLM judge score from cross-agent comparative analysis</p>
+                <p class="section-description">
+                    Ranked by win rate (percentage of PRs where agent was best). Scores are based on LLM judge evaluation
+                    of correctness, completeness, code quality, and best practices.
+                </p>
                 <div class="table-container">
                     <table id="leaderboard-table">
                         <thead>
                             <tr>
-                                <th class="sortable" data-sort="rank">Rank</th>
-                                <th class="sortable" data-sort="runner">Runner</th>
-                                <th class="sortable" data-sort="model">Model</th>
-                                <th class="sortable" data-sort="win_rate">Win Rate</th>
-                                <th class="sortable" data-sort="wins">Wins</th>
-                                <th class="sortable" data-sort="mean_correctness">Correctness</th>
-                                <th class="sortable" data-sort="mean_completeness">Completeness</th>
-                                <th class="sortable" data-sort="mean_code_reuse">Code Reuse</th>
+                                <th>Rank</th>
+                                <th>Win Rate</th>
+                                <th>Agent</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                                <th>Ties</th>
+                                <th>Mean Score</th>
+                                <th>PRs Evaluated</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr>
-                                <td colspan="9" class="loading">Loading data...</td>
+                                <td colspan="8" class="loading">Loading leaderboard...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -66,8 +70,8 @@
             </section>
 
             <section class="cross-agent-details">
-                <h2>Cross-Agent Analysis Details</h2>
-                <p class="section-description">Detailed comparative analysis for each PR</p>
+                <h2>Cross-Agent Analysis by PR</h2>
+                <p class="section-description">View LLM judge evaluations and comparative analysis for each PR</p>
 
                 <!-- Analysis List -->
                 <div class="analysis-list-container">
@@ -145,7 +149,7 @@
         </footer>
     </div>
 
-    <script src="lib/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="data-loader.js"></script>
     <script src="charts.js"></script>
     <script src="cross-agent.js"></script>
@@ -159,9 +163,9 @@
             const backButton = document.getElementById('back-button');
             if (backButton) {
                 backButton.addEventListener('click', () => {
-                    if (typeof showAnalysisList === 'function') {
-                        showAnalysisList();
-                    }
+                    // Show the PR list again
+                    document.getElementById('analysis-list').style.display = 'block';
+                    document.getElementById('analysis-detail').style.display = 'none';
                 });
             }
         });

@@ -189,4 +189,3 @@ class CrossAgentJudge(BaseModel):
     comparative_analysis: Optional[ComparativeAnalysis] = None  # LLM comparative analysis
     timestamp: str
     analysis_run_id: str  # Unique ID for this cross-agent analysis run
-

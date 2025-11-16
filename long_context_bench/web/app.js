@@ -8,6 +8,7 @@ let filteredSummaries = [];
 let currentSort = { field: 'win_rate', ascending: false };
 let crossAgentAnalyses = [];
 let crossAgentLeaderboard = [];
+let headToHeadLeaderboard = [];
 
 // Lazy loading state
 let leaderboardDisplayCount = 3; // Start with top 3
@@ -16,38 +17,223 @@ const LEADERBOARD_INCREMENT = 10;
 const CROSS_AGENT_INCREMENT = 20;
 
 /**
- * Load and display leaderboard
+ * Load and display leaderboard (cross-agent analysis)
  */
 async function loadLeaderboard() {
     try {
         const index = await loadIndex();
 
-        // Load cross-agent analysis data
-        crossAgentAnalyses = await loadAllCrossAgentAnalyses();
+        // Load and display agent leaderboard
+        await loadAgentLeaderboard();
 
-        if (crossAgentAnalyses.length > 0) {
-            // Use cross-agent analysis for leaderboard
-            crossAgentLeaderboard = aggregateCrossAgentData(crossAgentAnalyses);
-            currentSummaries = crossAgentLeaderboard;
-        } else {
-            // Fallback to regular summaries if no cross-agent data
-            currentSummaries = await loadAllSummaries();
-        }
-
-        // Display leaderboard
-        displayLeaderboard(currentSummaries);
-
-        // Load cross-agent analysis details
-        if (typeof loadCrossAgentAnalyses === 'function') {
-            await loadCrossAgentAnalyses();
-        }
+        // Load cross-agent analyses
+        await loadCrossAgentAnalyses();
 
         // Update timestamp
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        document.getElementById('leaderboard-body').innerHTML =
-            '<tr><td colspan="9" class="loading">Error loading data. Make sure the benchmark has been run.</td></tr>';
+        const listContainer = document.getElementById('analysis-list');
+        if (listContainer) {
+            listContainer.innerHTML = '<p class="loading">Error loading data. Make sure the benchmark has been run.</p>';
+        }
+    }
+}
+
+/**
+ * Load and display agent leaderboard
+ */
+async function loadAgentLeaderboard() {
+    const tbody = document.getElementById('leaderboard-body');
+
+    try {
+        const analyses = await loadAllCrossAgentAnalyses();
+
+        if (!analyses || analyses.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">No analyses found</td></tr>';
+            }
+            return;
+        }
+
+        // Compute agent statistics
+        const agentStats = computeAgentLeaderboard(analyses);
+
+        // Display leaderboard
+        displayAgentLeaderboard(agentStats);
+    } catch (error) {
+        console.error('Error loading agent leaderboard:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">Error loading leaderboard</td></tr>';
+        }
+    }
+}
+
+/**
+ * Compute agent leaderboard statistics from cross-agent analyses
+ */
+function computeAgentLeaderboard(analyses) {
+    const agentStats = {};
+
+    // First pass: collect all agents that participated in each PR
+    const prAgents = {};
+    analyses.forEach(analysis => {
+        if (!analysis.agent_results) return;
+        const prKey = `${analysis.repo_url}:${analysis.pr_number}`;
+        prAgents[prKey] = {
+            agents: analysis.agent_results.map(r => `${r.runner}:${r.model}`),
+            bestAgent: analysis.comparative_analysis?.best_agent || null
+        };
+    });
+
+    // Second pass: aggregate statistics for each agent
+    analyses.forEach(analysis => {
+        if (!analysis.agent_results) return;
+
+        const prKey = `${analysis.repo_url}:${analysis.pr_number}`;
+        const prInfo = prAgents[prKey];
+
+        analysis.agent_results.forEach(result => {
+            const agentKey = `${result.runner}:${result.model}`;
+
+            if (!agentStats[agentKey]) {
+                agentStats[agentKey] = {
+                    runner: result.runner,
+                    model: result.model,
+                    totalScore: 0,
+                    prCount: 0,
+                    wins: 0,
+                    losses: 0,
+                    ties: 0,
+                    scores: []
+                };
+            }
+
+            // Add score if available
+            if (typeof result.aggregate === 'number') {
+                agentStats[agentKey].totalScore += result.aggregate;
+                agentStats[agentKey].scores.push(result.aggregate);
+                agentStats[agentKey].prCount++;
+            }
+
+            // Determine win/loss/tie for this PR
+            if (prInfo.bestAgent) {
+                if (prInfo.bestAgent === agentKey) {
+                    // This agent won
+                    agentStats[agentKey].wins++;
+                } else if (prInfo.bestAgent.includes('tie') || prInfo.bestAgent.includes('Tie')) {
+                    // It's a tie
+                    agentStats[agentKey].ties++;
+                } else {
+                    // This agent lost
+                    agentStats[agentKey].losses++;
+                }
+            } else {
+                // No best agent determined, count as tie
+                agentStats[agentKey].ties++;
+            }
+        });
+    });
+
+    // Compute derived statistics
+    const leaderboard = Object.keys(agentStats).map(agentKey => {
+        const stats = agentStats[agentKey];
+        const meanScore = stats.prCount > 0 ? stats.totalScore / stats.prCount : 0;
+        const winRate = stats.prCount > 0 ? stats.wins / stats.prCount : 0;
+
+        return {
+            agentKey,
+            runner: stats.runner,
+            model: stats.model,
+            meanScore,
+            prCount: stats.prCount,
+            wins: stats.wins,
+            losses: stats.losses,
+            ties: stats.ties,
+            winRate
+        };
+    });
+
+    // Sort by win rate (descending), then by mean score
+    leaderboard.sort((a, b) => {
+        if (b.winRate !== a.winRate) {
+            return b.winRate - a.winRate;
+        }
+        return b.meanScore - a.meanScore;
+    });
+
+    return leaderboard;
+}
+
+/**
+ * Display agent leaderboard table
+ */
+function displayAgentLeaderboard(leaderboard) {
+    const tbody = document.getElementById('leaderboard-body');
+    if (!tbody) return;
+
+    if (!leaderboard || leaderboard.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No agents found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    const medals = ['🥇', '🥈', '🥉'];
+
+    leaderboard.forEach((agent, index) => {
+        const row = document.createElement('tr');
+        const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
+
+        row.innerHTML = `
+            <td>${rankDisplay}</td>
+            <td><strong>${formatPercentage(agent.winRate)}</strong></td>
+            <td><strong>${agent.runner}:${agent.model}</strong></td>
+            <td>${agent.wins}</td>
+            <td>${agent.losses}</td>
+            <td>${agent.ties}</td>
+            <td>${formatScore(agent.meanScore)}</td>
+            <td>${agent.prCount}</td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Load and display cross-agent analyses
+ * Note: This function is defined in both app.js and cross-agent.js
+ * The cross-agent.js version is used on the cross-agent.html page
+ * This version is used on the index.html page
+ */
+async function loadCrossAgentAnalyses() {
+    try {
+        const analyses = await loadAllCrossAgentAnalyses();
+
+        if (!analyses || analyses.length === 0) {
+            const listContainer = document.getElementById('analysis-list');
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="loading">No cross-agent analyses found. Run cross-agent analysis first.</p>';
+            }
+            return;
+        }
+
+        // Set currentAnalyses for the detail view to work
+        currentAnalyses = analyses;
+
+        // Display list of PRs with cross-agent analyses
+        // Use the function from cross-agent.js
+        if (typeof displayAnalysisList === 'function') {
+            displayAnalysisList(analyses);
+        } else {
+            console.error('displayAnalysisList function not found');
+        }
+    } catch (error) {
+        console.error('Error loading cross-agent analyses:', error);
+        const listContainer = document.getElementById('analysis-list');
+        if (listContainer) {
+            listContainer.innerHTML = '<p class="loading">Error loading cross-agent analyses</p>';
+        }
     }
 }
 
@@ -56,7 +242,7 @@ async function loadLeaderboard() {
  */
 function updateOverviewStats(index, summaries) {
     document.getElementById('total-runs').textContent = summaries.length;
-    
+
     const uniqueAgents = new Set();
     summaries.forEach(s => {
         if (s.runner && s.model) {
@@ -64,7 +250,7 @@ function updateOverviewStats(index, summaries) {
         }
     });
     document.getElementById('total-agents').textContent = uniqueAgents.size;
-    
+
     const totalSamples = summaries.reduce((sum, s) => sum + (s.total_samples || 0), 0);
     document.getElementById('total-samples').textContent = totalSamples;
 
@@ -86,7 +272,7 @@ function populateFilters(index) {
     const runners = getUniqueValues(index.runs, 'runner');
     const models = getUniqueValues(index.runs, 'model');
     const labels = getUniqueValues(index.runs, 'test_label');
-    
+
     populateSelect('filter-runner', runners);
     populateSelect('filter-model', models);
     populateSelect('filter-label', labels);
@@ -98,18 +284,18 @@ function populateFilters(index) {
 function populateSelect(selectId, values) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    
+
     // Keep the "All" option
     const currentValue = select.value;
     select.innerHTML = '<option value="">All</option>';
-    
+
     values.forEach(value => {
         const option = document.createElement('option');
         option.value = value;
         option.textContent = value;
         select.appendChild(option);
     });
-    
+
     select.value = currentValue;
 }
 
@@ -279,14 +465,14 @@ async function loadRunSummary(identifier) {
         const data = identifier.startsWith('summaries/')
             ? await loadRunDetailsByPath(identifier)
             : await loadRunDetails(identifier);
-        
+
         if (!data || !data.summary) {
             alert('Failed to load run data');
             return;
         }
-        
+
         const { summary, edits, judges, samples } = data;
-        
+
         // Update run info
         document.getElementById('info-run-id').textContent = summary.run_id || '-';
         document.getElementById('info-runner').textContent = summary.runner || '-';
@@ -294,7 +480,7 @@ async function loadRunSummary(identifier) {
         document.getElementById('info-test-label').textContent = summary.test_label || '-';
         document.getElementById('info-edit-run-id').textContent = summary.edit_run_id || '-';
         document.getElementById('info-judge-run-id').textContent = summary.judge_run_id || '-';
-        
+
         // Update metrics
         document.getElementById('metric-aggregate').textContent = summary.mean_aggregate.toFixed(2);
         document.getElementById('metric-std').textContent = summary.std_aggregate.toFixed(2);
@@ -308,14 +494,14 @@ async function loadRunSummary(identifier) {
         document.getElementById('metric-unsolicited-docs').textContent = summary.mean_unsolicited_docs.toFixed(2);
         document.getElementById('metric-tasks-per-hour').textContent = summary.tasks_per_hour.toFixed(2);
         document.getElementById('metric-elapsed').textContent = summary.mean_elapsed_ms.toFixed(0);
-        
+
         // Update charts
         createScoreBreakdownChart('score-breakdown-chart', summary);
         createRunScoreDistribution('score-distribution-chart', judges);
-        
+
         // Display PR results
         displayPRResults(edits, judges, samples);
-        
+
         // Update timestamp
         const index = await loadIndex();
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);

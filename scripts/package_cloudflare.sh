@@ -71,6 +71,14 @@ if [ -d "$OUTPUT_DIR/cross_agent_analysis" ]; then
     cp -r "$OUTPUT_DIR/cross_agent_analysis"/* "$PACKAGE_DIR/cross_agent_analysis/" 2>/dev/null || true
 fi
 
+# Copy head-to-head results
+echo "⚔️  Copying head-to-head results..."
+if [ -d "$OUTPUT_DIR/head_to_head" ]; then
+    mkdir -p "$PACKAGE_DIR/head_to_head"
+    cp -r "$OUTPUT_DIR/head_to_head"/* "$PACKAGE_DIR/head_to_head/" 2>/dev/null || true
+fi
+
+
 # Create _headers file for Cloudflare Pages (optional, for CORS and caching)
 echo "⚙️  Creating Cloudflare configuration..."
 cat > "$PACKAGE_DIR/_headers" << 'EOF'

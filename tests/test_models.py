@@ -3,7 +3,8 @@
 import pytest
 from long_context_bench.models import (
     Sample, SampleStats, Edit, Judge, Scores,
-    EditRunManifest, JudgeRunManifest, AggregateSummary
+    EditRunManifest, JudgeRunManifest, AggregateSummary,
+    AgentResult,
 )
 
 
@@ -32,7 +33,7 @@ def test_sample():
         context_size_bytes=10000,
         truncated=False,
     )
-    
+
     sample = Sample(
         dataset_version="v0",
         repo_url="https://github.com/elastic/elasticsearch",
@@ -42,7 +43,7 @@ def test_sample():
         task_instructions="Fix bug in search",
         stats=stats,
     )
-    
+
     assert sample.dataset_version == "v0"
     assert sample.pr_number == 115001
     assert sample.stats.files_changed == 5
@@ -79,10 +80,10 @@ def test_scores():
         best_practices=0.85,
         unsolicited_docs=1.0,
     )
-    
+
     assert scores.correctness == 0.8
     assert scores.completeness == 0.9
-    
+
     # Test bounds
     with pytest.raises(ValueError):
         Scores(
@@ -103,7 +104,7 @@ def test_judge():
         best_practices=0.85,
         unsolicited_docs=1.0,
     )
-    
+
     judge = Judge(
         repo_url="https://github.com/elastic/elasticsearch",
         pr_number=115001,
@@ -115,7 +116,7 @@ def test_judge():
         aggregate=0.85,
         rationale=None,
     )
-    
+
     assert judge.judge_mode == "deterministic"
     assert judge.aggregate == 0.85
     assert judge.scores.correctness == 0.8
@@ -188,5 +189,3 @@ def test_aggregate_summary_with_test_label():
     assert summary.runner == "auggie"
     assert summary.model == "claude-sonnet-4.5"
     assert summary.mean_aggregate == 0.78
-
-

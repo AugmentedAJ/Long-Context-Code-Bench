@@ -117,38 +117,38 @@ def compute_aggregate_summary(
 
 def load_results_from_dir(results_dir: Path) -> tuple[List[Sample], List[Edit], List[Judge]]:
     """Load all results from a directory.
-    
+
     Args:
         results_dir: Results directory
-        
+
     Returns:
         Tuple of (samples, edits, judges)
     """
     samples = []
     edits = []
     judges = []
-    
+
     # Load samples
     samples_dir = results_dir / "samples"
     if samples_dir.exists():
         for sample_file in samples_dir.rglob("sample.json"):
             with open(sample_file) as f:
                 samples.append(Sample(**json.load(f)))
-    
+
     # Load edits
     edits_dir = results_dir / "edits"
     if edits_dir.exists():
         for edit_file in edits_dir.rglob("edit.json"):
             with open(edit_file) as f:
                 edits.append(Edit(**json.load(f)))
-    
+
     # Load judges
     judges_dir = results_dir / "judges"
     if judges_dir.exists():
         for judge_file in judges_dir.rglob("judge.json"):
             with open(judge_file) as f:
                 judges.append(Judge(**json.load(f)))
-    
+
     return samples, edits, judges
 
 
@@ -406,10 +406,6 @@ def generate_comparison(
             df.to_csv(output_file, index=False)
 
         console.print(f"\n[green]Comparison written to {output_file}[/green]")
-
-    # Update web app
-    update_web_app(results_dir)
-
 
 def _display_leaderboard(summaries: dict, test_label: str, rank_by: str) -> None:
     """Display leaderboard table with rankings.
@@ -699,7 +695,7 @@ def generate_index_manifest(output_dir: Path) -> None:
         "test_labels": set(),
         "runners": set(),
         "models": set(),
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": datetime.utcnow().isoformat(),
     }
 
     # Scan summaries directory
@@ -760,6 +756,9 @@ def generate_index_manifest(output_dir: Path) -> None:
     # Scan cross-agent analysis directory
     cross_agent_dir = output_dir / "cross_agent_analysis"
     if cross_agent_dir.exists():
+        # Group by PR number and keep only the latest result per PR
+        pr_to_analyses = {}
+
         for analysis_file in cross_agent_dir.glob("*.json"):
             try:
                 with open(analysis_file) as f:
@@ -780,12 +779,36 @@ def generate_index_manifest(output_dir: Path) -> None:
                         "test_label": analysis.get("test_label"),
                         "judge_mode": analysis.get("judge_mode"),
                         "judge_model": analysis.get("judge_model"),
+                        "timestamp": analysis.get("timestamp"),
+                        "file_path": analysis_file,
                     }
 
-                    index["cross_agent_runs"].append(cross_agent_info)
-
+                    # Keep track of all analyses for this PR
+                    if pr_number not in pr_to_analyses:
+                        pr_to_analyses[pr_number] = []
+                    pr_to_analyses[pr_number].append(cross_agent_info)
             except Exception as e:
                 console.print(f"[yellow]Warning: Failed to process {analysis_file}: {e}[/yellow]")
+
+        # For each PR, keep only the latest analysis (by timestamp)
+        for pr_number, analyses in pr_to_analyses.items():
+            if len(analyses) == 1:
+                # Only one analysis, use it
+                analysis = analyses[0]
+            else:
+                # Multiple analyses, sort by timestamp and keep the latest
+                analyses_with_timestamp = [a for a in analyses if a.get("timestamp")]
+                if analyses_with_timestamp:
+                    analyses_with_timestamp.sort(key=lambda a: a["timestamp"], reverse=True)
+                    analysis = analyses_with_timestamp[0]
+                    console.print(f"[yellow]Found {len(analyses)} cross-agent analyses for PR {pr_number}, keeping latest: {analysis['file']}[/yellow]")
+                else:
+                    # No timestamps, just use the first one
+                    analysis = analyses[0]
+
+            # Remove file_path before adding to index
+            analysis_copy = {k: v for k, v in analysis.items() if k != "file_path"}
+            index["cross_agent_runs"].append(analysis_copy)
 
     # Convert sets to sorted lists
     index["test_labels"] = sorted(list(index["test_labels"]))
