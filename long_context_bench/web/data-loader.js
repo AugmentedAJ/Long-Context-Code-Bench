@@ -557,6 +557,7 @@ function aggregateCrossAgentData(analyses) {
     }));
 
     return leaderboard;
+}
 
 /**
  * Load all head-to-head result files (HeadToHeadPRResult artifacts).

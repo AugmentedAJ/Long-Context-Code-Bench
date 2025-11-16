@@ -123,6 +123,30 @@ app.get('/api/cross_agent_analysis/:filename', (req, res) => {
     res.sendFile(analysisPath);
 });
 
+// API endpoint to list head-to-head results
+app.get('/api/head_to_head/', (req, res) => {
+    const h2hDir = path.join(OUTPUT_DIR, 'head_to_head');
+
+    if (!fs.existsSync(h2hDir)) {
+        return res.json([]);
+    }
+
+    const files = fs.readdirSync(h2hDir).filter(f => f.endsWith('.json'));
+    res.json(files);
+});
+
+// API endpoint to get a specific head-to-head result
+app.get('/api/head_to_head/:filename', (req, res) => {
+    const { filename } = req.params;
+    const h2hPath = path.join(OUTPUT_DIR, 'head_to_head', filename);
+
+    if (!fs.existsSync(h2hPath)) {
+        return res.status(404).json({ error: `Head-to-head result not found` });
+    }
+
+    res.sendFile(h2hPath);
+});
+
 // Serve data files directly (for task detail page)
 app.use('/data', express.static(OUTPUT_DIR));
 
