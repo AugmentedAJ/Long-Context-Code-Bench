@@ -17,290 +17,61 @@ const LEADERBOARD_INCREMENT = 10;
 const CROSS_AGENT_INCREMENT = 20;
 
 /**
- * Load and display leaderboard (head-to-head only)
+ * Load and display leaderboard (cross-agent analysis)
  */
 async function loadLeaderboard() {
     try {
         const index = await loadIndex();
 
-        // Load head-to-head results
-        await loadHeadToHeadLeaderboard();
-
-        // Load head-to-head PR details
-        if (typeof loadHeadToHeadPRDetails === 'function') {
-            await loadHeadToHeadPRDetails();
-        }
+        // Load cross-agent analyses
+        await loadCrossAgentAnalyses();
 
         // Update timestamp
         document.getElementById('last-updated').textContent = formatTimestamp(index.last_updated);
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        const tbody = document.getElementById('h2h-leaderboard-body');
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading data. Make sure the benchmark has been run.</td></tr>';
-        }
-    }
-}
-
-/**
- * Load and display head-to-head leaderboard (Elo-based).
- */
-async function loadHeadToHeadLeaderboard() {
-    const tbody = document.getElementById('h2h-leaderboard-body');
-
-    try {
-        const results = await loadAllHeadToHeadResults();
-
-        if (!results || results.length === 0) {
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found. Run head-to-head evaluation first.</td></tr>';
-            }
-            return;
-        }
-
-        headToHeadLeaderboard = aggregateHeadToHeadData(results);
-        displayHeadToHeadLeaderboard(headToHeadLeaderboard);
-    } catch (error) {
-        console.error('Error loading head-to-head leaderboard:', error);
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading head-to-head results</td></tr>';
-        }
-    }
-}
-
-/**
- * Display head-to-head leaderboard table.
- */
-function displayHeadToHeadLeaderboard(leaderboard) {
-    const tbody = document.getElementById('h2h-leaderboard-body');
-    if (!tbody) return;
-
-    if (!leaderboard || leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = '';
-
-    const medals = ['🥇', '🥈', '🥉'];
-
-    leaderboard.forEach((agent, index) => {
-        const row = document.createElement('tr');
-        const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
-
-        row.innerHTML = `
-            <td>${rankDisplay}</td>
-            <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-            <td>${agent.wins}</td>
-            <td>${agent.losses}</td>
-            <td>${agent.ties}</td>
-            <td>${formatPercentage(agent.win_rate)}</td>
-            <td><strong>${agent.elo_rating.toFixed(1)}</strong></td>
-        `;
-
-        tbody.appendChild(row);
-    });
-}
-
-/**
- * Load and display head-to-head PR details
- */
-async function loadHeadToHeadPRDetails() {
-    try {
-        const results = await loadAllHeadToHeadResults();
-
-        if (!results || results.length === 0) {
-            const listContainer = document.getElementById('analysis-list');
-            if (listContainer) {
-                listContainer.innerHTML = '<p class="loading">No head-to-head results found</p>';
-            }
-            return;
-        }
-
-        // Display list of PRs with head-to-head results
-        displayHeadToHeadPRList(results);
-    } catch (error) {
-        console.error('Error loading head-to-head PR details:', error);
         const listContainer = document.getElementById('analysis-list');
         if (listContainer) {
-            listContainer.innerHTML = '<p class="loading">Error loading head-to-head results</p>';
+            listContainer.innerHTML = '<p class="loading">Error loading data. Make sure the benchmark has been run.</p>';
         }
     }
 }
 
 /**
- * Display list of PRs with head-to-head results
+ * Load and display cross-agent analyses
+ * Note: This function is defined in both app.js and cross-agent.js
+ * The cross-agent.js version is used on the cross-agent.html page
+ * This version is used on the index.html page
  */
-function displayHeadToHeadPRList(results) {
-    const listContainer = document.getElementById('analysis-list');
-    if (!listContainer) return;
-
-    // Sort by PR number
-    const sorted = [...results].sort((a, b) => a.pr_number - b.pr_number);
-
-    // Create table
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>PR Number</th>
-                <th>Agents</th>
-                <th>Pairwise Decisions</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="h2h-pr-list-body"></tbody>
-    `;
-
-    listContainer.innerHTML = '';
-    listContainer.appendChild(table);
-
-    const tbody = document.getElementById('h2h-pr-list-body');
-
-    sorted.forEach(result => {
-        const row = document.createElement('tr');
-        const agentCount = result.agent_results ? result.agent_results.length : 0;
-        const decisionCount = result.pairwise_decisions ? result.pairwise_decisions.length : 0;
-
-        row.innerHTML = `
-            <td><strong>${result.pr_number}</strong></td>
-            <td>${agentCount} agents</td>
-            <td>${decisionCount} decisions</td>
-            <td>
-                <button class="btn-primary" onclick="showHeadToHeadDetail('${result.head_to_head_run_id}', ${result.pr_number})">
-                    View Details
-                </button>
-            </td>
-        `;
-
-        tbody.appendChild(row);
-    });
-}
-
-
-/**
- * Show head-to-head detail view for a specific PR
- */
-async function showHeadToHeadDetail(runId, prNumber) {
+async function loadCrossAgentAnalyses() {
     try {
-        // Find the result for this PR
-        const results = await loadAllHeadToHeadResults();
-        const result = results.find(r => r.pr_number === prNumber);
+        const analyses = await loadAllCrossAgentAnalyses();
 
-        if (!result) {
-            alert('Head-to-head result not found for PR ' + prNumber);
+        if (!analyses || analyses.length === 0) {
+            const listContainer = document.getElementById('analysis-list');
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="loading">No cross-agent analyses found. Run cross-agent analysis first.</p>';
+            }
             return;
         }
 
-        // Hide list, show detail
-        document.getElementById('analysis-list').style.display = 'none';
-        document.getElementById('analysis-detail').style.display = 'block';
+        // Set currentAnalyses for the detail view to work
+        currentAnalyses = analyses;
 
-        // Set title
-        document.getElementById('detail-title').textContent = `PR ${prNumber} - Head-to-Head Results`;
-
-        // Show task instructions
-        document.getElementById('task-instructions').textContent = result.task_instructions || 'N/A';
-
-        // Hide comparative section (not used in head-to-head)
-        document.getElementById('comparative-section').style.display = 'none';
-
-        // Display agent results
-        displayHeadToHeadAgentResults(result);
-
-        // Display pairwise decisions
-        displayPairwiseDecisions(result);
-
+        // Display list of PRs with cross-agent analyses
+        // Use the function from cross-agent.js
+        if (typeof displayAnalysisList === 'function') {
+            displayAnalysisList(analyses);
+        } else {
+            console.error('displayAnalysisList function not found');
+        }
     } catch (error) {
-        console.error('Error showing head-to-head detail:', error);
-        alert('Error loading head-to-head details');
+        console.error('Error loading cross-agent analyses:', error);
+        const listContainer = document.getElementById('analysis-list');
+        if (listContainer) {
+            listContainer.innerHTML = '<p class="loading">Error loading cross-agent analyses</p>';
+        }
     }
-}
-
-/**
- * Display agent results for head-to-head
- */
-function displayHeadToHeadAgentResults(result) {
-    const tbody = document.getElementById('agent-results-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    result.agent_results.forEach((agentResult, index) => {
-        const agentId = `${agentResult.runner}:${agentResult.model}`;
-        const stats = result.agent_stats.find(s => s.agent_id.startsWith(agentId));
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><strong>${agentId}</strong></td>
-            <td>${formatStatus(agentResult.status)}</td>
-            <td>${stats ? `${stats.wins}W / ${stats.losses}L / ${stats.ties}T` : 'N/A'}</td>
-            <td style="font-size: 0.9em;">${agentResult.llm_summary || 'N/A'}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
-        `;
-
-        tbody.appendChild(row);
-    });
-}
-
-/**
- * Display pairwise decisions
- */
-function displayPairwiseDecisions(result) {
-    const container = document.getElementById('agent-details-container');
-    if (!container) return;
-
-    container.innerHTML = '<div class="card"><h4>Pairwise Decisions</h4><div id="pairwise-decisions-content"></div></div>';
-    const content = document.getElementById('pairwise-decisions-content');
-
-    if (!result.pairwise_decisions || result.pairwise_decisions.length === 0) {
-        content.innerHTML = '<p>No pairwise decisions found</p>';
-        return;
-    }
-
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>Submission A</th>
-                <th>Submission B</th>
-                <th>Judge</th>
-                <th>Winner</th>
-                <th>Rationale</th>
-            </tr>
-        </thead>
-        <tbody id="pairwise-tbody"></tbody>
-    `;
-
-    content.appendChild(table);
-
-    const tbody = document.getElementById('pairwise-tbody');
-
-    result.pairwise_decisions.forEach(decision => {
-        const row = document.createElement('tr');
-
-        const winnerDisplay = decision.winner === 'A' ? '🏆 A' : decision.winner === 'B' ? '🏆 B' : '🤝 Tie';
-        const judgeDisplay = decision.judge_runner ? `${decision.judge_runner} (${decision.judge_model || 'N/A'})` : decision.judge_model || 'N/A';
-
-        row.innerHTML = `
-            <td style="font-size: 0.85em;">${decision.submission_a_id}</td>
-            <td style="font-size: 0.85em;">${decision.submission_b_id}</td>
-            <td>${judgeDisplay}</td>
-            <td><strong>${winnerDisplay}</strong></td>
-            <td style="font-size: 0.9em; max-width: 400px;">${decision.rationale || 'N/A'}</td>
-        `;
-
-        tbody.appendChild(row);
-    });
 }
 
 /**

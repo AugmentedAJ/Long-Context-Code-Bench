@@ -21,15 +21,16 @@
                     the ability to understand, modify, and integrate changes across massive real-world repositories.
                 </p>
                 <p>
-                    This leaderboard shows results from <strong>head-to-head agent-as-judge evaluation</strong>, where each AI agent
-                    judges every other agent's solution to the same real GitHub PRs. Each agent is tested on recreating actual PR changes
-                    given only the PR description—no access to the solution or git history. Then, each agent acts as a judge, comparing
-                    pairs of solutions and deciding which is better based on correctness, completeness, code quality, and integration.
+                    This benchmark uses <strong>cross-agent LLM-based evaluation</strong>, where a powerful LLM judge evaluates
+                    all agent solutions to the same real GitHub PRs. Each agent is tested on recreating actual PR changes
+                    given only the PR description—no access to the solution or git history. The LLM judge then provides
+                    detailed comparative analysis, scoring each solution on correctness, completeness, code quality, and integration.
                 </p>
                 <p>
-                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view each agent's judgment rationale,
-                    side-by-side diff comparisons, and complete agent execution logs—making this the most transparent and verifiable
-                    coding agent benchmark available. The entire benchmark is <strong>reproducible and fully open source</strong> at
+                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view the LLM judge's detailed
+                    rationale, comparative analysis, side-by-side diff comparisons, and complete agent execution logs—making this
+                    the most transparent and verifiable coding agent benchmark available. The entire benchmark is
+                    <strong>reproducible and fully open source</strong> at
                     <a href="https://github.com/AugmentedAJ/Long-Context-Code-Bench" target="_blank">github.com/AugmentedAJ/Long-Context-Code-Bench</a>.
                 </p>
                 <div class="version-notice">
@@ -39,37 +40,9 @@
                 </div>
             </section>
 
-            <section class="leaderboard">
-                <h2>Agent Leaderboard</h2>
-                <p class="section-description">
-                    Ranked by Elo rating from head-to-head agent-as-judge evaluation. Each agent judges every other agent's solution,
-                    and pairwise decisions are aggregated into Elo ratings.
-                </p>
-                <div class="table-container">
-                    <table id="h2h-leaderboard-table">
-                        <thead>
-                            <tr>
-                                <th>Rank</th>
-                                <th>Agent</th>
-                                <th>Wins</th>
-                                <th>Losses</th>
-                                <th>Ties</th>
-                                <th>Win Rate</th>
-                                <th>Elo</th>
-                            </tr>
-                        </thead>
-                        <tbody id="h2h-leaderboard-body">
-                            <tr>
-                                <td colspan="7" class="loading">Loading leaderboard...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
             <section class="cross-agent-details">
-                <h2>Head-to-Head Details by PR</h2>
-                <p class="section-description">View pairwise agent judgments and results for each PR</p>
+                <h2>Cross-Agent Analysis by PR</h2>
+                <p class="section-description">View LLM judge evaluations and comparative analysis for each PR</p>
 
                 <!-- Analysis List -->
                 <div class="analysis-list-container">
