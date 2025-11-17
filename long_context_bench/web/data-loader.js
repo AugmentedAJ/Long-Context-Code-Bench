@@ -560,7 +560,65 @@ function aggregateCrossAgentData(analyses) {
 }
 
 /**
+ * Load head-to-head metadata (lightweight, for PR list and leaderboard).
+ */
+async function loadHeadToHeadMetadata() {
+    try {
+        const response = await fetch(`${API_BASE}/head_to_head_metadata.json`);
+        if (!response.ok) {
+            console.warn('Metadata file not found, falling back to loading all results');
+            return await loadAllHeadToHeadResults();
+        }
+
+        const metadata = await response.json();
+        return metadata.results || [];
+    } catch (error) {
+        console.error('Error loading head-to-head metadata:', error);
+        // Fallback to loading all results
+        return await loadAllHeadToHeadResults();
+    }
+}
+
+/**
+ * Load a single head-to-head result by PR number.
+ */
+async function loadHeadToHeadResult(prNumber) {
+    try {
+        // Check cache first
+        const cacheKey = `h2h_${prNumber}`;
+        if (dataCache[cacheKey]) {
+            return dataCache[cacheKey];
+        }
+
+        // Find the file path from metadata or index
+        const metadata = await loadHeadToHeadMetadata();
+        const prMeta = metadata.find(m => m.pr_number === prNumber);
+
+        if (!prMeta || !prMeta.file) {
+            console.error(`No file found for PR ${prNumber}`);
+            return null;
+        }
+
+        const response = await fetch(`${API_BASE}/${prMeta.file}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load PR ${prNumber}: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Cache the result
+        dataCache[cacheKey] = result;
+
+        return result;
+    } catch (error) {
+        console.error(`Error loading head-to-head result for PR ${prNumber}:`, error);
+        return null;
+    }
+}
+
+/**
  * Load all head-to-head result files (HeadToHeadPRResult artifacts).
+ * This is the old method that loads everything at once - kept for backward compatibility.
  */
 async function loadAllHeadToHeadResults() {
     try {

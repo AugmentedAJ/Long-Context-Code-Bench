@@ -29,9 +29,14 @@ cp -r "$OUTPUT_DIR/web/lib" "$PACKAGE_DIR/" 2>/dev/null || true
 # Remove server.js (not needed for static hosting)
 rm -f "$PACKAGE_DIR/server.js"
 
+# Generate metadata file for faster loading
+echo "🔧 Generating metadata..."
+python3 scripts/generate_metadata.py "$OUTPUT_DIR"
+
 # Copy data files
 echo "📊 Copying result data..."
 cp "$OUTPUT_DIR/index.json" "$PACKAGE_DIR/"
+cp "$OUTPUT_DIR/web/head_to_head_metadata.json" "$PACKAGE_DIR/" 2>/dev/null || true
 
 # Copy summaries
 echo "📁 Copying summaries..."

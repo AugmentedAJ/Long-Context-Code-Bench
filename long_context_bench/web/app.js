@@ -49,16 +49,18 @@ async function loadHeadToHeadLeaderboard() {
     const tbody = document.getElementById('h2h-leaderboard-body');
 
     try {
-        const results = await loadAllHeadToHeadResults();
+        // Load lightweight metadata instead of all results
+        const metadata = await loadHeadToHeadMetadata();
 
-        if (!results || results.length === 0) {
+        if (!metadata || metadata.length === 0) {
             if (tbody) {
                 tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found. Run head-to-head evaluation first.</td></tr>';
             }
             return;
         }
 
-        headToHeadLeaderboard = aggregateHeadToHeadData(results);
+        // Aggregate stats from metadata (which includes agent_stats)
+        headToHeadLeaderboard = aggregateHeadToHeadDataFromMetadata(metadata);
         displayHeadToHeadLeaderboard(headToHeadLeaderboard);
     } catch (error) {
         console.error('Error loading head-to-head leaderboard:', error);
@@ -80,6 +82,63 @@ function normalizeAgentId(agentId) {
         return parts.slice(0, -1).join(':');
     }
     return agentId;
+}
+
+/**
+ * Aggregate head-to-head data from metadata (lightweight version).
+ * This only uses agent_stats from metadata, not full pairwise decisions.
+ */
+function aggregateHeadToHeadDataFromMetadata(metadata) {
+    const agentStats = {};
+
+    // Aggregate stats from metadata
+    for (const prMeta of metadata) {
+        if (!prMeta.agent_stats) continue;
+
+        for (const stat of prMeta.agent_stats) {
+            const fullAgentId = stat.agent_id;
+            const normalizedId = normalizeAgentId(fullAgentId);
+
+            if (!agentStats[normalizedId]) {
+                agentStats[normalizedId] = {
+                    agent_id: normalizedId,
+                    wins: 0,
+                    losses: 0,
+                    ties: 0
+                };
+            }
+
+            agentStats[normalizedId].wins += stat.wins || 0;
+            agentStats[normalizedId].losses += stat.losses || 0;
+            agentStats[normalizedId].ties += stat.ties || 0;
+        }
+    }
+
+    // Convert to leaderboard format
+    const leaderboard = Object.values(agentStats).map(stats => {
+        const matches = stats.wins + stats.losses + stats.ties;
+        const winRate = matches > 0 ? (stats.wins + 0.5 * stats.ties) / matches : 0;
+
+        const parts = stats.agent_id.split(':');
+        const runner = parts[0] || '';
+        const model = parts[1] || '';
+
+        return {
+            agent_id: stats.agent_id,
+            runner,
+            model,
+            wins: stats.wins,
+            losses: stats.losses,
+            ties: stats.ties,
+            matches,
+            win_rate: winRate
+        };
+    });
+
+    // Sort by win rate descending
+    leaderboard.sort((a, b) => b.win_rate - a.win_rate);
+
+    return leaderboard;
 }
 
 /**
@@ -251,9 +310,10 @@ function displayHeadToHeadLeaderboard(leaderboard) {
  */
 async function loadHeadToHeadPRDetails() {
     try {
-        const results = await loadAllHeadToHeadResults();
+        // Load lightweight metadata instead of all results
+        const metadata = await loadHeadToHeadMetadata();
 
-        if (!results || results.length === 0) {
+        if (!metadata || metadata.length === 0) {
             const listContainer = document.getElementById('analysis-list');
             if (listContainer) {
                 listContainer.innerHTML = '<p class="loading">No head-to-head results found</p>';
@@ -262,7 +322,7 @@ async function loadHeadToHeadPRDetails() {
         }
 
         // Display list of PRs with head-to-head results
-        displayHeadToHeadPRList(results);
+        displayHeadToHeadPRList(metadata);
     } catch (error) {
         console.error('Error loading head-to-head PR details:', error);
         const listContainer = document.getElementById('analysis-list');
@@ -273,14 +333,14 @@ async function loadHeadToHeadPRDetails() {
 }
 
 /**
- * Display list of PRs with head-to-head results
+ * Display list of PRs with head-to-head results (using metadata)
  */
-function displayHeadToHeadPRList(results) {
+function displayHeadToHeadPRList(metadata) {
     const listContainer = document.getElementById('analysis-list');
     if (!listContainer) return;
 
     // Sort by PR number
-    const sorted = [...results].sort((a, b) => a.pr_number - b.pr_number);
+    const sorted = [...metadata].sort((a, b) => a.pr_number - b.pr_number);
 
     // Create table
     const table = document.createElement('table');
@@ -302,17 +362,17 @@ function displayHeadToHeadPRList(results) {
 
     const tbody = document.getElementById('h2h-pr-list-body');
 
-    sorted.forEach(result => {
+    sorted.forEach(prMeta => {
         const row = document.createElement('tr');
-        const agentCount = result.agent_results ? result.agent_results.length : 0;
-        const decisionCount = result.pairwise_decisions ? result.pairwise_decisions.length : 0;
+        const agentCount = prMeta.num_agents || 0;
+        const decisionCount = prMeta.num_decisions || 0;
 
         row.innerHTML = `
-            <td><strong>${result.pr_number}</strong></td>
+            <td><strong>${prMeta.pr_number}</strong></td>
             <td>${agentCount} agents</td>
             <td>${decisionCount} decisions</td>
             <td>
-                <button class="btn-primary" onclick="showHeadToHeadDetail('${result.head_to_head_run_id}', ${result.pr_number})">
+                <button class="btn-primary" onclick="showHeadToHeadDetail('${prMeta.head_to_head_run_id}', ${prMeta.pr_number})">
                     View Details
                 </button>
             </td>
@@ -328,9 +388,8 @@ function displayHeadToHeadPRList(results) {
  */
 async function showHeadToHeadDetail(runId, prNumber) {
     try {
-        // Find the result for this PR
-        const results = await loadAllHeadToHeadResults();
-        const result = results.find(r => r.pr_number === prNumber);
+        // Load the specific PR result on demand
+        const result = await loadHeadToHeadResult(prNumber);
 
         if (!result) {
             alert('Head-to-head result not found for PR ' + prNumber);
