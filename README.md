@@ -39,6 +39,33 @@ git clone https://github.com/AugmentedAJ/Long-Context-Code-Bench.git
 cd Long-Context-Code-Bench
 pip install -e .
 ```
+### Development environment (recommended)
+
+For local development we recommend using a virtual environment so that all
+Python dependencies are isolated from your system Python:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+This installs Long-Context-Bench in editable mode along with all dev
+dependencies (pytest, black, ruff, mypy, etc.). All subsequent commands in
+this README assume you are running inside that environment.
+
+If you see errors like `ModuleNotFoundError: No module named 'click'` or
+`ModuleNotFoundError: No module named 'rich'`, make sure you have run one of
+these installs in your active environment:
+
+```bash
+# minimal (runtime only)
+python -m pip install -e .
+
+# full dev environment
+python -m pip install -e ".[dev]"
+```
+
 
 ## Quick Start: Leaderboard & Comparison
 
@@ -151,6 +178,39 @@ Rank multiple agents across standardized benchmarks:
 
 1. **Run agents with a test label**: Execute multiple agents/models with the same test label (e.g., `--test-label "v0-leaderboard"`)
 2. **Generate leaderboard**: Use `compare --format leaderboard` to rank all agents by performance
+### Agents-as-judge head-to-head evaluation
+
+In addition to scalar LLM-judge scores, Long-Context-Bench supports
+**agents acting as judges over each other**.
+
+The `head-to-head-pr` command:
+- Finds all agent submissions (edits) for a given PR
+- Uses each agent as a judge over every other agent's patch
+- Reuses scalar scores from a prior LLM judge run when available
+- Does **not** make any new LLM-as-judge calls in this stage
+
+Example: run head-to-head for a single Elasticsearch PR where Auggie,
+Claude Code, and Factory have all produced edits:
+
+```bash
+long-context-bench head-to-head-pr \
+  --pr-number 114860 \
+  --judge-model placeholder \
+  --output-dir output \
+  --cache-dir .repo_cache \
+  --include-codebase-context \
+  --force
+```
+
+Notes:
+- `--judge-model` is only used to look up existing scalar scores from the
+  `cross_agent_analysis` stage; no new LLM calls are made.
+- For each pairwise decision, `judge_runner` and `judge_model` are taken
+  from the agent's original edit (e.g., `auggie/sonnet4.5`,
+  `claude-code/claude-sonnet-4-5`).
+- Claude Code runs under a PTY so that its Ink-based TTY handling works
+  reliably in CI and other non-interactive environments.
+
 3. **Customize ranking**: Use `--rank-by` to rank by different metrics (mean_aggregate, success_rate, tasks_per_hour, etc.)
 4. **Export results**: Save leaderboard as CSV or JSON for sharing
 
@@ -848,6 +908,8 @@ output/
 │   ├── edit.json
 │   └── logs.jsonl
 ├── judges/llm/<judge_model>/<run_id>/<pr_id>/judge.json
+├── cross_agent_analysis/         # Cross-agent analysis per PR
+├── head_to_head/                 # Head-to-head evaluation results per PR
 └── summaries/<run_id>/
     ├── summary.json
     ├── summary.csv
@@ -934,7 +996,7 @@ The v0 dataset is frozen. Future versions may rotate or expand PRs with semantic
 
 ## Contributing
 
-Contributions are welcome! Please see the PRD (`prd.md`) for detailed requirements and design specifications.
+Contributions are welcome! Please see `CONTRIBUTING.md` and the docs/ directory for contribution guidelines and design details.
 
 ## Citation
 

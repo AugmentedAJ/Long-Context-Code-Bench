@@ -32,6 +32,8 @@ async function loadIndex() {
         // Return empty index if file doesn't exist yet
         return {
             runs: [],
+            cross_agent_runs: [],
+            head_to_head_runs: [],
             test_labels: [],
             runners: [],
             models: [],
@@ -290,7 +292,7 @@ async function loadRunDetails(runId) {
 
     const index = dataCache.index || await loadIndex();
     const run = index.runs.find(r => r.run_id === runId);
-    
+
     if (!run || !run.pr_ids) {
         return { summary, edits: [], judges: [], samples: [] };
     }
@@ -555,6 +557,238 @@ function aggregateCrossAgentData(analyses) {
     }));
 
     return leaderboard;
+}
+
+/**
+ * Load head-to-head metadata (lightweight, for PR list and leaderboard).
+ */
+async function loadHeadToHeadMetadata() {
+    try {
+        const response = await fetch(`${API_BASE}/head_to_head_metadata.json`);
+        if (!response.ok) {
+            console.warn('Metadata file not found, falling back to loading all results');
+            return await loadAllHeadToHeadResults();
+        }
+
+        const metadata = await response.json();
+        return metadata.results || [];
+    } catch (error) {
+        console.error('Error loading head-to-head metadata:', error);
+        // Fallback to loading all results
+        return await loadAllHeadToHeadResults();
+    }
+}
+
+/**
+ * Load a single head-to-head result by PR number.
+ */
+async function loadHeadToHeadResult(prNumber) {
+    try {
+        // Check cache first
+        const cacheKey = `h2h_${prNumber}`;
+        if (dataCache[cacheKey]) {
+            return dataCache[cacheKey];
+        }
+
+        // Find the file path from metadata or index
+        const metadata = await loadHeadToHeadMetadata();
+        const prMeta = metadata.find(m => m.pr_number === prNumber);
+
+        if (!prMeta || !prMeta.file) {
+            console.error(`No file found for PR ${prNumber}`);
+            return null;
+        }
+
+        const response = await fetch(`${API_BASE}/${prMeta.file}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load PR ${prNumber}: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Cache the result
+        dataCache[cacheKey] = result;
+
+        return result;
+    } catch (error) {
+        console.error(`Error loading head-to-head result for PR ${prNumber}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Load all head-to-head result files (HeadToHeadPRResult artifacts).
+ * This is the old method that loads everything at once - kept for backward compatibility.
+ */
+async function loadAllHeadToHeadResults() {
+    try {
+        const index = await loadIndex();
+
+        if (!index.head_to_head_runs || index.head_to_head_runs.length === 0) {
+            console.log('No head-to-head results found in index');
+            return [];
+        }
+
+        const results = [];
+        for (const run of index.head_to_head_runs) {
+            try {
+                const response = await fetch(`${API_BASE}/${run.file}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    // Attach metadata from index entry if not already present
+                    if (run.head_to_head_run_id && !result.head_to_head_run_id) {
+                        result.head_to_head_run_id = run.head_to_head_run_id;
+                    }
+                    results.push(result);
+                } else {
+                    console.warn(`Failed to load head-to-head result ${run.file}: ${response.status}`);
+                }
+            } catch (error) {
+                console.error(`Error loading head-to-head result ${run.file}:`, error);
+            }
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Error loading head-to-head results:', error);
+        return [];
+    }
+}
+
+/**
+ * Aggregate head-to-head results into per-agent Elo leaderboard.
+ */
+function aggregateHeadToHeadData(results) {
+    const comparisons = [];
+    results.forEach(result => {
+        if (Array.isArray(result.pairwise_decisions)) {
+            result.pairwise_decisions.forEach(decision => comparisons.push(decision));
+        }
+    });
+
+    if (comparisons.length === 0) {
+        return [];
+    }
+
+    const matrix = computeHeadToHeadWinLossMatrix(comparisons);
+    const ratings = computeHeadToHeadEloRatings(comparisons);
+
+    const leaderboard = Object.entries(matrix).map(([agentId, opponents]) => {
+        let wins = 0;
+        let losses = 0;
+        let ties = 0;
+
+        Object.values(opponents).forEach(stats => {
+            wins += stats.wins;
+            losses += stats.losses;
+            ties += stats.ties;
+        });
+
+        const matches = wins + losses + ties;
+        const winRate = matches > 0 ? (wins + 0.5 * ties) / matches : 0;
+
+        const parts = agentId.split(':');
+        const runner = parts[0] || '';
+        const model = parts[1] || '';
+
+        return {
+            agent_id: agentId,
+            runner,
+            model,
+            wins,
+            losses,
+            ties,
+            matches,
+            win_rate: winRate,
+            elo_rating: ratings[agentId] ?? 1500.0,
+        };
+    });
+
+    leaderboard.sort((a, b) => {
+        if (b.elo_rating !== a.elo_rating) {
+            return b.elo_rating - a.elo_rating;
+        }
+        return b.win_rate - a.win_rate;
+    });
+
+    return leaderboard;
+}
+
+/**
+ * Compute head-to-head win/loss matrix (frontend version).
+ */
+function computeHeadToHeadWinLossMatrix(comparisons) {
+    const matrix = {};
+
+    comparisons.forEach(decision => {
+        const a = decision.submission_a_id;
+        const b = decision.submission_b_id;
+        if (!a || !b) return;
+
+        if (!matrix[a]) matrix[a] = {};
+        if (!matrix[b]) matrix[b] = {};
+        if (!matrix[a][b]) matrix[a][b] = { wins: 0, losses: 0, ties: 0 };
+        if (!matrix[b][a]) matrix[b][a] = { wins: 0, losses: 0, ties: 0 };
+
+        const winner = (decision.winner || '').toLowerCase();
+        if (winner === 'a') {
+            matrix[a][b].wins += 1;
+            matrix[b][a].losses += 1;
+        } else if (winner === 'b') {
+            matrix[a][b].losses += 1;
+            matrix[b][a].wins += 1;
+        } else {
+            matrix[a][b].ties += 1;
+            matrix[b][a].ties += 1;
+        }
+    });
+
+    return matrix;
+}
+
+/**
+ * Compute Elo ratings from head-to-head comparisons (frontend version).
+ */
+function computeHeadToHeadEloRatings(comparisons, initialRating = 1500.0, kFactor = 32.0) {
+    const ratings = {};
+
+    function getRating(agentId) {
+        if (!(agentId in ratings)) {
+            ratings[agentId] = initialRating;
+        }
+        return ratings[agentId];
+    }
+
+    comparisons.forEach(decision => {
+        const a = decision.submission_a_id;
+        const b = decision.submission_b_id;
+        if (!a || !b) return;
+
+        const ra = getRating(a);
+        const rb = getRating(b);
+
+        const expectedA = 1.0 / (1.0 + Math.pow(10, (rb - ra) / 400.0));
+        const expectedB = 1.0 - expectedA;
+
+        const winner = (decision.winner || '').toLowerCase();
+        let scoreA;
+        let scoreB;
+        if (winner === 'a') {
+            scoreA = 1.0;
+            scoreB = 0.0;
+        } else if (winner === 'b') {
+            scoreA = 0.0;
+            scoreB = 1.0;
+        } else {
+            scoreA = 0.5;
+            scoreB = 0.5;
+        }
+
+        ratings[a] = ra + kFactor * (scoreA - expectedA);
+        ratings[b] = rb + kFactor * (scoreB - expectedB);
+    });
+
+    return ratings;
 }
 
 /**

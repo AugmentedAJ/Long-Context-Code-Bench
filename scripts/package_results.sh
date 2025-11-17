@@ -71,6 +71,14 @@ if [ -d "$OUTPUT_DIR/cross_agent_analysis" ]; then
     cp -r "$OUTPUT_DIR/cross_agent_analysis"/* "$PACKAGE_DIR/web/cross_agent_analysis/"
 fi
 
+# Copy head-to-head results
+echo "⚔️  Copying head-to-head results..."
+if [ -d "$OUTPUT_DIR/head_to_head" ]; then
+    mkdir -p "$PACKAGE_DIR/web/head_to_head"
+    cp -r "$OUTPUT_DIR/head_to_head"/* "$PACKAGE_DIR/web/head_to_head/"
+fi
+
+
 # Create README
 echo "📝 Creating README..."
 cat > "$PACKAGE_DIR/README.md" << 'EOF'
@@ -104,7 +112,7 @@ The `web/` directory is a fully static site - just drag and drop to:
 The `output/web/` folder uses symlinks which don't work on static hosting platforms.
 This packaged version contains actual copies of all data files.
 
-No build step required! All data is included (~60MB with logs).
+No build step required! All data is included (interactive dashboard, metrics, and logs).
 
 ### Option 3: Local Python Server (No Node.js required)
 

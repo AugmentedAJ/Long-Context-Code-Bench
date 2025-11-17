@@ -111,6 +111,9 @@ Additionally, `logs.jsonl` includes an `auth_info` record with fields `auth_mode
 - Uses `--output-format stream-json` for structured output
 - Allows `Edit` and `Bash(git commit:*)` tools by default
 - Passes task instructions directly via `-p` flag
+- Runs under a pseudo-terminal (PTY) so that Claude Code's Ink-based TTY
+  handling works reliably in non-interactive contexts (e.g., CI, agent-as-judge
+  head-to-head runs).
 
 ---
 
@@ -147,6 +150,30 @@ long-context-bench edit \
 - Uses `codex exec` for non-interactive mode
 - Allows `Edit` and `Bash` tools by default
 - Passes task instructions as command argument
+
+---
+### Factory CLI
+
+**Runner Name:** `factory`
+
+**Description:** Factory AI's command-line coding agent.
+
+**Installation:**
+```bash
+npm install -g @factory-ai/droid
+```
+
+**Environment:**
+- OAuth-based authentication (run `droid` interactively first)
+- Supports Claude models such as `claude-sonnet-4-5-20250929` (GPT models require payment)
+
+**Example:**
+```bash
+long-context-bench edit \
+  --runner factory \
+  --model claude-sonnet-4-5-20250929 \
+  output/samples/v0
+```
 
 ---
 

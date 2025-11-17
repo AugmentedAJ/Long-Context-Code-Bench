@@ -137,7 +137,9 @@ Use test labels to compare performance:
 
 ```bash
 # View results in web dashboard
-long-context-bench web output
+cd output/web
+npm install  # First time only
+npm start
 ```
 
 Filter by test label to see:

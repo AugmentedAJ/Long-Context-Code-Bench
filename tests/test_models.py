@@ -3,7 +3,9 @@
 import pytest
 from long_context_bench.models import (
     Sample, SampleStats, Edit, Judge, Scores,
-    EditRunManifest, JudgeRunManifest, AggregateSummary
+    EditRunManifest, JudgeRunManifest, AggregateSummary,
+    AgentResult, PairwiseJudgeDecision, HeadToHeadAgentStats,
+    HeadToHeadPRResult, HeadToHeadAgentSummary, HeadToHeadGlobalSummary,
 )
 
 
@@ -32,7 +34,7 @@ def test_sample():
         context_size_bytes=10000,
         truncated=False,
     )
-    
+
     sample = Sample(
         dataset_version="v0",
         repo_url="https://github.com/elastic/elasticsearch",
@@ -42,7 +44,7 @@ def test_sample():
         task_instructions="Fix bug in search",
         stats=stats,
     )
-    
+
     assert sample.dataset_version == "v0"
     assert sample.pr_number == 115001
     assert sample.stats.files_changed == 5
@@ -79,10 +81,10 @@ def test_scores():
         best_practices=0.85,
         unsolicited_docs=1.0,
     )
-    
+
     assert scores.correctness == 0.8
     assert scores.completeness == 0.9
-    
+
     # Test bounds
     with pytest.raises(ValueError):
         Scores(
@@ -103,7 +105,7 @@ def test_judge():
         best_practices=0.85,
         unsolicited_docs=1.0,
     )
-    
+
     judge = Judge(
         repo_url="https://github.com/elastic/elasticsearch",
         pr_number=115001,
@@ -115,7 +117,7 @@ def test_judge():
         aggregate=0.85,
         rationale=None,
     )
-    
+
     assert judge.judge_mode == "deterministic"
     assert judge.aggregate == 0.85
     assert judge.scores.correctness == 0.8
@@ -188,5 +190,136 @@ def test_aggregate_summary_with_test_label():
     assert summary.runner == "auggie"
     assert summary.model == "claude-sonnet-4.5"
     assert summary.mean_aggregate == 0.78
+
+
+
+def test_pairwise_judge_decision_model():
+    """Test PairwiseJudgeDecision model construction."""
+    decision = PairwiseJudgeDecision(
+        repo_url="https://github.com/elastic/elasticsearch",
+        pr_number=115001,
+        submission_a_id="runner1:model1:run1",
+        submission_b_id="runner2:model2:run2",
+        judge_model="anthropic/claude-3-5-sonnet-20241022",
+        judge_runner=None,
+        order_seed=123,
+        winner="A",
+        correctness_preference="A",
+        completeness_preference="A",
+        code_quality_preference="B",
+        integration_preference="tie",
+        raw_scores={"A": {"correctness": 0.9}, "B": {"correctness": 0.7}},
+        rationale="A is more correct overall.",
+        timestamp="2025-01-01T00:00:00",
+        codebase_context_files=["src/main.py"],
+    )
+
+    assert decision.winner == "A"
+    assert decision.submission_a_id.endswith("run1")
+    assert "A" in decision.raw_scores
+
+
+def test_head_to_head_pr_result_model():
+    """Test HeadToHeadPRResult model wiring."""
+    scores = Scores(
+        correctness=0.8,
+        completeness=0.9,
+        code_reuse=0.7,
+        best_practices=0.85,
+        unsolicited_docs=1.0,
+    )
+
+    agent_result = AgentResult(
+        runner="runner1",
+        model="model1",
+        edit_run_id="run1",
+        status="success",
+        elapsed_ms=1234,
+        patch_unified="diff --git a/file.py b/file.py\n...",
+        scores=scores,
+        aggregate=0.85,
+        rationale="Looks good",
+        llm_rating=0.9,
+        llm_summary="Solid patch",
+        errors=[],
+        logs_path="logs.jsonl",
+    )
+
+    stats = HeadToHeadAgentStats(
+        agent_id="runner1:model1:run1",
+        wins=1,
+        losses=0,
+        ties=0,
+    )
+
+    decision = PairwiseJudgeDecision(
+        repo_url="https://github.com/elastic/elasticsearch",
+        pr_number=115001,
+        submission_a_id="runner1:model1:run1",
+        submission_b_id="runner2:model2:run2",
+        judge_model="anthropic/claude-3-5-sonnet-20241022",
+        judge_runner=None,
+        order_seed=1,
+        winner="A",
+        correctness_preference="A",
+        completeness_preference="A",
+        code_quality_preference="A",
+        integration_preference="A",
+        raw_scores=None,
+        rationale="Agent 1 is clearly better.",
+        timestamp="2025-01-01T00:00:00",
+        codebase_context_files=None,
+    )
+
+    h2h = HeadToHeadPRResult(
+        repo_url="https://github.com/elastic/elasticsearch",
+        pr_number=115001,
+        base_commit="abc123",
+        head_commit="def456",
+        task_instructions="Fix bug in search",
+        test_label="head-to-head-test",
+        agent_results=[agent_result],
+        pairwise_decisions=[decision],
+        agent_stats=[stats],
+        head_to_head_run_id="h2h123",
+        timestamp="2025-01-01T00:00:00",
+    )
+
+    dumped = h2h.model_dump()
+    assert dumped["pr_number"] == 115001
+    assert dumped["agent_stats"][0]["wins"] == 1
+    assert dumped["pairwise_decisions"][0]["winner"] == "A"
+
+
+def test_head_to_head_global_summary_model():
+    """Test HeadToHeadGlobalSummary and HeadToHeadAgentSummary models."""
+    agent_summary = HeadToHeadAgentSummary(
+        agent_id="runner1:model1:run1",
+        runner="runner1",
+        model="model1",
+        test_label="head-to-head-test",
+        wins=3,
+        losses=1,
+        ties=0,
+        matches=4,
+        win_rate=0.75,
+        elo_rating=1550.0,
+        elo_uncertainty=None,
+    )
+
+    matrix = {
+        "runner1:model1:run1": {
+            "runner2:model2:run2": {"wins": 2, "losses": 1, "ties": 0}
+        }
+    }
+
+    summary = HeadToHeadGlobalSummary(
+        test_label="head-to-head-test",
+        agents=[agent_summary],
+        head_to_head_matrix=matrix,
+    )
+
+    assert summary.agents[0].win_rate == 0.75
+    assert "runner2:model2:run2" in summary.head_to_head_matrix["runner1:model1:run1"]
 
 
