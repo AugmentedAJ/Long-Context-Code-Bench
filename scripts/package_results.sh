@@ -112,7 +112,7 @@ The `web/` directory is a fully static site - just drag and drop to:
 The `output/web/` folder uses symlinks which don't work on static hosting platforms.
 This packaged version contains actual copies of all data files.
 
-No build step required! All data is included (~60MB with logs).
+No build step required! All data is included (interactive dashboard, metrics, and logs).
 
 ### Option 3: Local Python Server (No Node.js required)
 

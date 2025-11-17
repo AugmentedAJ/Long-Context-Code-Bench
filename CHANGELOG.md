@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of Long-Context-Bench harness (v0.1.0)
-- Dataset v0: 50 Elasticsearch PRs from `data/elasticsearch_prs_50.json`
+- Dataset v0: curated Elasticsearch PR dataset derived from 50 PR URLs (see `data/README.md` for details)
 - Sample stage: Extract PR metadata and create sample.json files
 - Edit stage: Run agents on samples and capture diffs
 - Judge stage: Score agent edits against ground truth
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation (README.md, PRD)
 
 ### Dataset
-- v0: 50 PRs from elastic/elasticsearch (frozen)
+- v0: curated from 50 original PR URLs; 42 validated PRs in `data/elasticsearch_prs_50.json` (40 with complete samples in `data/samples/v0/`)
 - PRs range from #114854 to #115001
 
 ### Known Limitations
@@ -54,9 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduced GitHub API rate limit pressure
 
 ### Documentation
-- Added IMPROVEMENTS.md with detailed explanation of changes
-- Updated all documentation to reflect new CLI interface
-- Added migration guide for existing scripts
+- Updated README and other docs to reflect the new CLI interface and built-in dataset behavior
+- Added guidance for migrating existing scripts to the new CLI interface
 
 ## [Unreleased]
 

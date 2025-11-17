@@ -117,7 +117,7 @@ def get_runner_adapter(runner_name: str, **kwargs) -> RunnerAdapter:
     # ...
 ```
 
-3. Add tests in `tests/test_runners.py`
+3. Add tests under `tests/` (for example, in a new `tests/test_runners_<name>.py`)
 
 4. Update documentation in `README.md`
 
@@ -152,7 +152,7 @@ When proposing changes to the dataset:
 ## Documentation
 
 - Update `README.md` for user-facing changes
-- Update `prd.md` for requirement changes
+- Update design and requirements docs under `docs/` as needed
 - Add docstrings to all public functions and classes
 - Update `CHANGELOG.md` with your changes
 

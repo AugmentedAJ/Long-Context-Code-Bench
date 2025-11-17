@@ -158,8 +158,8 @@ Questions? Ping me on Slack!
 
 ### For GitHub Release
 1. **Create two assets:**
-   - `long-context-bench-v0-results.tar.gz` (lightweight, 444KB)
-   - `long-context-bench-v0-full-output.tar.gz` (with logs, ~2GB)
+   - `long-context-bench-v0-results.tar.gz` (lightweight, ~4-5MB compressed)
+   - `long-context-bench-v0-full-output.tar.gz` (with logs, larger archive; typically ~9-10MB compressed for v0 runs)
 2. Mark the full version as "For debugging only"
 
 ```bash

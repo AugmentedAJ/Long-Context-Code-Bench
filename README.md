@@ -908,6 +908,8 @@ output/
 │   ├── edit.json
 │   └── logs.jsonl
 ├── judges/llm/<judge_model>/<run_id>/<pr_id>/judge.json
+├── cross_agent_analysis/         # Cross-agent analysis per PR
+├── head_to_head/                 # Head-to-head evaluation results per PR
 └── summaries/<run_id>/
     ├── summary.json
     ├── summary.csv
@@ -994,7 +996,7 @@ The v0 dataset is frozen. Future versions may rotate or expand PRs with semantic
 
 ## Contributing
 
-Contributions are welcome! Please see the PRD (`prd.md`) for detailed requirements and design specifications.
+Contributions are welcome! Please see `CONTRIBUTING.md` and the docs/ directory for contribution guidelines and design details.
 
 ## Citation
 

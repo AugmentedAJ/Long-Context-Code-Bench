@@ -152,6 +152,30 @@ long-context-bench edit \
 - Passes task instructions as command argument
 
 ---
+### Factory CLI
+
+**Runner Name:** `factory`
+
+**Description:** Factory AI's command-line coding agent.
+
+**Installation:**
+```bash
+npm install -g @factory-ai/droid
+```
+
+**Environment:**
+- OAuth-based authentication (run `droid` interactively first)
+- Supports Claude models such as `claude-sonnet-4-5-20250929` (GPT models require payment)
+
+**Example:**
+```bash
+long-context-bench edit \
+  --runner factory \
+  --model claude-sonnet-4-5-20250929 \
+  output/samples/v0
+```
+
+---
 
 ### Aider
 
