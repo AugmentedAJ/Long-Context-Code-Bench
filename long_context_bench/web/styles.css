@@ -579,10 +579,9 @@ td {
     text-align: center;
 }
 
-#agent-results-table th:nth-child(11),
-#agent-results-table td:nth-child(11) {
-    width: 140px; /* Actions - now has 3 buttons */
-    text-align: center;
+/* Agent view sections */
+.agent-view-section {
+    margin-top: 10px;
 }
 
 tr:hover {
@@ -1254,20 +1253,6 @@ footer {
     #agent-results-table td:nth-child(9) {
         display: none;
     }
-
-    /* Stack buttons vertically in Actions column */
-    #agent-results-table td:nth-child(11) {
-        width: 90px;
-    }
-
-    .btn-action {
-        display: flex;
-        width: 100%;
-        justify-content: center;
-        margin: 1px 0;
-        padding: 3px 6px;
-        font-size: 10px;
-    }
 }
 
 @media (max-width: 768px) {
@@ -1302,8 +1287,8 @@ footer {
 
     #agent-results-table th:nth-child(2),
     #agent-results-table td:nth-child(2) {
-        min-width: 80px; /* Agent */
-        max-width: 80px;
+        min-width: 100px; /* Agent */
+        max-width: 100px;
         font-size: 9px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1312,33 +1297,30 @@ footer {
 
     #agent-results-table th:nth-child(3),
     #agent-results-table td:nth-child(3) {
-        width: 60px; /* W/L/T */
+        width: 70px; /* W/L/T */
         font-size: 9px;
     }
 
     #agent-results-table th:nth-child(4),
     #agent-results-table td:nth-child(4) {
-        width: 50px; /* Aggregate */
+        width: 55px; /* Aggregate */
         padding: 4px 4px;
     }
 
-    #agent-results-table th:nth-child(11),
-    #agent-results-table td:nth-child(11) {
-        width: 75px; /* Actions - 3 buttons stacked */
-        padding: 4px 2px;
+    #agent-results-table th:nth-child(10),
+    #agent-results-table td:nth-child(10) {
+        width: 50px; /* Time */
+        font-size: 9px;
     }
 
     .btn-action {
-        padding: 2px 4px;
-        font-size: 9px;
-        gap: 2px;
-        display: flex;
-        width: 100%;
-        justify-content: center;
-        margin: 1px 0;
+        padding: 4px 8px;
+        font-size: 10px;
+        gap: 4px;
+        margin: 2px;
     }
 
     .btn-icon {
-        font-size: 10px;
+        font-size: 12px;
     }
 }

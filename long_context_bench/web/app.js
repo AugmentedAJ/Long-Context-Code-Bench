@@ -388,19 +388,6 @@ function displayHeadToHeadAgentResults(result) {
             <td>${formatScore(agentResult.scores?.best_practices)}</td>
             <td>${formatScore(agentResult.scores?.unsolicited_docs)}</td>
             <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
-            <td>
-                <button class="btn-action" onclick="toggleSection('diff-${agentIdSafe}')">
-                    <span class="btn-icon">📄</span> Diff
-                </button>
-                ${agentResult.logs_path ? `
-                    <button class="btn-action" onclick="loadAndShowLogs('logs-${agentIdSafe}', '${agentResult.logs_path}')">
-                        <span class="btn-icon">📋</span> Logs
-                    </button>
-                ` : ''}
-                <button class="btn-action" onclick="toggleSection('summary-${agentIdSafe}')">
-                    <span class="btn-icon">📝</span> Summary
-                </button>
-            </td>
         `;
 
         tbody.appendChild(row);
@@ -423,20 +410,32 @@ function displayAgentDiffsAndLogs(agentResults) {
 
         return `
             <div class="card" style="margin-top: 20px;">
-                <h5>${agentId}</h5>
-                <div id="summary-${agentIdSafe}" class="collapsible-section" style="display: none;">
-                    <h6>Summary</h6>
-                    <p style="padding: 10px; background: var(--bg-secondary); border-radius: 4px; line-height: 1.6;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h5 style="margin: 0;">${agentId}</h5>
+                    <div>
+                        <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'summary')">
+                            <span class="btn-icon">📝</span> Summary
+                        </button>
+                        <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'diff')">
+                            <span class="btn-icon">📄</span> Diff
+                        </button>
+                        ${agentResult.logs_path ? `
+                            <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'logs', '${agentResult.logs_path}')">
+                                <span class="btn-icon">📋</span> Logs
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div id="summary-${agentIdSafe}" class="agent-view-section">
+                    <p style="padding: 10px; background: var(--bg-secondary); border-radius: 4px; line-height: 1.6; margin: 0;">
                         ${agentResult.llm_summary || 'No summary available'}
                     </p>
                 </div>
-                <div id="diff-${agentIdSafe}" class="collapsible-section" style="display: none;">
-                    <h6>Diff</h6>
+                <div id="diff-${agentIdSafe}" class="agent-view-section" style="display: none;">
                     <pre class="code-block">${colorizeDiff(agentResult.patch_unified || 'No diff available')}</pre>
                 </div>
                 ${agentResult.logs_path ? `
-                    <div id="logs-${agentIdSafe}" class="collapsible-section logs-container" style="display: none;">
-                        <h6>Logs</h6>
+                    <div id="logs-${agentIdSafe}" class="agent-view-section logs-container" style="display: none;">
                         <div style="text-align: center; padding: 20px; color: #666;">
                             <em>Click "Logs" button to load...</em>
                         </div>
@@ -448,44 +447,54 @@ function displayAgentDiffsAndLogs(agentResults) {
 }
 
 /**
- * Load and show logs for an agent (called from button click)
+ * Show a specific view (summary, diff, or logs) for an agent
  */
-async function loadAndShowLogs(sectionId, logsPath) {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
+async function showAgentView(agentIdSafe, viewType, logsPath = null) {
+    // Hide all views for this agent
+    const summarySection = document.getElementById(`summary-${agentIdSafe}`);
+    const diffSection = document.getElementById(`diff-${agentIdSafe}`);
+    const logsSection = document.getElementById(`logs-${agentIdSafe}`);
 
-    // Toggle visibility
-    const isHidden = section.style.display === 'none';
-    section.style.display = isHidden ? 'block' : 'none';
+    if (summarySection) summarySection.style.display = 'none';
+    if (diffSection) diffSection.style.display = 'none';
+    if (logsSection) logsSection.style.display = 'none';
 
-    // If showing and not yet loaded, load the logs
-    if (isHidden && section.querySelector('em')) {
-        section.innerHTML = '<div style="text-align: center; padding: 20px;"><em>Loading logs...</em></div>';
+    // Show the requested view
+    if (viewType === 'summary' && summarySection) {
+        summarySection.style.display = 'block';
+    } else if (viewType === 'diff' && diffSection) {
+        diffSection.style.display = 'block';
+    } else if (viewType === 'logs' && logsSection) {
+        logsSection.style.display = 'block';
 
-        try {
-            const response = await fetch(`${API_BASE}/${logsPath}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+        // Load logs if not yet loaded
+        if (logsPath && logsSection.querySelector('em')) {
+            logsSection.innerHTML = '<div style="text-align: center; padding: 20px;"><em>Loading logs...</em></div>';
 
-            const text = await response.text();
-            const lines = text.trim().split('\n');
-            const logEntries = lines.map(line => {
-                try {
-                    return JSON.parse(line);
-                } catch (e) {
-                    return { raw: line };
+            try {
+                const response = await fetch(`${API_BASE}/${logsPath}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-            });
 
-            section.innerHTML = '<h6>Logs</h6>' + formatLogs(logEntries);
-        } catch (error) {
-            section.innerHTML = `
-                <h6>Logs</h6>
-                <div style="color: #d32f2f; padding: 10px;">
-                    <strong>Error loading logs:</strong> ${error.message}
-                </div>
-            `;
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                const logEntries = lines.map(line => {
+                    try {
+                        return JSON.parse(line);
+                    } catch (e) {
+                        return { raw: line };
+                    }
+                });
+
+                logsSection.innerHTML = formatLogs(logEntries);
+            } catch (error) {
+                logsSection.innerHTML = `
+                    <div style="color: #d32f2f; padding: 10px;">
+                        <strong>Error loading logs:</strong> ${error.message}
+                    </div>
+                `;
+            }
         }
     }
 }
