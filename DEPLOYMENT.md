@@ -6,7 +6,7 @@ The head-to-head leaderboard web app has been packaged and is ready for Cloudfla
 
 ### Package Details
 
-- **Package Directory**: `cloudflare-deploy_20251117_080423/`
+- **Package Directory**: `cloudflare-deploy_20251117_080907/`
 - **Package Size**: 52MB
 - **Contents**:
   - ✅ All web app files (HTML, CSS, JS)
@@ -21,11 +21,11 @@ The head-to-head leaderboard web app has been packaged and is ready for Cloudfla
 **Branch**: `feature/head-to-head-ui`
 
 **Commits**:
-1. `fd8316a` - feat: Re-enable diff and logs viewing in head-to-head PR details
-2. `7fd85b5` - docs: Add Cloudflare Pages deployment guide
-3. `ddb76a9` - fix: Display actual scores in head-to-head agent results table
-4. `eb60b1c` - feat: Sort head-to-head leaderboard by win rate and remove ELO column
-5. `adc4a98` - feat: Complete head-to-head leaderboard implementation with agent normalization
+1. `de2e64a` - feat: Improve responsive layout for head-to-head PR details
+2. `a356b00` - docs: Update deployment guide with latest package and features
+3. `fd8316a` - feat: Re-enable diff and logs viewing in head-to-head PR details
+4. `7fd85b5` - docs: Add Cloudflare Pages deployment guide
+5. `ddb76a9` - fix: Display actual scores in head-to-head agent results table
 
 ### Features Implemented
 
@@ -59,13 +59,13 @@ The head-to-head leaderboard web app has been packaged and is ready for Cloudfla
 1. Go to https://pages.cloudflare.com/
 2. Click **"Create a project"**
 3. Click **"Direct Upload"**
-4. Drag the `cloudflare-deploy_20251117_080423` folder
+4. Drag the `cloudflare-deploy_20251117_080907` folder
 5. Your site will be live at `https://your-project.pages.dev`
 
 ### Option 2: Wrangler CLI
 
 ```bash
-cd cloudflare-deploy_20251117_080423
+cd cloudflare-deploy_20251117_080907
 wrangler pages deploy . --project-name=long-context-bench
 ```
 
