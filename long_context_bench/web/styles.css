@@ -29,7 +29,7 @@ body {
 }
 
 .container {
-    max-width: 1600px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px;
 }
@@ -366,10 +366,10 @@ nav a.active {
 }
 
 .btn-action {
-    padding: 8px 16px;
+    padding: 4px 8px;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: 3px;
+    font-size: 11px;
     font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -377,7 +377,9 @@ nav a.active {
     transition: all 0.2s;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    white-space: nowrap;
+    margin: 2px;
 }
 
 .btn-action:hover {
@@ -387,7 +389,7 @@ nav a.active {
 }
 
 .btn-icon {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1;
 }
 
@@ -513,12 +515,13 @@ thead {
 }
 
 th {
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: left;
     font-weight: 600;
     color: var(--text-secondary);
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
+    font-size: 12px;
 }
 
 th.sortable {
@@ -531,8 +534,67 @@ th.sortable:hover {
 }
 
 td {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+}
+
+/* Specific column widths for agent results table */
+#agent-results-table th:nth-child(1),
+#agent-results-table td:nth-child(1) {
+    width: 50px; /* Rank */
+}
+
+#agent-results-table th:nth-child(2),
+#agent-results-table td:nth-child(2) {
+    min-width: 180px; /* Agent */
+}
+
+#agent-results-table th:nth-child(3),
+#agent-results-table td:nth-child(3) {
+    width: 80px; /* Status */
+}
+
+#agent-results-table th:nth-child(4),
+#agent-results-table td:nth-child(4) {
+    width: 100px; /* LLM Rating */
+    white-space: nowrap;
+}
+
+#agent-results-table th:nth-child(5),
+#agent-results-table td:nth-child(5) {
+    max-width: 300px; /* Summary */
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+/* Score columns - compact */
+#agent-results-table th:nth-child(6),
+#agent-results-table th:nth-child(7),
+#agent-results-table th:nth-child(8),
+#agent-results-table th:nth-child(9),
+#agent-results-table th:nth-child(10),
+#agent-results-table th:nth-child(11),
+#agent-results-table td:nth-child(6),
+#agent-results-table td:nth-child(7),
+#agent-results-table td:nth-child(8),
+#agent-results-table td:nth-child(9),
+#agent-results-table td:nth-child(10),
+#agent-results-table td:nth-child(11) {
+    width: 70px;
+    text-align: center;
+}
+
+#agent-results-table th:nth-child(12),
+#agent-results-table td:nth-child(12) {
+    width: 70px; /* Time */
+    text-align: center;
+}
+
+#agent-results-table th:nth-child(13),
+#agent-results-table td:nth-child(13) {
+    width: 140px; /* Actions */
+    text-align: center;
 }
 
 tr:hover {
@@ -1157,4 +1219,97 @@ footer {
 .score-negative {
     background: #ffebee;
     color: #c62828;
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .container {
+        max-width: 100%;
+        padding: 16px;
+    }
+
+    /* Make score columns even more compact */
+    #agent-results-table th:nth-child(6),
+    #agent-results-table th:nth-child(7),
+    #agent-results-table th:nth-child(8),
+    #agent-results-table th:nth-child(9),
+    #agent-results-table th:nth-child(10),
+    #agent-results-table th:nth-child(11),
+    #agent-results-table td:nth-child(6),
+    #agent-results-table td:nth-child(7),
+    #agent-results-table td:nth-child(8),
+    #agent-results-table td:nth-child(9),
+    #agent-results-table td:nth-child(10),
+    #agent-results-table td:nth-child(11) {
+        width: 60px;
+        font-size: 11px;
+    }
+
+    /* Reduce summary column width */
+    #agent-results-table th:nth-child(5),
+    #agent-results-table td:nth-child(5) {
+        max-width: 200px;
+    }
+}
+
+@media (max-width: 1200px) {
+    /* Stack buttons vertically in Actions column */
+    #agent-results-table td:nth-child(13) {
+        width: 100px;
+    }
+
+    .btn-action {
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        margin: 1px 0;
+    }
+
+    /* Further reduce summary width */
+    #agent-results-table th:nth-child(5),
+    #agent-results-table td:nth-child(5) {
+        max-width: 150px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        font-size: 13px;
+    }
+
+    .container {
+        padding: 12px;
+    }
+
+    /* Make table scroll horizontally on mobile */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        font-size: 11px;
+    }
+
+    th, td {
+        padding: 6px 8px;
+    }
+
+    /* Compact all columns on mobile */
+    #agent-results-table th:nth-child(5),
+    #agent-results-table td:nth-child(5) {
+        max-width: 120px;
+        font-size: 10px;
+    }
+
+    .btn-action {
+        padding: 3px 6px;
+        font-size: 10px;
+        gap: 2px;
+    }
+
+    .btn-icon {
+        font-size: 12px;
+    }
 }
