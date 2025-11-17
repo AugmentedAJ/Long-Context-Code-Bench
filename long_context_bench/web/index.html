@@ -42,8 +42,8 @@
             <section class="leaderboard">
                 <h2>Agent Leaderboard</h2>
                 <p class="section-description">
-                    Ranked by Elo rating from head-to-head agent-as-judge evaluation. Each agent judges every other agent's solution,
-                    and pairwise decisions are aggregated into Elo ratings.
+                    Ranked by win rate from head-to-head agent-as-judge evaluation. Each agent judges every other agent's solution,
+                    and pairwise decisions determine win/loss/tie records.
                 </p>
                 <div class="table-container">
                     <table id="h2h-leaderboard-table">
@@ -51,16 +51,15 @@
                             <tr>
                                 <th>Rank</th>
                                 <th>Agent</th>
+                                <th>Win Rate</th>
                                 <th>Wins</th>
                                 <th>Losses</th>
                                 <th>Ties</th>
-                                <th>Win Rate</th>
-                                <th>Elo</th>
                             </tr>
                         </thead>
                         <tbody id="h2h-leaderboard-body">
                             <tr>
-                                <td colspan="7" class="loading">Loading leaderboard...</td>
+                                <td colspan="6" class="loading">Loading leaderboard...</td>
                             </tr>
                         </tbody>
                     </table>

@@ -155,8 +155,13 @@ function aggregateHeadToHeadData(results) {
         });
     }
 
-    // Sort by ELO rating (descending)
-    leaderboard.sort((a, b) => b.elo_rating - a.elo_rating);
+    // Sort by win rate (descending), then by total wins as tiebreaker
+    leaderboard.sort((a, b) => {
+        if (b.win_rate !== a.win_rate) {
+            return b.win_rate - a.win_rate;
+        }
+        return b.wins - a.wins;
+    });
 
     return leaderboard;
 }
@@ -216,7 +221,7 @@ function displayHeadToHeadLeaderboard(leaderboard) {
     if (!tbody) return;
 
     if (!leaderboard || leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No head-to-head results found</td></tr>';
         return;
     }
 
@@ -231,11 +236,10 @@ function displayHeadToHeadLeaderboard(leaderboard) {
         row.innerHTML = `
             <td>${rankDisplay}</td>
             <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
+            <td>${formatPercentage(agent.win_rate)}</td>
             <td>${agent.wins}</td>
             <td>${agent.losses}</td>
             <td>${agent.ties}</td>
-            <td>${formatPercentage(agent.win_rate)}</td>
-            <td><strong>${agent.elo_rating.toFixed(1)}</strong></td>
         `;
 
         tbody.appendChild(row);
