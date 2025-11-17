@@ -380,9 +380,7 @@ function displayHeadToHeadAgentResults(result) {
         row.innerHTML = `
             <td>${index + 1}</td>
             <td><strong>${agentId}</strong></td>
-            <td>${formatStatus(agentResult.status)}</td>
             <td>${stats ? `${stats.wins}W / ${stats.losses}L / ${stats.ties}T` : 'N/A'}</td>
-            <td style="font-size: 0.9em;">${agentResult.llm_summary || 'N/A'}</td>
             <td>${formatScore(agentResult.aggregate)}</td>
             <td>${formatScore(agentResult.scores?.correctness)}</td>
             <td>${formatScore(agentResult.scores?.completeness)}</td>
@@ -399,6 +397,9 @@ function displayHeadToHeadAgentResults(result) {
                         <span class="btn-icon">📋</span> Logs
                     </button>
                 ` : ''}
+                <button class="btn-action" onclick="toggleSection('summary-${agentIdSafe}')">
+                    <span class="btn-icon">📝</span> Summary
+                </button>
             </td>
         `;
 
@@ -423,6 +424,12 @@ function displayAgentDiffsAndLogs(agentResults) {
         return `
             <div class="card" style="margin-top: 20px;">
                 <h5>${agentId}</h5>
+                <div id="summary-${agentIdSafe}" class="collapsible-section" style="display: none;">
+                    <h6>Summary</h6>
+                    <p style="padding: 10px; background: var(--bg-secondary); border-radius: 4px; line-height: 1.6;">
+                        ${agentResult.llm_summary || 'No summary available'}
+                    </p>
+                </div>
                 <div id="diff-${agentIdSafe}" class="collapsible-section" style="display: none;">
                     <h6>Diff</h6>
                     <pre class="code-block">${colorizeDiff(agentResult.patch_unified || 'No diff available')}</pre>

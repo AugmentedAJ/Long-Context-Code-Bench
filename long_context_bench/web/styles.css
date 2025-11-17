@@ -552,48 +552,36 @@ td {
 
 #agent-results-table th:nth-child(3),
 #agent-results-table td:nth-child(3) {
-    width: 70px; /* Status */
-}
-
-#agent-results-table th:nth-child(4),
-#agent-results-table td:nth-child(4) {
-    width: 90px; /* LLM Rating */
+    width: 100px; /* W/L/T */
     white-space: nowrap;
 }
 
-#agent-results-table th:nth-child(5),
-#agent-results-table td:nth-child(5) {
-    max-width: 250px; /* Summary */
-    white-space: normal;
-    word-wrap: break-word;
-}
-
 /* Score columns - compact */
+#agent-results-table th:nth-child(4),
+#agent-results-table th:nth-child(5),
 #agent-results-table th:nth-child(6),
 #agent-results-table th:nth-child(7),
 #agent-results-table th:nth-child(8),
 #agent-results-table th:nth-child(9),
-#agent-results-table th:nth-child(10),
-#agent-results-table th:nth-child(11),
+#agent-results-table td:nth-child(4),
+#agent-results-table td:nth-child(5),
 #agent-results-table td:nth-child(6),
 #agent-results-table td:nth-child(7),
 #agent-results-table td:nth-child(8),
-#agent-results-table td:nth-child(9),
-#agent-results-table td:nth-child(10),
-#agent-results-table td:nth-child(11) {
+#agent-results-table td:nth-child(9) {
     width: 55px;
     text-align: center;
 }
 
-#agent-results-table th:nth-child(12),
-#agent-results-table td:nth-child(12) {
+#agent-results-table th:nth-child(10),
+#agent-results-table td:nth-child(10) {
     width: 60px; /* Time */
     text-align: center;
 }
 
-#agent-results-table th:nth-child(13),
-#agent-results-table td:nth-child(13) {
-    width: 120px; /* Actions */
+#agent-results-table th:nth-child(11),
+#agent-results-table td:nth-child(11) {
+    width: 140px; /* Actions - now has 3 buttons */
     text-align: center;
 }
 
@@ -1229,52 +1217,46 @@ footer {
     }
 
     /* Hide Time column on narrower screens */
-    #agent-results-table th:nth-child(12),
-    #agent-results-table td:nth-child(12) {
+    #agent-results-table th:nth-child(10),
+    #agent-results-table td:nth-child(10) {
         display: none;
     }
 
     /* Make score columns even more compact */
+    #agent-results-table th:nth-child(4),
+    #agent-results-table th:nth-child(5),
     #agent-results-table th:nth-child(6),
     #agent-results-table th:nth-child(7),
     #agent-results-table th:nth-child(8),
     #agent-results-table th:nth-child(9),
-    #agent-results-table th:nth-child(10),
-    #agent-results-table th:nth-child(11),
+    #agent-results-table td:nth-child(4),
+    #agent-results-table td:nth-child(5),
     #agent-results-table td:nth-child(6),
     #agent-results-table td:nth-child(7),
     #agent-results-table td:nth-child(8),
-    #agent-results-table td:nth-child(9),
-    #agent-results-table td:nth-child(10),
-    #agent-results-table td:nth-child(11) {
+    #agent-results-table td:nth-child(9) {
         width: 50px;
         font-size: 11px;
-    }
-
-    /* Reduce summary column width */
-    #agent-results-table th:nth-child(5),
-    #agent-results-table td:nth-child(5) {
-        max-width: 180px;
     }
 }
 
 @media (max-width: 1200px) {
     /* Hide individual score columns, keep only Aggregate */
+    #agent-results-table th:nth-child(5),
+    #agent-results-table th:nth-child(6),
     #agent-results-table th:nth-child(7),
     #agent-results-table th:nth-child(8),
     #agent-results-table th:nth-child(9),
-    #agent-results-table th:nth-child(10),
-    #agent-results-table th:nth-child(11),
+    #agent-results-table td:nth-child(5),
+    #agent-results-table td:nth-child(6),
     #agent-results-table td:nth-child(7),
     #agent-results-table td:nth-child(8),
-    #agent-results-table td:nth-child(9),
-    #agent-results-table td:nth-child(10),
-    #agent-results-table td:nth-child(11) {
+    #agent-results-table td:nth-child(9) {
         display: none;
     }
 
     /* Stack buttons vertically in Actions column */
-    #agent-results-table td:nth-child(13) {
+    #agent-results-table td:nth-child(11) {
         width: 90px;
     }
 
@@ -1285,13 +1267,6 @@ footer {
         margin: 1px 0;
         padding: 3px 6px;
         font-size: 10px;
-    }
-
-    /* Further reduce summary width */
-    #agent-results-table th:nth-child(5),
-    #agent-results-table td:nth-child(5) {
-        max-width: 150px;
-        font-size: 11px;
     }
 }
 
@@ -1318,14 +1293,6 @@ footer {
         padding: 4px 6px;
     }
 
-    /* Hide Status and LLM Rating columns on mobile */
-    #agent-results-table th:nth-child(3),
-    #agent-results-table th:nth-child(4),
-    #agent-results-table td:nth-child(3),
-    #agent-results-table td:nth-child(4) {
-        display: none;
-    }
-
     /* Make remaining columns very compact */
     #agent-results-table th:nth-child(1),
     #agent-results-table td:nth-child(1) {
@@ -1343,20 +1310,21 @@ footer {
         white-space: nowrap;
     }
 
-    #agent-results-table th:nth-child(5),
-    #agent-results-table td:nth-child(5) {
-        display: none; /* Hide Summary on mobile - too wide */
+    #agent-results-table th:nth-child(3),
+    #agent-results-table td:nth-child(3) {
+        width: 60px; /* W/L/T */
+        font-size: 9px;
     }
 
-    #agent-results-table th:nth-child(6),
-    #agent-results-table td:nth-child(6) {
+    #agent-results-table th:nth-child(4),
+    #agent-results-table td:nth-child(4) {
         width: 50px; /* Aggregate */
         padding: 4px 4px;
     }
 
-    #agent-results-table th:nth-child(13),
-    #agent-results-table td:nth-child(13) {
-        width: 65px; /* Actions */
+    #agent-results-table th:nth-child(11),
+    #agent-results-table td:nth-child(11) {
+        width: 75px; /* Actions - 3 buttons stacked */
         padding: 4px 2px;
     }
 
