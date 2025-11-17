@@ -373,6 +373,7 @@ function displayHeadToHeadAgentResults(result) {
 
     result.agent_results.forEach((agentResult, index) => {
         const agentId = `${agentResult.runner}:${agentResult.model}`;
+        const agentIdSafe = agentId.replace(/[^a-zA-Z0-9]/g, '_');
         const stats = result.agent_stats.find(s => s.agent_id.startsWith(agentId));
 
         const row = document.createElement('tr');
@@ -389,10 +390,97 @@ function displayHeadToHeadAgentResults(result) {
             <td>${formatScore(agentResult.scores?.best_practices)}</td>
             <td>${formatScore(agentResult.scores?.unsolicited_docs)}</td>
             <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
+            <td>
+                <button class="btn-action" onclick="toggleSection('diff-${agentIdSafe}')">
+                    <span class="btn-icon">📄</span> Diff
+                </button>
+                ${agentResult.logs_path ? `
+                    <button class="btn-action" onclick="loadAndShowLogs('logs-${agentIdSafe}', '${agentResult.logs_path}')">
+                        <span class="btn-icon">📋</span> Logs
+                    </button>
+                ` : ''}
+            </td>
         `;
 
         tbody.appendChild(row);
     });
+
+    // Display diff and logs sections below the table
+    displayAgentDiffsAndLogs(result.agent_results);
+}
+
+/**
+ * Display diff and logs sections for each agent
+ */
+function displayAgentDiffsAndLogs(agentResults) {
+    const container = document.getElementById('agent-details-sections');
+    if (!container) return;
+
+    container.innerHTML = agentResults.map(agentResult => {
+        const agentId = `${agentResult.runner}:${agentResult.model}`;
+        const agentIdSafe = agentId.replace(/[^a-zA-Z0-9]/g, '_');
+
+        return `
+            <div class="card" style="margin-top: 20px;">
+                <h5>${agentId}</h5>
+                <div id="diff-${agentIdSafe}" class="collapsible-section" style="display: none;">
+                    <h6>Diff</h6>
+                    <pre class="code-block">${colorizeDiff(agentResult.patch_unified || 'No diff available')}</pre>
+                </div>
+                ${agentResult.logs_path ? `
+                    <div id="logs-${agentIdSafe}" class="collapsible-section logs-container" style="display: none;">
+                        <h6>Logs</h6>
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <em>Click "Logs" button to load...</em>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Load and show logs for an agent (called from button click)
+ */
+async function loadAndShowLogs(sectionId, logsPath) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    // Toggle visibility
+    const isHidden = section.style.display === 'none';
+    section.style.display = isHidden ? 'block' : 'none';
+
+    // If showing and not yet loaded, load the logs
+    if (isHidden && section.querySelector('em')) {
+        section.innerHTML = '<div style="text-align: center; padding: 20px;"><em>Loading logs...</em></div>';
+
+        try {
+            const response = await fetch(`${API_BASE}/${logsPath}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const text = await response.text();
+            const lines = text.trim().split('\n');
+            const logEntries = lines.map(line => {
+                try {
+                    return JSON.parse(line);
+                } catch (e) {
+                    return { raw: line };
+                }
+            });
+
+            section.innerHTML = '<h6>Logs</h6>' + formatLogs(logEntries);
+        } catch (error) {
+            section.innerHTML = `
+                <h6>Logs</h6>
+                <div style="color: #d32f2f; padding: 10px;">
+                    <strong>Error loading logs:</strong> ${error.message}
+                </div>
+            `;
+        }
+    }
 }
 
 /**
