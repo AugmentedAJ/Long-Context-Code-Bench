@@ -69,6 +69,146 @@ async function loadHeadToHeadLeaderboard() {
 }
 
 /**
+ * Normalize agent ID by removing the hash suffix.
+ * Converts "runner:model:hash" to "runner:model"
+ */
+function normalizeAgentId(agentId) {
+    const parts = agentId.split(':');
+    // If there are 3+ parts, the last one is likely a hash
+    if (parts.length >= 3) {
+        // Remove the last part (hash)
+        return parts.slice(0, -1).join(':');
+    }
+    return agentId;
+}
+
+/**
+ * Aggregate head-to-head data from all PR results to compute ELO ratings and stats.
+ */
+function aggregateHeadToHeadData(results) {
+    // Collect all pairwise decisions across all PRs
+    const allDecisions = [];
+    const agentStats = {};
+
+    // Map from full agent_id (with hash) to normalized agent_id (without hash)
+    const agentIdMap = {};
+
+    for (const result of results) {
+        if (!result.pairwise_decisions) continue;
+
+        // Normalize decisions by mapping agent IDs
+        const normalizedDecisions = result.pairwise_decisions.map(decision => ({
+            ...decision,
+            submission_a_id: normalizeAgentId(decision.submission_a_id),
+            submission_b_id: normalizeAgentId(decision.submission_b_id)
+        }));
+
+        allDecisions.push(...normalizedDecisions);
+
+        // Aggregate stats from each PR
+        if (result.agent_stats) {
+            for (const stat of result.agent_stats) {
+                const fullAgentId = stat.agent_id;
+                const normalizedId = normalizeAgentId(fullAgentId);
+
+                // Track the mapping
+                agentIdMap[fullAgentId] = normalizedId;
+
+                if (!agentStats[normalizedId]) {
+                    agentStats[normalizedId] = {
+                        agent_id: normalizedId,
+                        wins: 0,
+                        losses: 0,
+                        ties: 0
+                    };
+                }
+                agentStats[normalizedId].wins += stat.wins || 0;
+                agentStats[normalizedId].losses += stat.losses || 0;
+                agentStats[normalizedId].ties += stat.ties || 0;
+            }
+        }
+    }
+
+    // Compute ELO ratings with normalized IDs
+    const eloRatings = computeEloRatings(allDecisions);
+
+    // Build leaderboard entries
+    const leaderboard = [];
+    for (const [agentId, stats] of Object.entries(agentStats)) {
+        // Parse agent_id (format: "runner:model")
+        const parts = agentId.split(':');
+        const runner = parts[0] || agentId;
+        const model = parts.slice(1).join(':') || '';
+
+        const totalGames = stats.wins + stats.losses + stats.ties;
+        const winRate = totalGames > 0 ? stats.wins / totalGames : 0;
+
+        leaderboard.push({
+            agent_id: agentId,
+            runner: runner,
+            model: model,
+            wins: stats.wins,
+            losses: stats.losses,
+            ties: stats.ties,
+            win_rate: winRate,
+            elo_rating: eloRatings[agentId] || 1500
+        });
+    }
+
+    // Sort by ELO rating (descending)
+    leaderboard.sort((a, b) => b.elo_rating - a.elo_rating);
+
+    return leaderboard;
+}
+
+/**
+ * Compute ELO ratings from pairwise decisions.
+ */
+function computeEloRatings(decisions, initialRating = 1500, kFactor = 32) {
+    const ratings = {};
+
+    function getRating(agentId) {
+        if (!(agentId in ratings)) {
+            ratings[agentId] = initialRating;
+        }
+        return ratings[agentId];
+    }
+
+    for (const decision of decisions) {
+        const a = decision.submission_a_id;
+        const b = decision.submission_b_id;
+
+        const ra = getRating(a);
+        const rb = getRating(b);
+
+        // Expected scores
+        const ea = 1 / (1 + Math.pow(10, (rb - ra) / 400));
+        const eb = 1 / (1 + Math.pow(10, (ra - rb) / 400));
+
+        // Actual scores
+        let sa, sb;
+        const winner = (decision.winner || '').toLowerCase();
+        if (winner === 'a') {
+            sa = 1.0;
+            sb = 0.0;
+        } else if (winner === 'b') {
+            sa = 0.0;
+            sb = 1.0;
+        } else {
+            // Tie
+            sa = 0.5;
+            sb = 0.5;
+        }
+
+        // Update ratings
+        ratings[a] = ra + kFactor * (sa - ea);
+        ratings[b] = rb + kFactor * (sb - eb);
+    }
+
+    return ratings;
+}
+
+/**
  * Display head-to-head leaderboard table.
  */
 function displayHeadToHeadLeaderboard(leaderboard) {

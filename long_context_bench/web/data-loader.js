@@ -574,7 +574,7 @@ async function loadAllHeadToHeadResults() {
         const results = [];
         for (const run of index.head_to_head_runs) {
             try {
-                const response = await fetch(`${API_BASE}/head_to_head/${run.file}`);
+                const response = await fetch(`${API_BASE}/${run.file}`);
                 if (response.ok) {
                     const result = await response.json();
                     // Attach metadata from index entry if not already present
