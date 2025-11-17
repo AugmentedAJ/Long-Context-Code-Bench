@@ -382,12 +382,12 @@ function displayHeadToHeadAgentResults(result) {
             <td>${formatStatus(agentResult.status)}</td>
             <td>${stats ? `${stats.wins}W / ${stats.losses}L / ${stats.ties}T` : 'N/A'}</td>
             <td style="font-size: 0.9em;">${agentResult.llm_summary || 'N/A'}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
+            <td>${formatScore(agentResult.aggregate)}</td>
+            <td>${formatScore(agentResult.scores?.correctness)}</td>
+            <td>${formatScore(agentResult.scores?.completeness)}</td>
+            <td>${formatScore(agentResult.scores?.code_reuse)}</td>
+            <td>${formatScore(agentResult.scores?.best_practices)}</td>
+            <td>${formatScore(agentResult.scores?.unsolicited_docs)}</td>
             <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
         `;
 
