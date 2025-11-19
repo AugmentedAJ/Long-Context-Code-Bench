@@ -147,6 +147,24 @@ app.get('/api/head_to_head/:filename', (req, res) => {
     res.sendFile(h2hPath);
 });
 
+// API endpoint to get head-to-head metadata (lightweight overview for PR list/leaderboard)
+app.get('/api/head_to_head_metadata.json', (req, res) => {
+    const candidates = [
+        path.join(OUTPUT_DIR, 'web', 'head_to_head_metadata.json'),
+        path.join(OUTPUT_DIR, 'head_to_head_metadata.json'),
+        path.join(__dirname, 'head_to_head_metadata.json'),
+    ];
+
+    const existingPath = candidates.find(p => fs.existsSync(p));
+    if (!existingPath) {
+        return res.status(404).json({
+            error: 'Head-to-head metadata not found. Run scripts/generate_metadata.py to create it.',
+        });
+    }
+
+    res.sendFile(existingPath);
+});
+
 // Serve data files directly (for task detail page)
 app.use('/data', express.static(OUTPUT_DIR));
 

@@ -414,15 +414,47 @@ def run_head_to_head_for_pr(
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    *,
+    judge_runner: Optional[str] = None,
+    judge_runner_model: Optional[str] = None,
+    multi_judge: bool = False,
 ) -> Optional[str]:
     """Run head-to-head judging for a single PR.
+
+    By default this uses a single, dedicated agent as the judge for all
+    pairs (Claude Code for v0). The previous behaviour where each agent acts
+    as a judge over the others is still available via ``multi_judge=True``.
 
     Returns the head-to-head run ID, or None if no result was produced.
     """
 
+    # Resolve judge runner defaults for single-agent mode
+    if not multi_judge:
+        if judge_runner is None:
+            # Local import to avoid import cycles at module import time.
+            from long_context_bench import (
+                DEFAULT_HEAD_TO_HEAD_JUDGE_RUNNER,
+                DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL,
+            )
+
+            judge_runner = DEFAULT_HEAD_TO_HEAD_JUDGE_RUNNER
+            if judge_runner_model is None:
+                judge_runner_model = DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL
+        elif judge_runner_model is None:
+            # Runner was provided but not a model; fall back to the default
+            # model to keep behaviour predictable.
+            from long_context_bench import DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL
+
+            judge_runner_model = DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL
+
     head_to_head_run_id = str(uuid.uuid4())[:8]
+    mode_desc = (
+        "agents as judges"
+        if multi_judge
+        else f"single agent judge {judge_runner}/{judge_runner_model}"
+    )
     console.print(
-        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} (agents as judges, scores from {judge_model})[/bold]"
+        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} ({mode_desc}, scores from {judge_model})[/bold]"
     )
 
     # Resolve sample
@@ -466,7 +498,12 @@ def run_head_to_head_for_pr(
     console.print("  Fetching ground truth diff...")
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-    console.print("  Using agents as judges (no LLM calls in this stage)")
+    if multi_judge:
+        console.print("  Using all agents as judges (no LLM calls in this stage)")
+    else:
+        console.print(
+            f"  Using single judge agent: {judge_runner}/{judge_runner_model} (no LLM calls in this stage)"
+        )
     console.print(f"  Reusing scalar scores from judge model: {judge_model}")
 
     # Build submissions list
@@ -540,76 +577,124 @@ def run_head_to_head_for_pr(
         )
         console.print(f"  Included {len(context_paths or [])} context file(s)")
 
-    # Pairwise decisions using agents as judges
+    # Pairwise decisions
     pairwise_decisions: List[PairwiseJudgeDecision] = []
-    for i in range(len(submissions)):
-        for j in range(i + 1, len(submissions)):
-            sub_i = submissions[i]
-            sub_j = submissions[j]
 
-            # First: agent i as judge
-            judge_edit = sub_i["edit"]
-            judge_runner = judge_edit.runner
-            judge_runner_model = judge_edit.model
-            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
-            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
-            if order_seed % 2 == 0:
-                a_sub, b_sub = sub_i, sub_j
-            else:
-                a_sub, b_sub = sub_j, sub_i
+    if multi_judge:
+        # Previous behaviour: every agent acts as judge over every other agent.
+        for i in range(len(submissions)):
+            for j in range(i + 1, len(submissions)):
+                sub_i = submissions[i]
+                sub_j = submissions[j]
 
-            console.print(
-                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
-            )
-            decision_i = run_agent_pairwise_judge(
-                sample=sample,
-                judge_runner=judge_runner,
-                judge_model=judge_runner_model,
-                edit_a=a_sub["edit"],
-                edit_b=b_sub["edit"],
-                submission_a_id=a_sub["agent_id"],
-                submission_b_id=b_sub["agent_id"],
-                ground_truth_diff=ground_truth_diff,
-                order_seed=order_seed,
-                output_dir=output_dir,
-                head_to_head_run_id=head_to_head_run_id,
-                codebase_context=context,
-                codebase_context_paths=context_paths,
-                cache_dir=cache_dir,
-            )
-            pairwise_decisions.append(decision_i)
+                # First: agent i as judge
+                judge_edit_i = sub_i["edit"]
+                judge_runner_i = judge_edit_i.runner
+                judge_runner_model_i = judge_edit_i.model
+                seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner_i}|{judge_runner_model_i}"
+                order_seed = int(
+                    hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16
+                )
+                if order_seed % 2 == 0:
+                    a_sub, b_sub = sub_i, sub_j
+                else:
+                    a_sub, b_sub = sub_j, sub_i
 
-            # Second: agent j as judge
-            judge_edit = sub_j["edit"]
-            judge_runner = judge_edit.runner
-            judge_runner_model = judge_edit.model
-            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
-            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
-            if order_seed % 2 == 0:
-                a_sub, b_sub = sub_i, sub_j
-            else:
-                a_sub, b_sub = sub_j, sub_i
+                console.print(
+                    f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner_i}"
+                )
+                decision_i = run_agent_pairwise_judge(
+                    sample=sample,
+                    judge_runner=judge_runner_i,
+                    judge_model=judge_runner_model_i,
+                    edit_a=a_sub["edit"],
+                    edit_b=b_sub["edit"],
+                    submission_a_id=a_sub["agent_id"],
+                    submission_b_id=b_sub["agent_id"],
+                    ground_truth_diff=ground_truth_diff,
+                    order_seed=order_seed,
+                    output_dir=output_dir,
+                    head_to_head_run_id=head_to_head_run_id,
+                    codebase_context=context,
+                    codebase_context_paths=context_paths,
+                    cache_dir=cache_dir,
+                )
+                pairwise_decisions.append(decision_i)
 
-            console.print(
-                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
-            )
-            decision_j = run_agent_pairwise_judge(
-                sample=sample,
-                judge_runner=judge_runner,
-                judge_model=judge_runner_model,
-                edit_a=a_sub["edit"],
-                edit_b=b_sub["edit"],
-                submission_a_id=a_sub["agent_id"],
-                submission_b_id=b_sub["agent_id"],
-                ground_truth_diff=ground_truth_diff,
-                order_seed=order_seed,
-                output_dir=output_dir,
-                head_to_head_run_id=head_to_head_run_id,
-                codebase_context=context,
-                codebase_context_paths=context_paths,
-                cache_dir=cache_dir,
-            )
-            pairwise_decisions.append(decision_j)
+                # Second: agent j as judge
+                judge_edit_j = sub_j["edit"]
+                judge_runner_j = judge_edit_j.runner
+                judge_runner_model_j = judge_edit_j.model
+                seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner_j}|{judge_runner_model_j}"
+                order_seed = int(
+                    hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16
+                )
+                if order_seed % 2 == 0:
+                    a_sub, b_sub = sub_i, sub_j
+                else:
+                    a_sub, b_sub = sub_j, sub_i
+
+                console.print(
+                    f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner_j}"
+                )
+                decision_j = run_agent_pairwise_judge(
+                    sample=sample,
+                    judge_runner=judge_runner_j,
+                    judge_model=judge_runner_model_j,
+                    edit_a=a_sub["edit"],
+                    edit_b=b_sub["edit"],
+                    submission_a_id=a_sub["agent_id"],
+                    submission_b_id=b_sub["agent_id"],
+                    ground_truth_diff=ground_truth_diff,
+                    order_seed=order_seed,
+                    output_dir=output_dir,
+                    head_to_head_run_id=head_to_head_run_id,
+                    codebase_context=context,
+                    codebase_context_paths=context_paths,
+                    cache_dir=cache_dir,
+                )
+                pairwise_decisions.append(decision_j)
+    else:
+        # New default: a single, dedicated agent acts as judge for all pairs.
+        console.print(
+            f"  Running pairwise comparisons with judge agent {judge_runner}/{judge_runner_model}"
+        )
+        for i in range(len(submissions)):
+            for j in range(i + 1, len(submissions)):
+                sub_i = submissions[i]
+                sub_j = submissions[j]
+
+                seed_input = (
+                    f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
+                )
+                order_seed = int(
+                    hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16
+                )
+                if order_seed % 2 == 0:
+                    a_sub, b_sub = sub_i, sub_j
+                else:
+                    a_sub, b_sub = sub_j, sub_i
+
+                console.print(
+                    f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
+                )
+                decision = run_agent_pairwise_judge(
+                    sample=sample,
+                    judge_runner=judge_runner,
+                    judge_model=judge_runner_model,
+                    edit_a=a_sub["edit"],
+                    edit_b=b_sub["edit"],
+                    submission_a_id=a_sub["agent_id"],
+                    submission_b_id=b_sub["agent_id"],
+                    ground_truth_diff=ground_truth_diff,
+                    order_seed=order_seed,
+                    output_dir=output_dir,
+                    head_to_head_run_id=head_to_head_run_id,
+                    codebase_context=context,
+                    codebase_context_paths=context_paths,
+                    cache_dir=cache_dir,
+                )
+                pairwise_decisions.append(decision)
 
     if not pairwise_decisions:
         console.print("[yellow]No pairwise decisions produced[/yellow]")
@@ -647,15 +732,18 @@ def run_head_to_head_for_pr(
 
     # Assemble result and write to disk
     h2h_result = HeadToHeadPRResult(
-        repo_url=sample.repo_url,
-        pr_number=sample.pr_number,
-        base_commit=sample.base_commit,
-        head_commit=sample.head_commit,
-        task_instructions=sample.task_instructions,
-        test_label=test_label,
+            repo_url=sample.repo_url,
+            pr_number=sample.pr_number,
+            base_commit=sample.base_commit,
+            head_commit=sample.head_commit,
+            task_instructions=sample.task_instructions,
+            test_label=test_label,
         agent_results=agent_results,
         pairwise_decisions=pairwise_decisions,
         agent_stats=agent_stats,
+        judge_mode="multi_agent" if multi_judge else "single_agent",
+        judge_runner=None if multi_judge else judge_runner,
+        judge_runner_model=None if multi_judge else judge_runner_model,
         head_to_head_run_id=head_to_head_run_id,
         timestamp=datetime.utcnow().isoformat(),
     )

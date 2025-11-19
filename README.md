@@ -181,21 +181,34 @@ Rank multiple agents across standardized benchmarks:
 ### Agents-as-judge head-to-head evaluation
 
 In addition to scalar LLM-judge scores, Long-Context-Bench supports
-**agents acting as judges over each other**.
+**agents acting as judges** in a head-to-head setting.
+
+By default (v0), head-to-head runs use a **single dedicated judge agent**
+(Claude Code by default), but you can configure any agent runner/model to
+act as the judge. For research and debugging, you can also enable a
+multi-judge mode where agents judge each other.
 
 The `head-to-head-pr` command:
 - Finds all agent submissions (edits) for a given PR
-- Uses each agent as a judge over every other agent's patch
-- Reuses scalar scores from a prior LLM judge run when available
+- Uses a single dedicated judge agent to compare pairs of patches and
+  pick a winner based on correctness, completeness, code quality, and
+  integration
+- Reuses scalar scores from a prior LLM judge run (``judge`` stage) when
+  available via ``--judge-model``
 - Does **not** make any new LLM-as-judge calls in this stage
+- Optionally supports ``--multi-judge`` to run the legacy mode where each
+  agent also acts as a judge over the others
 
 Example: run head-to-head for a single Elasticsearch PR where Auggie,
-Claude Code, and Factory have all produced edits:
+Claude Code, and Factory have all produced edits, using Claude Code as
+the single dedicated judge agent (the v0 default):
 
 ```bash
 long-context-bench head-to-head-pr \
   --pr-number 114860 \
   --judge-model placeholder \
+    --judge-runner claude-code \
+    --judge-runner-model claude-sonnet-4-5 \
   --output-dir output \
   --cache-dir .repo_cache \
   --include-codebase-context \
@@ -205,11 +218,13 @@ long-context-bench head-to-head-pr \
 Notes:
 - `--judge-model` is only used to look up existing scalar scores from the
   `cross_agent_analysis` stage; no new LLM calls are made.
-- For each pairwise decision, `judge_runner` and `judge_model` are taken
-  from the agent's original edit (e.g., `auggie/sonnet4.5`,
-  `claude-code/claude-sonnet-4-5`).
-- Claude Code runs under a PTY so that its Ink-based TTY handling works
-  reliably in CI and other non-interactive environments.
+  - In **single-judge** mode, `judge_runner` and `judge_model` on each
+    decision refer to the dedicated judge agent (e.g.,
+    `claude-code/claude-sonnet-4-5`). In **multi-judge** mode, they refer
+    to the agent that originally produced the edit (e.g.,
+    `auggie/sonnet4.5`).
+  - Claude Code runs under a PTY so that its Ink-based TTY handling works
+    reliably in CI and other non-interactive environments.
 
 3. **Customize ranking**: Use `--rank-by` to rank by different metrics (mean_aggregate, success_rate, tasks_per_hour, etc.)
 4. **Export results**: Save leaderboard as CSV or JSON for sharing

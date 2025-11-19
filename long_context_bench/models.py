@@ -247,6 +247,18 @@ class HeadToHeadPRResult(BaseModel):
     pairwise_decisions: List[PairwiseJudgeDecision]
     agent_stats: List[HeadToHeadAgentStats]
 
+    # Judge configuration
+    #
+    # ``judge_mode`` describes how pairwise decisions were produced:
+    # - "single_agent": a single dedicated agent acted as judge for all pairs
+    # - "multi_agent":   each agent acted as judge over the others
+    #
+    # Older artifacts may omit these fields; they will be ``None`` when
+    # loaded via pydantic, and consumers should handle that gracefully.
+    judge_mode: Optional[str] = None
+    judge_runner: Optional[str] = None
+    judge_runner_model: Optional[str] = None
+
     # Run metadata
     head_to_head_run_id: str
     timestamp: str

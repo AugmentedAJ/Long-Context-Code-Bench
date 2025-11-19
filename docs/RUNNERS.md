@@ -57,6 +57,11 @@ long-context-bench edit \
 
 **Description:** Anthropic's command-line coding agent.
 
+**Head-to-head default:** In v0, Claude Code is used as the default
+dedicated judge agent for agents-as-judge head-to-head evaluation. You
+can override this via ``--judge-runner`` and ``--judge-runner-model`` on
+the ``head-to-head-pr`` CLI command.
+
 **Installation:**
 - Follow Anthropic's installation instructions for Claude Code CLI
 

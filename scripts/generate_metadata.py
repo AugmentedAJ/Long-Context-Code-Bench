@@ -16,6 +16,10 @@ def extract_metadata(result_data):
         'pr_number': result_data.get('pr_number'),
         'pr_id': result_data.get('pr_id'),
         'head_to_head_run_id': result_data.get('head_to_head_run_id'),
+        # Judge configuration (optional, present for newer runs)
+        'judge_mode': result_data.get('judge_mode'),
+        'judge_runner': result_data.get('judge_runner'),
+        'judge_runner_model': result_data.get('judge_runner_model'),
         'num_agents': len(result_data.get('agent_results', [])),
         'num_decisions': len(result_data.get('pairwise_decisions', [])),
         'agent_ids': [

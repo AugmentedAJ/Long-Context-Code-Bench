@@ -9,7 +9,7 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-from long_context_bench.models import Sample, Edit, Judge, AggregateSummary, HeadToHeadPRResult, HeadToHeadAgentSummary, HeadToHeadGlobalSummary
+from long_context_bench.models import Sample, Edit, Judge, AggregateSummary, HeadToHeadPRResult, HeadToHeadAgentSummary, HeadToHeadGlobalSummary, JudgeRunManifest
 
 console = Console()
 
@@ -894,6 +894,63 @@ def generate_index_manifest(output_dir: Path) -> None:
 
             except Exception as e:
                 console.print(f"[yellow]Warning: Failed to process {summary_file}: {e}[/yellow]")
+
+        # Enrich runs with judge metadata from judge_run_manifest.json files, if present.
+        #
+        # Deterministic scalar judges (used for v0) are stored under:
+        #   output/judges/deterministic/default/{judge_run_id}/judge_run_manifest.json
+        # and LLM judges (when present) are stored under:
+        #   output/judges/llm/{judge_model}/{judge_run_id}/judge_run_manifest.json
+        #
+        # We map judge_run_id -> (judge_mode, judge_model) and attach that information
+        # to any matching run entries. This allows the web UI to construct the correct
+        # /api/judges/{judge_mode}/{judge_model}/{judge_run_id}/{pr_id}/judge.json URLs.
+        judges_root = output_dir / "judges"
+        judge_meta_by_run_id = {}
+        if judges_root.exists():
+            for manifest_file in judges_root.rglob("judge_run_manifest.json"):
+                try:
+                    with open(manifest_file) as f:
+                        data = json.load(f)
+                    manifest = JudgeRunManifest(**data)
+                    judge_meta_by_run_id[manifest.judge_run_id] = {
+                        "judge_mode": manifest.judge_mode,
+                        "judge_model": manifest.judge_model,
+                    }
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning: Failed to process judge manifest {manifest_file}: {e}[/yellow]"
+                    )
+
+        if judge_meta_by_run_id:
+            for run in index["runs"]:
+                jrid = run.get("judge_run_id")
+                if not jrid:
+                    continue
+                meta = judge_meta_by_run_id.get(jrid)
+                if meta:
+                    run["judge_mode"] = meta["judge_mode"]
+                    run["judge_model"] = meta["judge_model"]
+
+        # Fallback for older deterministic judge runs that may not have a
+        # judge_run_manifest.json. These runs still store per-PR judge.json
+        # files under:
+        #   output/judges/deterministic/default/{judge_run_id}/{pr_id}/judge.json
+        # but the index was previously missing judge_mode, which caused the
+        # web UI to request /api/judges/null/default/... and get 404s.
+        #
+        # If a run has a judge_run_id but no judge_mode yet, assume
+        # deterministic judging if we find the corresponding directory.
+        deterministic_root = output_dir / "judges" / "deterministic" / "default"
+        if deterministic_root.exists():
+            for run in index["runs"]:
+                if run.get("judge_mode") is not None:
+                    continue
+                jrid = run.get("judge_run_id")
+                if not jrid:
+                    continue
+                if (deterministic_root / jrid).exists():
+                    run["judge_mode"] = "deterministic"
 
     # Scan cross-agent analysis directory
     cross_agent_dir = output_dir / "cross_agent_analysis"

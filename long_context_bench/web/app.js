@@ -342,20 +342,21 @@ function displayHeadToHeadPRList(metadata) {
     // Sort by PR number
     const sorted = [...metadata].sort((a, b) => a.pr_number - b.pr_number);
 
-    // Create table
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>PR Number</th>
-                <th>Agents</th>
-                <th>Pairwise Decisions</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="h2h-pr-list-body"></tbody>
-    `;
+	    // Create table
+	    const table = document.createElement('table');
+	    table.style.width = '100%';
+	    table.innerHTML = `
+	        <thead>
+	            <tr>
+	                <th>PR Number</th>
+	                <th>Agents</th>
+	                <th>Pairwise Decisions</th>
+	                <th>Judge</th>
+	                <th>Actions</th>
+	            </tr>
+	        </thead>
+	        <tbody id="h2h-pr-list-body"></tbody>
+	    `;
 
     listContainer.innerHTML = '';
     listContainer.appendChild(table);
@@ -366,11 +367,26 @@ function displayHeadToHeadPRList(metadata) {
         const row = document.createElement('tr');
         const agentCount = prMeta.num_agents || 0;
         const decisionCount = prMeta.num_decisions || 0;
+	        const judgeMode = prMeta.judge_mode || null;
+	        let judgeLabel;
+	        if (judgeMode === 'single_agent') {
+	            if (prMeta.judge_runner) {
+	                const modelPart = prMeta.judge_runner_model ? `:${prMeta.judge_runner_model}` : '';
+	                judgeLabel = `${prMeta.judge_runner}${modelPart}`;
+	            } else {
+	                judgeLabel = 'Single judge';
+	            }
+	        } else if (judgeMode === 'multi_agent') {
+	            judgeLabel = 'Agents as judges';
+	        } else {
+	            judgeLabel = 'Legacy (agents as judges)';
+	        }
 
         row.innerHTML = `
             <td><strong>${prMeta.pr_number}</strong></td>
             <td>${agentCount} agents</td>
             <td>${decisionCount} decisions</td>
+	            <td>${judgeLabel}</td>
             <td>
                 <button class="btn-primary" onclick="showHeadToHeadDetail('${prMeta.head_to_head_run_id}', ${prMeta.pr_number})">
                     View Details
@@ -405,6 +421,23 @@ async function showHeadToHeadDetail(runId, prNumber) {
 
         // Show task instructions
         document.getElementById('task-instructions').textContent = result.task_instructions || 'N/A';
+
+	        // Show judge configuration summary
+	        const judgeSummaryEl = document.getElementById('judge-config-summary');
+	        const judgeCardEl = document.getElementById('judge-config-card');
+	        if (judgeSummaryEl && judgeCardEl) {
+	            const mode = result.judge_mode || null;
+	            if (mode === 'single_agent') {
+	                const runner = result.judge_runner || 'unknown-runner';
+	                const model = result.judge_runner_model || 'unknown-model';
+	                judgeSummaryEl.textContent = `Single dedicated judge agent: ${runner}:${model}`;
+	            } else if (mode === 'multi_agent') {
+	                judgeSummaryEl.textContent = 'Multi-judge mode: each agent also acts as a judge over the others.';
+	            } else {
+	                judgeSummaryEl.textContent = 'Legacy agents-as-judge run (no explicit judge configuration recorded).';
+	            }
+	            judgeCardEl.style.display = 'block';
+	        }
 
         // Hide comparative section (not used in head-to-head)
         document.getElementById('comparative-section').style.display = 'none';
