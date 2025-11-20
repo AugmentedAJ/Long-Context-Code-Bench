@@ -23,22 +23,23 @@ echo ""
 # Counter
 COUNT=0
 
-# Process each PR
-for PR_NUM in $PR_NUMBERS; do
-    COUNT=$((COUNT + 1))
-    echo "[$COUNT/$TOTAL_PRS] Processing PR $PR_NUM..."
-    
-    # Run head-to-head evaluation
-    long-context-bench head-to-head-pr \
-        --pr-number "$PR_NUM" \
-        --test-label "$TEST_LABEL" \
-        --judge-model "$JUDGE_MODEL" \
-        --output-dir "$OUTPUT_DIR" \
-        --cache-dir ".repo_cache" \
-        2>&1 | grep -E "✓|⊙|Warning|Error|Found|Judging" || true
-    
-    echo ""
-done
+	# Process each PR
+	for PR_NUM in $PR_NUMBERS; do
+	    COUNT=$((COUNT + 1))
+	    echo "[$COUNT/$TOTAL_PRS] Processing PR $PR_NUM..."
+	    
+	    # Run head-to-head evaluation (force re-run so results are fully regenerated)
+	    python -m long_context_bench.cli head-to-head-pr \
+	        --pr-number "$PR_NUM" \
+	        --test-label "$TEST_LABEL" \
+	        --judge-model "$JUDGE_MODEL" \
+	        --output-dir "$OUTPUT_DIR" \
+	        --cache-dir ".repo_cache" \
+	        --force \
+	        2>&1 | grep -E "✓|⊙|Warning|Error|Found|Judging" || true
+	    
+	    echo ""
+	done
 
 echo "=== Head-to-Head Regeneration Complete ==="
 echo ""

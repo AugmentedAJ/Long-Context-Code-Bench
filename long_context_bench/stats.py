@@ -429,16 +429,21 @@ def generate_head_to_head_summary(
         return None
 
     # Load all head-to-head results
-    results: List[HeadToHeadPRResult] = []
-    for result_file in h2h_dir.glob("pr*_*.json"):
-        try:
-            with open(result_file) as f:
-                data = json.load(f)
-            result = HeadToHeadPRResult(**data)
-            if result.test_label is None or result.test_label == test_label:
-                results.append(result)
-        except Exception as e:  # pragma: no cover - defensive
-            console.print(f"[yellow]Warning: Failed to load {result_file}: {e}[/yellow]")
+	    results: List[HeadToHeadPRResult] = []
+	    for result_file in h2h_dir.glob("pr*_*.json"):
+	        try:
+	            with open(result_file) as f:
+	                data = json.load(f)
+	            result = HeadToHeadPRResult(**data)
+	            if result.test_label is not None and result.test_label != test_label:
+	                continue
+	            # On this branch we primarily care about the single-agent-vs-human
+	            # mode. Older artifacts that used pure agent-vs-agent single-judge
+	            # mode may still be present; we include them for completeness but
+	            # they can be filtered later using judge_mode if desired.
+	            results.append(result)
+	        except Exception as e:  # pragma: no cover - defensive
+	            console.print(f"[yellow]Warning: Failed to load {result_file}: {e}[/yellow]")
 
     if not results:
         console.print(f"[yellow]No head-to-head results found for test label '{test_label}'[/yellow]")
@@ -454,9 +459,15 @@ def generate_head_to_head_summary(
     matrix = compute_win_loss_matrix(all_decisions)
     elo_ratings = compute_elo_ratings(all_decisions)
 
-    # Build per-agent summaries
+    # Build per-agent summaries. For the single-agent-vs-human mode, a synthetic
+    # baseline agent id of the form "human:..." is used for the ground-truth
+    # diff. We keep it in the win/loss matrix and Elo graph but omit it from
+    # the top-level leaderboard so that only real agents appear.
     agent_summaries = []
     for agent_id, opponents in matrix.items():
+        if agent_id.startswith("human:"):
+            continue
+
         wins = sum(v["wins"] for v in opponents.values())
         losses = sum(v["losses"] for v in opponents.values())
         ties = sum(v["ties"] for v in opponents.values())
@@ -509,7 +520,7 @@ def generate_head_to_head_summary(
     )
 
     # Display table
-    table = Table(title=f"Head-to-Head Leaderboard: {test_label}")
+    table = Table(title=f"Head-to-Head Leaderboard vs Human: {test_label}")
     table.add_column("Rank", style="yellow", justify="center", width=6)
     table.add_column("Agent", style="cyan", width=30)
     table.add_column("Wins", justify="right")

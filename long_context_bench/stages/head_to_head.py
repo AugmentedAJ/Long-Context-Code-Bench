@@ -137,12 +137,57 @@ def _parse_agent_judge_output(stdout: str) -> dict:
 
     Agents typically emit a long, chatty transcript with a final JSON code block
     containing the decision. This helper tries several strategies, from most to
-    least specific, to recover that JSON.
+    least specific, to recover that JSON. When multiple JSON objects are present
+    we prefer ones that look like a judge decision (have ``winner``/``raw_scores``).
     """
 
     content = stdout.strip()
     if not content:
         raise ValueError("Empty stdout from judge runner")
+
+    # 0) Some runners (notably the claude-code CLI with --output-format
+    #    stream-json) emit a *sequence* of JSON objects, one per line. In that
+    #    case the actual judge output is usually in the final "result" field
+    #    of the last event. Try to recover that first. If this does not
+    #    succeed, we fall back to the generic heuristics below.
+    stream_objects: List[dict] = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or not line.startswith("{"):
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            stream_objects.append(obj)
+
+    if stream_objects:
+        # First, see if any object already looks like the final JSON
+        # schema (useful if a runner prints the result as a standalone
+        # JSON object). Prefer the *first* such object to match legacy
+        # expectations where the earliest JSON decision wins.
+        for obj in stream_objects:
+            if "winner" in obj:
+                return obj
+
+        # Otherwise, look for a textual field that likely contains the
+        # natural-language analysis plus an embedded JSON code block.
+        candidate_texts: List[str] = []
+        for obj in reversed(stream_objects):
+            for key in ("result", "stdout", "content", "message"):
+                value = obj.get(key)
+                if isinstance(value, str) and value and value != stdout:
+                    candidate_texts.append(value)
+
+        for text in candidate_texts:
+            try:
+                return _parse_agent_judge_output(text)
+            except ValueError:
+                continue
+        # If none of the stream-json objects yielded a parseable result,
+        # fall back to the generic heuristics below using the original
+        # combined content.
 
     # 1) Some runners emit pure JSON
     try:
@@ -150,8 +195,9 @@ def _parse_agent_judge_output(stdout: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # 2) Extract JSON from markdown code blocks, preferring the last block which
-    # is usually the final answer.
+    # 2) Extract JSON from markdown code blocks, preferring blocks that look
+    # like judge decisions (have winner/raw_scores), and otherwise the last
+    # successfully decoded block.
     if "```" in content:
         blocks: List[str] = []
         in_block = False
@@ -173,17 +219,38 @@ def _parse_agent_judge_output(stdout: str) -> dict:
         if current:
             blocks.append("\n".join(current).strip())
 
+        preferred_obj: Optional[dict] = None
+        fallback_obj: Optional[dict] = None
+
         # Try each block from last to first
         for block in reversed(blocks):
             if not block:
                 continue
             try:
-                return json.loads(block)
+                obj = json.loads(block)
             except json.JSONDecodeError:
                 continue
+            if not isinstance(obj, dict):
+                continue
+            # Highest priority: looks like a judge decision with raw_scores
+            if "winner" in obj and "raw_scores" in obj:
+                preferred_obj = obj
+                break
+            # Next best: any object with a winner field
+            if "winner" in obj and fallback_obj is None:
+                fallback_obj = obj
+            # Otherwise remember the first successfully parsed object as a
+            # last-resort fallback.
+            if fallback_obj is None:
+                fallback_obj = obj
 
-        # If we saw blocks at all, restrict subsequent heuristics to their
-        # combined content rather than the full transcript.
+        if preferred_obj is not None:
+            return preferred_obj
+        if fallback_obj is not None:
+            return fallback_obj
+
+        # If we saw blocks at all but none parsed, restrict subsequent
+        # heuristics to their combined content rather than the full transcript.
         if blocks:
             content = "\n".join(blocks)
 
@@ -267,7 +334,10 @@ def run_agent_pairwise_judge(
     codebase_context_paths: Optional[List[str]] = None,
     cache_dir: Optional[Path] = None,
 ) -> PairwiseJudgeDecision:
-    """Use a CLI agent as judge to compare two submissions and return a decision."""
+    """Use a CLI agent as judge to compare two agent submissions and return a decision.
+
+    This helper is kept for multi-judge legacy mode where agents judge each other.
+    """
 
     # Build codebase context block (optional)
     context_block = ""
@@ -406,6 +476,252 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no pros
     )
 
 
+def _human_baseline_id(pr_number: int) -> str:
+    """Stable identifier for the human (ground-truth) baseline submission."""
+
+    return f"human:ground-truth:pr{pr_number}"
+
+
+def run_agent_vs_human_judge(
+    sample: Sample,
+    judge_runner: str,
+    judge_model: Optional[str],
+    agent_edit: Edit,
+    agent_id: str,
+    ground_truth_diff: str,
+    order_seed: int,
+    output_dir: Path,
+    head_to_head_run_id: str,
+    codebase_context: Optional[Dict[str, str]] = None,
+    codebase_context_paths: Optional[List[str]] = None,
+    cache_dir: Optional[Path] = None,
+) -> PairwiseJudgeDecision:
+    """Use a CLI agent as judge to compare an agent submission vs the human diff.
+
+    In this mode, *Submission A* is always the agent's diff and *Submission B* is the
+    human (ground-truth) diff. The judge decides whether the agent is better, worse,
+    or roughly equal relative to the human baseline, using the same metrics as the
+    main LLM judge (agent-evals): correctness, completeness, code reuse,
+    best practices, and unsolicited documentation, each in the range -1.0 to 1.0.
+    """
+
+    human_id = _human_baseline_id(sample.pr_number)
+
+    # Build codebase context block (optional)
+    context_block = ""
+    if codebase_context:
+        parts = []
+        for path, content in codebase_context.items():
+            parts.append(f"### {path}\n```\n{_truncate(content, 2000)}\n```")
+        context_block = "\n**Codebase Context (Base Commit):**\n" + "\n\n".join(parts)
+
+    prompt = f"""You are an expert code reviewer acting as an automated judge for ONE AI
+coding agent's diff relative to the HUMAN (ground-truth) diff for the same
+GitHub pull request task.
+
+You are in a read-only evaluation mode:
+- Do NOT modify any files.
+- You may inspect the repository in the workspace if that helps you reason.
+- Your job is only to decide whether the agent's diff is better, worse, or
+  roughly equal compared to the human diff, and explain why.
+
+**Task Instructions:**
+{sample.task_instructions}
+
+**Ground Truth (Human) Diff:**
+```diff
+{_truncate(ground_truth_diff, 8000)}
+```
+{context_block}
+
+**Submission A (Agent) Diff:**
+```diff
+{_truncate(agent_edit.patch_unified, 8000)}
+```
+
+**Submission B (Human) Diff:**
+```diff
+{_truncate(ground_truth_diff, 8000)}
+```
+
+You must decide whether the agent's submission (Submission A) is BETTER,
+WORSE, or ROUGHLY EQUAL relative to the human diff according to the same
+5 metrics used by the main LLM judge (agent-evals). Each score MUST be
+between -1.0 and 1.0:
+
+1. **Correctness** (-1.0 to 1.0): Does the agent's change implement the
+   intended behavior correctly compared to the human diff?
+2. **Completeness** (-1.0 to 1.0): Does the agent achieve all requested
+   changes present in the human diff?
+3. **Code Reuse** (-1.0 to 1.0): Does the agent leverage existing code
+   appropriately versus duplicating or rewriting logic that the human
+   implementation reuses?
+4. **Best Practices** (-1.0 to 1.0): Does the agent follow project style,
+   structure, and idiomatic patterns, as reflected in the human diff?
+5. **Unsolicited Documentation** (-1.0 to 1.0): Penalizes documentation
+   added when not requested (README, changelog, extensive comments, etc.).
+
+For each submission (A = agent, B = human), you must produce scores for these
+5 metrics in the range -1.0 to 1.0. Use values near 1.0 for the human diff
+when it is clearly correct and high quality; only reduce the human's scores
+if you see concrete flaws in the ground truth.
+
+Respond with ONLY a valid JSON object in this exact format (no markdown, no
+prose before or after):
+
+{{
+  "winner": "A" | "B" | "tie",
+  "correctness_preference": "A" | "B" | "tie",
+  "completeness_preference": "A" | "B" | "tie",
+  "code_reuse_preference": "A" | "B" | "tie",
+  "best_practices_preference": "A" | "B" | "tie",
+  "unsolicited_docs_preference": "A" | "B" | "tie",
+  "rationale": "<brief explanation>",
+  "raw_scores": {{
+    "A": {{
+      "correctness": <float>,
+      "completeness": <float>,
+      "code_reuse": <float>,
+      "best_practices": <float>,
+      "unsolicited_docs": <float>
+    }},
+    "B": {{
+      "correctness": <float>,
+      "completeness": <float>,
+      "code_reuse": <float>,
+      "best_practices": <float>,
+      "unsolicited_docs": <float>
+    }}
+  }}
+}}"""
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_path = Path(tmpdir) / "workspace"
+            _ = materialize_workspace(sample, workspace_path, cache_dir)
+
+            logs_dir = (
+                output_dir
+                / "head_to_head"
+                / "logs"
+                / f"pr{sample.pr_number}_{head_to_head_run_id}"
+            )
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            logs_hash = hashlib.sha256(
+                f"{agent_id}|{human_id}|{judge_runner}|{order_seed}".encode("utf-8")
+            ).hexdigest()[:8]
+            logs_path = logs_dir / f"{judge_runner}_{logs_hash}.jsonl"
+
+            adapter = get_runner_adapter(
+                judge_runner,
+                model=judge_model or "",
+                agent_binary=None,
+                timeout=1800,
+                disable_retrieval=False,
+                disable_shell=False,
+                enable_mcp_codebase_qa=False,
+                stream_output=False,
+            )
+            result = adapter.run(
+                workspace_path=workspace_path,
+                task_instructions=prompt,
+                logs_path=logs_path,
+                env=os.environ.copy(),
+            )
+
+            if result.status != "success":
+                raise RuntimeError(f"Judge runner exited with status {result.status}")
+
+            stdout = _load_agent_stdout_from_logs(logs_path)
+            if not stdout.strip():
+                raise RuntimeError("No stdout captured from judge runner")
+
+            raw = _parse_agent_judge_output(stdout)
+
+            # Hard requirement: in vs-human mode we must have complete per-metric
+            # scores for both submissions. If they are missing or malformed,
+            # treat this as a judge failure rather than silently dropping them.
+            raw_scores = raw.get("raw_scores")
+            if not isinstance(raw_scores, dict):
+                raise ValueError("judge output missing 'raw_scores' field")
+
+            required_sides = ("A", "B")
+            required_metrics = (
+                "correctness",
+                "completeness",
+                "code_reuse",
+                "best_practices",
+                "unsolicited_docs",
+            )
+
+            for side in required_sides:
+                side_scores = raw_scores.get(side)
+                if not isinstance(side_scores, dict):
+                    raise ValueError(f"judge output missing raw_scores['{side}']")
+                for metric in required_metrics:
+                    if metric not in side_scores:
+                        raise ValueError(
+                            f"judge output missing metric '{metric}' for side '{side}'"
+                        )
+                    value = side_scores[metric]
+                    if not isinstance(value, (int, float)):
+                        raise ValueError(
+                            f"metric '{metric}' for side '{side}' must be a number, got {type(value)}"
+                        )
+                    # Be tolerant of very small numerical drift outside [-1, 1].
+                    if float(value) < -1.01 or float(value) > 1.01:
+                        raise ValueError(
+                            f"metric '{metric}' for side '{side}' is out of expected range [-1, 1]: {value}"
+                        )
+
+    except Exception as e:  # pragma: no cover - very defensive
+        console.print(f"[yellow]Warning: Agent judge {judge_runner} failed: {e}[/yellow]")
+        return PairwiseJudgeDecision(
+            repo_url=sample.repo_url,
+            pr_number=sample.pr_number,
+            submission_a_id=agent_id,
+            submission_b_id=human_id,
+            judge_model=judge_model,
+            judge_runner=judge_runner,
+            order_seed=order_seed,
+            winner="tie",
+            correctness_preference="tie",
+            completeness_preference="tie",
+            code_quality_preference="tie",
+            integration_preference="tie",
+            raw_scores=None,
+            rationale=(
+                "Agent judge failed or produced invalid or incomplete metric output; "
+                "treating this comparison as a neutral tie."
+            ),
+            timestamp=datetime.utcnow().isoformat(),
+            codebase_context_files=codebase_context_paths,
+        )
+
+    winner = str(raw.get("winner", "tie")).upper()
+    if winner not in {"A", "B", "TIE"}:
+        winner = "TIE"
+
+    return PairwiseJudgeDecision(
+        repo_url=sample.repo_url,
+        pr_number=sample.pr_number,
+        submission_a_id=agent_id,
+        submission_b_id=human_id,
+        judge_model=judge_model,
+        judge_runner=judge_runner,
+        order_seed=order_seed,
+        winner="A" if winner == "A" else "B" if winner == "B" else "tie",
+        correctness_preference=raw.get("correctness_preference"),
+        completeness_preference=raw.get("completeness_preference"),
+        code_quality_preference=raw.get("code_reuse_preference"),
+        integration_preference=raw.get("best_practices_preference"),
+        raw_scores=raw.get("raw_scores"),
+        rationale=raw.get("rationale"),
+        timestamp=datetime.utcnow().isoformat(),
+        codebase_context_files=codebase_context_paths,
+    )
+
+
 def run_head_to_head_for_pr(
     pr_number: int,
     output_dir: Path,
@@ -504,6 +820,7 @@ def run_head_to_head_for_pr(
         console.print(
             f"  Using single judge agent: {judge_runner}/{judge_runner_model} (no LLM calls in this stage)"
         )
+        console.print("  Comparison mode: each agent vs human (ground-truth) diff")
     console.print(f"  Reusing scalar scores from judge model: {judge_model}")
 
     # Build submissions list
@@ -655,46 +972,39 @@ def run_head_to_head_for_pr(
                 )
                 pairwise_decisions.append(decision_j)
     else:
-        # New default: a single, dedicated agent acts as judge for all pairs.
+        # New default: a single, dedicated agent acts as judge and compares each
+        # agent submission directly against the human (ground-truth) diff.
+        human_id = _human_baseline_id(sample.pr_number)
         console.print(
-            f"  Running pairwise comparisons with judge agent {judge_runner}/{judge_runner_model}"
+            f"  Running agent-vs-human comparisons with judge agent {judge_runner}/{judge_runner_model}"
         )
-        for i in range(len(submissions)):
-            for j in range(i + 1, len(submissions)):
-                sub_i = submissions[i]
-                sub_j = submissions[j]
+        for sub in submissions:
+            agent_id = sub["agent_id"]
+            seed_input = (
+                f"{agent_id}|{human_id}|{judge_runner}|{judge_runner_model}"
+            )
+            order_seed = int(
+                hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16
+            )
 
-                seed_input = (
-                    f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
-                )
-                order_seed = int(
-                    hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16
-                )
-                if order_seed % 2 == 0:
-                    a_sub, b_sub = sub_i, sub_j
-                else:
-                    a_sub, b_sub = sub_j, sub_i
-
-                console.print(
-                    f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
-                )
-                decision = run_agent_pairwise_judge(
-                    sample=sample,
-                    judge_runner=judge_runner,
-                    judge_model=judge_runner_model,
-                    edit_a=a_sub["edit"],
-                    edit_b=b_sub["edit"],
-                    submission_a_id=a_sub["agent_id"],
-                    submission_b_id=b_sub["agent_id"],
-                    ground_truth_diff=ground_truth_diff,
-                    order_seed=order_seed,
-                    output_dir=output_dir,
-                    head_to_head_run_id=head_to_head_run_id,
-                    codebase_context=context,
-                    codebase_context_paths=context_paths,
-                    cache_dir=cache_dir,
-                )
-                pairwise_decisions.append(decision)
+            console.print(
+                f"  Judging agent {agent_id} vs human baseline with judge runner {judge_runner}"
+            )
+            decision = run_agent_vs_human_judge(
+                sample=sample,
+                judge_runner=judge_runner,
+                judge_model=judge_runner_model,
+                agent_edit=sub["edit"],
+                agent_id=agent_id,
+                ground_truth_diff=ground_truth_diff,
+                order_seed=order_seed,
+                output_dir=output_dir,
+                head_to_head_run_id=head_to_head_run_id,
+                codebase_context=context,
+                codebase_context_paths=context_paths,
+                cache_dir=cache_dir,
+            )
+            pairwise_decisions.append(decision)
 
     if not pairwise_decisions:
         console.print("[yellow]No pairwise decisions produced[/yellow]")
@@ -728,6 +1038,7 @@ def run_head_to_head_for_pr(
             ties=vals["ties"],
         )
         for agent_id, vals in sorted(stats_map.items())
+        if not agent_id.startswith("human:")
     ]
 
     # Assemble result and write to disk
@@ -741,7 +1052,7 @@ def run_head_to_head_for_pr(
         agent_results=agent_results,
         pairwise_decisions=pairwise_decisions,
         agent_stats=agent_stats,
-        judge_mode="multi_agent" if multi_judge else "single_agent",
+        judge_mode="multi_agent" if multi_judge else "single_agent_vs_human",
         judge_runner=None if multi_judge else judge_runner,
         judge_runner_model=None if multi_judge else judge_runner_model,
         head_to_head_run_id=head_to_head_run_id,

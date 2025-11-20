@@ -4,6 +4,8 @@ These tests exercise the private helper that extracts JSON decisions from
 chatty agent stdout logs.
 """
 
+import json
+
 from long_context_bench.stages.head_to_head import _parse_agent_judge_output
 
 
@@ -86,4 +88,55 @@ Trailing notes.
     parsed = _parse_agent_judge_output(stdout)
     assert parsed["winner"] == "A"
     assert parsed["rationale"] == "first"
+
+
+def test_parse_stream_json_with_embedded_code_block():
+    """Stream-json stdout with a final result field containing a JSON block.
+
+    This simulates the claude-code CLI --output-format stream-json behavior
+    where the actual judge decision is embedded as a ```json code block inside
+    the ``result`` text of the final event.
+    """
+
+    system = {"type": "system", "subtype": "init"}
+
+    result_text = (
+        "I'll analyze both submissions.\n\n"
+        "```json\n"
+        "{\n"
+        "  \"winner\": \"B\",\n"
+        "  \"correctness_preference\": \"B\",\n"
+        "  \"completeness_preference\": \"B\",\n"
+        "  \"code_reuse_preference\": \"B\",\n"
+        "  \"best_practices_preference\": \"B\",\n"
+        "  \"unsolicited_docs_preference\": \"tie\",\n"
+        "  \"rationale\": \"human diff is clearly better\",\n"
+        "  \"raw_scores\": {\n"
+        "    \"A\": {\n"
+        "      \"correctness\": -0.3,\n"
+        "      \"completeness\": -0.5,\n"
+        "      \"code_reuse\": 0.0,\n"
+        "      \"best_practices\": -0.4,\n"
+        "      \"unsolicited_docs\": 0.0\n"
+        "    },\n"
+        "    \"B\": {\n"
+        "      \"correctness\": 1.0,\n"
+        "      \"completeness\": 1.0,\n"
+        "      \"code_reuse\": 0.9,\n"
+        "      \"best_practices\": 1.0,\n"
+        "      \"unsolicited_docs\": 0.0\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+        "```\n"
+    )
+
+    result = {"type": "result", "subtype": "success", "result": result_text}
+
+    stdout = json.dumps(system) + "\n" + json.dumps(result)
+
+    parsed = _parse_agent_judge_output(stdout)
+    assert parsed["winner"] == "B"
+    assert parsed["raw_scores"]["A"]["correctness"] == -0.3
+    assert parsed["raw_scores"]["B"]["correctness"] == 1.0
 

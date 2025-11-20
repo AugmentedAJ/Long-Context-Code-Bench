@@ -259,107 +259,112 @@ def analyze_pr(
     else:
         click.echo("Cross-agent analysis failed")
 
-
-
 @main.command(name="head-to-head-pr")
 @click.option("--pr-number", required=True, type=int, help="PR number to evaluate")
 @click.option("--test-label", help="Optional label to filter edits by")
 @click.option(
-    "--judge-model",
-    required=True,
-    help="LLM judge model whose scores should be reused for scalar per-agent metrics (e.g., anthropic/claude-3-5-sonnet-20241022)",
+	"--judge-model",
+	required=True,
+	help=(
+		"LLM judge model whose scores should be reused for scalar per-agent metrics "
+		"(e.g., anthropic/claude-3-5-sonnet-20241022)"
+	),
 )
 @click.option(
-    "--include-codebase-context/--no-codebase-context",
-    default=False,
-    help="Include codebase files from the base commit in agent judge prompts",
+	"--include-codebase-context/--no-codebase-context",
+	default=False,
+	help="Include codebase files from the base commit in agent judge prompts",
 )
-	@click.option(
-	    "--judge-runner",
-	    default=DEFAULT_HEAD_TO_HEAD_JUDGE_RUNNER,
-	    show_default=True,
-	    help="Agent runner to use as the dedicated judge (v0 default is Claude Code)",
-	)
-	@click.option(
-	    "--judge-runner-model",
-	    default=DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL,
-	    show_default=True,
-	    help="Model name for the dedicated judge agent (e.g., claude-sonnet-4-5)",
-	)
-	@click.option(
-	    "--multi-judge",
-	    is_flag=True,
-	    help=(
-	        "Use legacy mode where each agent acts as a judge over the others. "
-	        "By default a single dedicated judge agent is used."
-	    ),
-	)
+@click.option(
+	"--judge-runner",
+	default=DEFAULT_HEAD_TO_HEAD_JUDGE_RUNNER,
+	show_default=True,
+	help="Agent runner to use as the dedicated judge (v0 default is Claude Code)",
+)
+@click.option(
+	"--judge-runner-model",
+	default=DEFAULT_HEAD_TO_HEAD_JUDGE_MODEL,
+	show_default=True,
+	help="Model name for the dedicated judge agent (e.g., claude-sonnet-4-5)",
+)
+@click.option(
+	"--multi-judge",
+	is_flag=True,
+	help=(
+		"Use legacy mode where each agent acts as a judge over the others. "
+		"By default a single dedicated judge agent is used."
+	),
+)
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-run even if head-to-head result already exists")
 def head_to_head_pr(
-    pr_number: int,
-    test_label: Optional[str],
-    judge_model: str,
-    include_codebase_context: bool,
-	    judge_runner: str,
-	    judge_runner_model: str,
-	    multi_judge: bool,
-    output_dir: str,
-    cache_dir: str,
-    force: bool,
+	pr_number: int,
+	test_label: Optional[str],
+	judge_model: str,
+	include_codebase_context: bool,
+	judge_runner: str,
+	judge_runner_model: str,
+	multi_judge: bool,
+	output_dir: str,
+	cache_dir: str,
+	force: bool,
 ) -> None:
-	    """Run head-to-head evaluation for a single PR across all agents.
+	"""Run head-to-head evaluation for a single PR across all agents.
 
-	    This command finds all agent edits for the specified PR (optionally
-	    filtered by test_label), reuses LLM judge scores from the given
-	    JUDGE_MODEL for scalar per-agent metrics when available, and then runs
-	    pairwise comparisons between agent submissions.
+	This command finds all agent edits for the specified PR (optionally
+	filtered by ``test_label``), reuses LLM judge scores from the given
+	``judge_model`` for scalar per-agent metrics when available, and then runs
+	comparative judging.
 
-	    By default, a single dedicated agent acts as the judge for all pairs
-	    (v0 uses Claude Code as the default judge). For research and debugging
-	    you can enable ``--multi-judge`` to run the legacy mode where each agent
-	    also acts as a judge over the others.
-	
-	    Results are written as a HeadToHeadPRResult artifact under
-	    ``output/head_to_head/``.
-	    """
-    from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
+	By default on this branch, a single dedicated agent judge compares EACH
+	agent submission directly against the HUMAN (ground-truth) diff for the
+	PR. This yields win/loss/tie statistics and Elo-style rankings that
+	reflect performance relative to the human baseline rather than
+	agent-vs-agent matchups.
 
-    click.echo(f"Running head-to-head evaluation for PR {pr_number}")
-    if test_label:
-        click.echo(f"Test label filter: {test_label}")
-    click.echo(f"Judge model: {judge_model}")
-    if include_codebase_context:
-        click.echo("Including codebase context in prompts")
-	    if multi_judge:
-	        click.echo("Mode: agents-as-judges (multi-judge legacy mode)")
-	    else:
-	        click.echo(
-	            f"Mode: single dedicated judge agent {judge_runner}/{judge_runner_model}"
-	        )
+	For research and debugging you can enable ``--multi-judge`` to run the
+	legacy mode where each agent also acts as a judge over the others.
 
-	    run_id = run_head_to_head_for_pr(
-	        pr_number=pr_number,
-	        output_dir=Path(output_dir),
-	        judge_model=judge_model,
-	        include_codebase_context=include_codebase_context,
-	        test_label=test_label,
-	        cache_dir=Path(cache_dir),
-	        force=force,
-	        judge_runner=judge_runner,
-	        judge_runner_model=judge_runner_model,
-	        multi_judge=multi_judge,
-	    )
+	Results are written as a ``HeadToHeadPRResult`` artifact under
+	``output/head_to_head/``.
+	"""
+	from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
 
-    if run_id:
-        click.echo(f"Head-to-head run completed. Run ID: {run_id}")
-        click.echo(
-            f"Results saved to: {Path(output_dir) / 'head_to_head' / f'pr{pr_number}_{run_id}.json'}"
-        )
-    else:
-        click.echo("Head-to-head evaluation failed or was skipped")
+	click.echo(f"Running head-to-head evaluation for PR {pr_number}")
+	if test_label:
+		click.echo(f"Test label filter: {test_label}")
+	click.echo(f"Judge model: {judge_model}")
+	if include_codebase_context:
+		click.echo("Including codebase context in prompts")
 
+	if multi_judge:
+		click.echo("Mode: agents-as-judges (multi-judge legacy mode)")
+	else:
+		click.echo(
+			f"Mode: single dedicated judge agent {judge_runner}/{judge_runner_model}"
+		)
+
+	run_id = run_head_to_head_for_pr(
+		pr_number=pr_number,
+		output_dir=Path(output_dir),
+		judge_model=judge_model,
+		include_codebase_context=include_codebase_context,
+		test_label=test_label,
+		cache_dir=Path(cache_dir),
+		force=force,
+		judge_runner=judge_runner,
+		judge_runner_model=judge_runner_model,
+		multi_judge=multi_judge,
+	)
+
+	if run_id:
+		click.echo(f"Head-to-head run completed. Run ID: {run_id}")
+		click.echo(
+			f"Results saved to: {Path(output_dir) / 'head_to_head' / f'pr{pr_number}_{run_id}.json'}"
+		)
+	else:
+		click.echo("Head-to-head evaluation failed or was skipped")
 
 @main.command()
 @click.option("--runner", required=True, help="Agent runner name")
