@@ -450,6 +450,64 @@ function getPrId(repoUrl, prNumber) {
 }
 
 /**
+ * Load the human (ground-truth) diff for a PR using repo_url and commit SHAs.
+ *
+ * This mirrors the GitHub compare API usage in task.js but lives in the
+ * shared data-loader so it can be reused by multiple views (e.g. the
+ * side-by-side inspector in the head-to-head UI).
+ *
+ * NOTE: This calls the public GitHub API and should only be invoked when the
+ * user explicitly chooses to view the human diff.
+ */
+async function loadGroundTruthDiffFromCommits(repoUrl, baseCommit, headCommit) {
+    if (!repoUrl || !baseCommit || !headCommit) {
+        return null;
+    }
+
+    const cacheKey = `human_diff:${repoUrl}:${baseCommit}:${headCommit}`;
+    if (dataCache[cacheKey]) {
+        return dataCache[cacheKey];
+    }
+
+    try {
+        const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+        if (!match) {
+            console.warn('Unable to parse repo_url for ground truth diff', repoUrl);
+            return null;
+        }
+
+        const owner = match[1];
+        const repo = match[2].replace('.git', '');
+        const url = `https://api.github.com/repos/${owner}/${repo}/compare/${baseCommit}...${headCommit}`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.warn('Failed to load ground truth diff from GitHub compare API:', response.status);
+            return null;
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data.files)) {
+            return null;
+        }
+
+        let diff = '';
+        for (const file of data.files) {
+            if (file.patch) {
+                diff += `diff --git a/${file.filename} b/${file.filename}\n`;
+                diff += `--- a/${file.filename}\n+++ b/${file.filename}\n${file.patch}\n`;
+            }
+        }
+
+        dataCache[cacheKey] = diff;
+        return diff;
+    } catch (error) {
+        console.error('Error loading ground truth diff from commits:', error);
+        return null;
+    }
+}
+
+/**
  * Load all cross-agent analysis files
  */
 async function loadAllCrossAgentAnalyses() {
@@ -561,22 +619,46 @@ function aggregateCrossAgentData(analyses) {
 
 /**
  * Load head-to-head metadata (lightweight, for PR list and leaderboard).
+ *
+ * We support both dev-server and static-hosting layouts and are tolerant
+ * of older deployments where the metadata file only exists under
+ * `output/web/`.
  */
 async function loadHeadToHeadMetadata() {
-    try {
-        const response = await fetch(`${API_BASE}/head_to_head_metadata.json`);
-        if (!response.ok) {
-            console.warn('Metadata file not found, falling back to loading all results');
-            return await loadAllHeadToHeadResults();
-        }
+    const isDevServer = window.location.port === '3000';
 
-        const metadata = await response.json();
-        return metadata.results || [];
-    } catch (error) {
-        console.error('Error loading head-to-head metadata:', error);
-        // Fallback to loading all results
-        return await loadAllHeadToHeadResults();
+    // Try a sequence of possible locations. We stop at the first one that
+    // returns a valid metadata object with a `results` array.
+    const candidateUrls = isDevServer
+        ? [
+            '/data/head_to_head_metadata.json',            // preferred (output/head_to_head_metadata.json)
+            '/data/web/head_to_head_metadata.json',        // backwards-compat (output/web/head_to_head_metadata.json)
+          ]
+        : [
+            'head_to_head_metadata.json',                  // preferred when index.html is in output/web/
+            '../head_to_head_metadata.json',               // alternative relative path
+            'web/head_to_head_metadata.json',              // older layouts
+            '../web/head_to_head_metadata.json',
+          ];
+
+    for (const url of candidateUrls) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                continue;
+            }
+
+            const metadata = await response.json();
+            if (metadata && Array.isArray(metadata.results)) {
+                return metadata.results;
+            }
+        } catch (error) {
+            console.warn('Error trying head-to-head metadata URL', url, error);
+        }
     }
+
+    console.warn('Head-to-head metadata not found via known URLs, falling back to loading all results');
+    return await loadAllHeadToHeadResults();
 }
 
 /**
@@ -590,16 +672,26 @@ async function loadHeadToHeadResult(prNumber) {
             return dataCache[cacheKey];
         }
 
-        // Find the file path from metadata or index
+        // Find the file path from metadata or, if metadata is missing,
+        // fall back to the full HeadToHeadPRResult objects.
         const metadata = await loadHeadToHeadMetadata();
         const prMeta = metadata.find(m => m.pr_number === prNumber);
 
-        if (!prMeta || !prMeta.file) {
-            console.error(`No file found for PR ${prNumber}`);
+        if (!prMeta) {
+            console.error(`No metadata entry found for PR ${prNumber}`);
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/${prMeta.file}`);
+        // If there's no "file" field, assume this is already a full
+        // HeadToHeadPRResult object returned by loadAllHeadToHeadResults.
+        if (!prMeta.file) {
+            dataCache[cacheKey] = prMeta;
+            return prMeta;
+        }
+
+        const isDevServer = window.location.port === '3000';
+        const base = isDevServer ? '/data' : '..';
+        const response = await fetch(`${base}/${prMeta.file}`);
         if (!response.ok) {
             throw new Error(`Failed to load PR ${prNumber}: ${response.status}`);
         }

@@ -173,38 +173,22 @@ async function loadTaskLogs(runEntry, prNumber) {
  * Load ground truth diff
  */
 async function loadGroundTruthDiff(sample) {
-    // For now, we'll compute this on the fly using the GitHub API
-    // In production, this should be cached or pre-computed
-    try {
-        const owner = sample.repo_url.split('/')[3];
-        const repo = sample.repo_url.split('/')[4].replace('.git', '');
-        
-        const url = `https://api.github.com/repos/${owner}/${repo}/compare/${sample.base_commit}...${sample.head_commit}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch diff: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        // Convert to unified diff format
-        let diff = '';
-        for (const file of data.files) {
-            if (file.patch) {
-                diff += `diff --git a/${file.filename} b/${file.filename}\n`;
-                diff += `--- a/${file.filename}\n`;
-                diff += `+++ b/${file.filename}\n`;
-                diff += file.patch + '\n';
-            }
-        }
-        
-        window.currentGroundTruthDiff = diff;
-        return diff;
-    } catch (error) {
-        console.error('Error loading ground truth diff:', error);
-        return 'Error loading ground truth diff. This may require GitHub API access.';
-    }
+	    try {
+	        const diff = await loadGroundTruthDiffFromCommits(
+	            sample.repo_url,
+	            sample.base_commit,
+	            sample.head_commit,
+	        );
+	        if (!diff) {
+	            window.currentGroundTruthDiff = '';
+	            return 'Error loading ground truth diff. This may require GitHub API access.';
+	        }
+	        window.currentGroundTruthDiff = diff;
+	        return diff;
+	    } catch (error) {
+	        console.error('Error loading ground truth diff:', error);
+	        return 'Error loading ground truth diff. This may require GitHub API access.';
+	    }
 }
 
 /**

@@ -211,6 +211,56 @@ nav a.active {
     word-wrap: break-word;
 }
 
+/* Side-by-side agent/human comparison layout */
+.agent-comparison-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.agent-comparison-column {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.agent-comparison-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.agent-comparison-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.agent-comparison-select {
+    min-width: 180px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+}
+
+.agent-comparison-view-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.agent-comparison-content {
+    margin-top: 4px;
+    max-height: 420px;
+    overflow: auto;
+}
+
 .comparative-content {
     display: flex;
     flex-direction: column;
@@ -386,6 +436,12 @@ nav a.active {
     background: var(--bg-secondary);
     border-color: var(--accent-color);
     color: var(--accent-color);
+}
+
+.btn-action.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #ffffff;
 }
 
 .btn-icon {

@@ -925,6 +925,10 @@ def generate_index_manifest(output_dir: Path) -> None:
                 console.print(f"[yellow]Warning: Failed to process {analysis_file}: {e}[/yellow]")
 
     # Scan head-to-head directory
+    #
+    # NOTE: The "file" field must be a path relative to the output directory so
+    # that both the web app and metadata generator can locate the artifact
+    # correctly (e.g. "head_to_head/pr114854_05600343.json").
     h2h_dir = output_dir / "head_to_head"
     if h2h_dir.exists():
         for h2h_file in h2h_dir.glob("pr*_*.json"):
@@ -933,7 +937,7 @@ def generate_index_manifest(output_dir: Path) -> None:
                     result = json.load(f)
 
                 h2h_info = {
-                    "file": h2h_file.name,
+                    "file": str(h2h_file.relative_to(output_dir)),
                     "pr_number": result.get("pr_number"),
                     "head_to_head_run_id": result.get("head_to_head_run_id"),
                     "test_label": result.get("test_label"),

@@ -108,35 +108,42 @@
                         </div>
                     </div>
 
-                    <!-- Agent Results Comparison -->
-                    <div class="card">
-                        <h4>Agent Results</h4>
-                        <div class="table-container">
-                            <table id="agent-results-table">
+	                    <!-- Agent Results Comparison -->
+	                    <div class="card">
+	                        <h4>Agent Results</h4>
+	                        <div class="table-container">
+	                            <table id="agent-results-table">
                                 <thead>
                                     <tr>
                                         <th>Rank</th>
                                         <th>Agent</th>
-                                        <th>W/L/T</th>
-                                        <th>Aggregate</th>
-                                        <th>Correctness</th>
-                                        <th>Completeness</th>
-                                        <th>Code Reuse</th>
-                                        <th>Best Practices</th>
-                                        <th>Unsolicited Docs</th>
-                                        <th>Time (s)</th>
+	                                        <th>W/L/T</th>
+	                                        <th>Matches</th>
+	                                        <th>Win Rate (this PR)</th>
+	                                        <th>Time (s)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="agent-results-body">
-                                </tbody>
-                            </table>
-                            <!-- Agent Details (Diff/Logs) -->
-                            <div id="agent-details-sections"></div>
-                        </div>
-                    </div>
+	                                </tbody>
+	                            </table>
+	                        </div>
+	                    </div>
 
-                    <!-- Individual Agent Details -->
-                    <div id="agent-details-container"></div>
+	                    <!-- Side-by-side Agent/Human Inspector -->
+	                    <div class="card" id="agent-comparison-card" style="display: none;">
+	                        <h4>Side-by-Side Inspector</h4>
+	                        <p class="section-description">
+	                            Compare two agents or an agent against the human ground truth
+	                            across summaries, diffs, or logs.
+	                        </p>
+	                        <div class="agent-comparison-layout">
+	                            <div class="agent-comparison-column" id="agent-comparison-left"></div>
+	                            <div class="agent-comparison-column" id="agent-comparison-right"></div>
+	                        </div>
+	                    </div>
+
+	                    <!-- Individual Agent Details -->
+	                    <div id="agent-details-container"></div>
                 </div>
             </section>
         </main>
@@ -146,11 +153,11 @@
         </footer>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="data-loader.js?v=5"></script>
-    <script src="charts.js?v=5"></script>
-    <script src="cross-agent.js?v=5"></script>
-    <script src="app.js?v=5"></script>
+	    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	    <script src="data-loader.js?v=6"></script>
+	    <script src="charts.js?v=6"></script>
+	    <script src="cross-agent.js?v=6"></script>
+	    <script src="app.js?v=6"></script>
     <script>
         // Initialize leaderboard page
         document.addEventListener('DOMContentLoaded', async () => {

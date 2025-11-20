@@ -9,6 +9,7 @@ let currentSort = { field: 'win_rate', ascending: false };
 let crossAgentAnalyses = [];
 let crossAgentLeaderboard = [];
 let headToHeadLeaderboard = [];
+let currentHeadToHeadComparison = null;
 
 // Lazy loading state
 let leaderboardDisplayCount = 3; // Start with top 3
@@ -333,54 +334,131 @@ async function loadHeadToHeadPRDetails() {
 }
 
 /**
+ * Compute the per-PR winner from lightweight head-to-head metadata.
+ *
+ * Uses per-agent win/loss/tie stats for that PR. Returns a short label for
+ * display in the PR list along with a human-readable tooltip.
+ */
+function getHeadToHeadPRWinner(prMeta) {
+	    const statsList = Array.isArray(prMeta.agent_stats) ? prMeta.agent_stats : [];
+	    if (!statsList.length) {
+	        return { label: '\u2014', title: 'No agent stats available for this PR' };
+	    }
+
+	    let bestEntries = [];
+	    let bestWinRate = -1;
+	    const EPS = 1e-6;
+
+	    for (const stat of statsList) {
+	        const wins = stat.wins || 0;
+	        const losses = stat.losses || 0;
+	        const ties = stat.ties || 0;
+	        const matches = wins + losses + ties;
+	        if (matches === 0) continue;
+
+	        const winRate = (wins + 0.5 * ties) / matches;
+	        if (winRate > bestWinRate + EPS) {
+	            bestWinRate = winRate;
+	            bestEntries = [{ stat, matches, winRate }];
+	        } else if (Math.abs(winRate - bestWinRate) <= EPS) {
+	            bestEntries.push({ stat, matches, winRate });
+	        }
+	    }
+
+	    if (!bestEntries.length || bestWinRate < 0) {
+	        return { label: '\u2014', title: 'No head-to-head matches were played for this PR' };
+	    }
+
+	    // If multiple agents share the top win rate, treat as a tie.
+	    if (bestEntries.length > 1) {
+	        const agentNames = bestEntries.map(({ stat }) => {
+	            const rawId = stat.agent_id || '';
+	            const normalized = typeof normalizeAgentId === 'function'
+	                ? normalizeAgentId(rawId)
+	                : rawId;
+	            return normalized;
+	        });
+	        return {
+	            label: 'Tie',
+	            title: `Top agents are tied on this PR: ${agentNames.join(', ')}`,
+	        };
+	    }
+
+	    const { stat, matches, winRate } = bestEntries[0];
+	    const wins = stat.wins || 0;
+	    const losses = stat.losses || 0;
+	    const ties = stat.ties || 0;
+	    const rawId = stat.agent_id || '';
+	    const normalized = typeof normalizeAgentId === 'function'
+	        ? normalizeAgentId(rawId)
+	        : rawId;
+
+	    const pct = (winRate * 100).toFixed(1);
+	    const title = `${normalized}: ${wins}W / ${losses}L / ${ties}T over ${matches} matches (win rate ${pct}%)`;
+	    return { label: normalized || '\u2014', title };
+}
+
+/**
  * Display list of PRs with head-to-head results (using metadata)
  */
 function displayHeadToHeadPRList(metadata) {
-    const listContainer = document.getElementById('analysis-list');
-    if (!listContainer) return;
+	    const listContainer = document.getElementById('analysis-list');
+	    if (!listContainer) return;
 
-    // Sort by PR number
-    const sorted = [...metadata].sort((a, b) => a.pr_number - b.pr_number);
+	    // Sort by PR number
+	    const sorted = [...metadata].sort((a, b) => a.pr_number - b.pr_number);
 
-    // Create table
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>PR Number</th>
-                <th>Agents</th>
-                <th>Pairwise Decisions</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="h2h-pr-list-body"></tbody>
-    `;
+	    // Create table
+	    const table = document.createElement('table');
+	    table.style.width = '100%';
+	    table.innerHTML = `
+	        <thead>
+	            <tr>
+	                <th>PR Number</th>
+	                <th>Agents</th>
+	                <th>Pairwise Decisions</th>
+	                <th>Winner</th>
+	                <th>Actions</th>
+	            </tr>
+	        </thead>
+	        <tbody id="h2h-pr-list-body"></tbody>
+	    `;
 
-    listContainer.innerHTML = '';
-    listContainer.appendChild(table);
+	    listContainer.innerHTML = '';
+	    listContainer.appendChild(table);
 
-    const tbody = document.getElementById('h2h-pr-list-body');
+	    const tbody = document.getElementById('h2h-pr-list-body');
 
-    sorted.forEach(prMeta => {
-        const row = document.createElement('tr');
-        const agentCount = prMeta.num_agents || 0;
-        const decisionCount = prMeta.num_decisions || 0;
+	    sorted.forEach(prMeta => {
+	        const row = document.createElement('tr');
+		        const agentCount =
+		            prMeta.num_agents != null
+		                ? prMeta.num_agents
+		                : (Array.isArray(prMeta.agent_results) ? prMeta.agent_results.length : 0);
+		        const decisionCount =
+		            prMeta.num_decisions != null
+		                ? prMeta.num_decisions
+		                : (Array.isArray(prMeta.pairwise_decisions) ? prMeta.pairwise_decisions.length : 0);
 
-        row.innerHTML = `
-            <td><strong>${prMeta.pr_number}</strong></td>
-            <td>${agentCount} agents</td>
-            <td>${decisionCount} decisions</td>
-            <td>
-                <button class="btn-primary" onclick="showHeadToHeadDetail('${prMeta.head_to_head_run_id}', ${prMeta.pr_number})">
-                    View Details
-                </button>
-            </td>
-        `;
+	        const winner = getHeadToHeadPRWinner(prMeta);
+	        const winnerLabel = winner.label || '\u2014';
+	        const winnerTitle = winner.title || '';
 
-        tbody.appendChild(row);
-    });
-}
+	        row.innerHTML = `
+	            <td><strong>${prMeta.pr_number}</strong></td>
+	            <td>${agentCount} agents</td>
+	            <td>${decisionCount} decisions</td>
+	            <td title="${winnerTitle}">${winnerLabel}</td>
+	            <td>
+	                <button class="btn-primary" onclick="showHeadToHeadDetail('${prMeta.head_to_head_run_id}', ${prMeta.pr_number})">
+	                    View Details
+	                </button>
+	            </td>
+	        `;
+
+	        tbody.appendChild(row);
+	    });
+	}
 
 
 /**
@@ -410,10 +488,15 @@ async function showHeadToHeadDetail(runId, prNumber) {
         document.getElementById('comparative-section').style.display = 'none';
 
         // Display agent results
-        displayHeadToHeadAgentResults(result);
+	        displayHeadToHeadAgentResults(result);
 
-        // Display pairwise decisions
-        displayPairwiseDecisions(result);
+	        // Initialize side-by-side agent/human inspector
+	        if (typeof initAgentComparison === 'function') {
+	            initAgentComparison(result);
+	        }
+	    	
+	        // Display pairwise decisions
+	        displayPairwiseDecisions(result);
 
     } catch (error) {
         console.error('Error showing head-to-head detail:', error);
@@ -431,29 +514,27 @@ function displayHeadToHeadAgentResults(result) {
     tbody.innerHTML = '';
 
     result.agent_results.forEach((agentResult, index) => {
-        const agentId = `${agentResult.runner}:${agentResult.model}`;
-        const agentIdSafe = agentId.replace(/[^a-zA-Z0-9]/g, '_');
-        const stats = result.agent_stats.find(s => s.agent_id.startsWith(agentId));
+	        const agentId = `${agentResult.runner}:${agentResult.model}`;
+	        const stats = result.agent_stats.find(s => s.agent_id.startsWith(agentId));
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><strong>${agentId}</strong></td>
-            <td>${stats ? `${stats.wins}W / ${stats.losses}L / ${stats.ties}T` : 'N/A'}</td>
-            <td>${formatScore(agentResult.aggregate)}</td>
-            <td>${formatScore(agentResult.scores?.correctness)}</td>
-            <td>${formatScore(agentResult.scores?.completeness)}</td>
-            <td>${formatScore(agentResult.scores?.code_reuse)}</td>
-            <td>${formatScore(agentResult.scores?.best_practices)}</td>
-            <td>${formatScore(agentResult.scores?.unsolicited_docs)}</td>
-            <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
-        `;
+	        const wins = stats?.wins ?? 0;
+	        const losses = stats?.losses ?? 0;
+	        const ties = stats?.ties ?? 0;
+	        const matches = wins + losses + ties;
+	        const winRate = matches > 0 ? (wins + 0.5 * ties) / matches : 0;
+
+	        const row = document.createElement('tr');
+	        row.innerHTML = `
+	            <td>${index + 1}</td>
+	            <td><strong>${agentId}</strong></td>
+	            <td>${wins}W / ${losses}L / ${ties}T</td>
+	            <td>${matches}</td>
+	            <td>${formatPercentage(winRate)}</td>
+	            <td>${(agentResult.elapsed_ms / 1000).toFixed(1)}</td>
+	        `;
 
         tbody.appendChild(row);
     });
-
-    // Display diff and logs sections below the table
-    displayAgentDiffsAndLogs(result.agent_results);
 }
 
 /**
@@ -504,6 +585,268 @@ function displayAgentDiffsAndLogs(agentResults) {
         `;
     }).join('');
 }
+
+	/**
+	 * Initialize the side-by-side agent/human inspector for a head-to-head PR.
+	 */
+	function initAgentComparison(result) {
+	    const card = document.getElementById('agent-comparison-card');
+	    const leftColumn = document.getElementById('agent-comparison-left');
+	    const rightColumn = document.getElementById('agent-comparison-right');
+	    if (!card || !leftColumn || !rightColumn) return;
+
+	    const agentOptions = (result.agent_results || []).map(agentResult => {
+	        const label = `${agentResult.runner}:${agentResult.model}`;
+	        const value = `agent:${agentResult.runner}:${agentResult.model}:${agentResult.edit_run_id}`;
+	        return {
+	            type: 'agent',
+	            label,
+	            value,
+	            agentResult,
+	        };
+	    });
+
+	    if (agentOptions.length === 0) {
+	        card.style.display = 'none';
+	        currentHeadToHeadComparison = null;
+	        return;
+	    }
+
+	    const optionsByValue = {};
+	    // Human option
+	    optionsByValue['human'] = {
+	        type: 'human',
+	        label: 'Human (ground truth)',
+	        value: 'human',
+	    };
+	    // Agent options
+	    agentOptions.forEach(opt => {
+	        optionsByValue[opt.value] = opt;
+	    });
+
+	    // Pick sensible defaults: first and second agents when available
+	    const agentValues = agentOptions.map(o => o.value);
+	    const defaultLeft = agentValues[0] || 'human';
+	    const defaultRight = agentValues[1] || agentValues[0] || 'human';
+
+	    currentHeadToHeadComparison = {
+	        result,
+	        optionsByValue,
+	        selection: {
+	            left: defaultLeft,
+	            right: defaultRight,
+	        },
+	        view: {
+	            left: 'diff',
+	            right: 'diff',
+	        },
+	    };
+
+	    buildAgentComparisonColumn('left');
+	    buildAgentComparisonColumn('right');
+
+	    card.style.display = 'block';
+
+	    // Render initial content
+	    updateAgentComparisonSide('left');
+	    updateAgentComparisonSide('right');
+	}
+
+	/**
+	 * Build one side (left/right) of the comparison UI.
+	 */
+	function buildAgentComparisonColumn(side) {
+	    if (!currentHeadToHeadComparison) return;
+	    const state = currentHeadToHeadComparison;
+
+	    const columnId = side === 'left' ? 'agent-comparison-left' : 'agent-comparison-right';
+	    const column = document.getElementById(columnId);
+	    if (!column) return;
+
+	    const selectId = `comparison-${side}-entity`;
+	    const viewToggleId = `comparison-${side}-view-toggle`;
+	    const contentId = `comparison-${side}-content`;
+	    const sideLabelText = side === 'left' ? 'Left side' : 'Right side';
+
+	    const optionValues = Object.keys(state.optionsByValue);
+	    const optionsHtml = optionValues.map(value => {
+	        const opt = state.optionsByValue[value];
+	        const label = opt.label || value;
+	        const selected = value === state.selection[side] ? 'selected' : '';
+	        const safeValue = typeof escapeHtml === 'function' ? escapeHtml(value) : value;
+	        const safeLabel = typeof escapeHtml === 'function' ? escapeHtml(label) : label;
+	        return `<option value="${safeValue}" ${selected}>${safeLabel}</option>`;
+	    }).join('');
+
+	    column.innerHTML = `
+	        <div class="agent-comparison-header">
+	            <label class="agent-comparison-label">
+	                <span>${sideLabelText}</span>
+	                <select id="${selectId}" class="agent-comparison-select">
+	                    ${optionsHtml}
+	                </select>
+	            </label>
+	            <div class="agent-comparison-view-toggle" id="${viewToggleId}">
+	                <button class="btn-action" data-view="summary"><span class="btn-icon">📝</span> Summary</button>
+	                <button class="btn-action" data-view="diff"><span class="btn-icon">📄</span> Diff</button>
+	                <button class="btn-action" data-view="logs"><span class="btn-icon">📋</span> Logs</button>
+	            </div>
+	        </div>
+	        <div id="${contentId}" class="agent-comparison-content code-block">
+	            <em>Select a view to load details…</em>
+	        </div>
+	    `;
+
+	    const selectEl = document.getElementById(selectId);
+	    const viewToggleEl = document.getElementById(viewToggleId);
+
+	    if (selectEl) {
+	        selectEl.addEventListener('change', () => {
+	            state.selection[side] = selectEl.value;
+	            updateAgentComparisonSide(side);
+	        });
+	    }
+
+	    if (viewToggleEl) {
+	        viewToggleEl.addEventListener('click', (event) => {
+	            const btn = event.target.closest('button[data-view]');
+	            if (!btn) return;
+
+	            const viewType = btn.getAttribute('data-view');
+	            state.view[side] = viewType;
+
+	            // Update active state
+	            viewToggleEl.querySelectorAll('button[data-view]').forEach(b => b.classList.remove('active'));
+	            btn.classList.add('active');
+
+	            updateAgentComparisonSide(side);
+	        });
+
+	        // Set initial active button based on state
+	        const initialView = state.view[side] || 'diff';
+	        const initialBtn = viewToggleEl.querySelector(`button[data-view="${initialView}"]`) ||
+	            viewToggleEl.querySelector('button[data-view="diff"]');
+	        if (initialBtn) {
+	            initialBtn.classList.add('active');
+	        }
+	    }
+	}
+
+	/**
+	 * Render the selected entity and view type for one side of the comparison.
+	 */
+	async function updateAgentComparisonSide(side) {
+	    if (!currentHeadToHeadComparison) return;
+	    const state = currentHeadToHeadComparison;
+	    const { result, optionsByValue } = state;
+
+	    const contentId = side === 'left' ? 'comparison-left-content' : 'comparison-right-content';
+	    const contentEl = document.getElementById(contentId);
+	    const selectId = `comparison-${side}-entity`;
+	    const selectEl = document.getElementById(selectId);
+	    if (!contentEl || !selectEl) return;
+
+	    const selectedValue = selectEl.value || state.selection[side];
+	    const selection = optionsByValue[selectedValue] || optionsByValue['human'];
+	    state.selection[side] = selection.value;
+
+	    const viewToggleId = `comparison-${side}-view-toggle`;
+	    const viewToggleEl = document.getElementById(viewToggleId);
+	    let viewType = state.view[side] || 'diff';
+	    if (viewToggleEl) {
+	        const activeBtn = viewToggleEl.querySelector('button.active[data-view]');
+	        if (activeBtn) {
+	            viewType = activeBtn.getAttribute('data-view');
+	            state.view[side] = viewType;
+	        }
+	    }
+
+	    // Clear content while loading
+	    contentEl.innerHTML = '<em>Loading…</em>';
+
+	    if (selection.type === 'agent') {
+	        const agentResult = selection.agentResult;
+	        if (viewType === 'summary') {
+	            const summaryText = agentResult.llm_summary || 'No summary available';
+	            const safe = typeof escapeHtml === 'function' ? escapeHtml(summaryText) : summaryText;
+	            contentEl.innerHTML = `<div style="line-height: 1.6;">${safe}</div>`;
+	        } else if (viewType === 'diff') {
+	            const diffText = agentResult.patch_unified || 'No diff available';
+	            if (typeof colorizeDiff === 'function') {
+	                contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diffText)}</pre>`;
+	            } else {
+	                contentEl.textContent = diffText;
+	            }
+	        } else if (viewType === 'logs') {
+	            const logsPath = agentResult.logs_path;
+	            if (!logsPath) {
+	                contentEl.innerHTML = '<em>No logs available for this agent.</em>';
+	                return;
+	            }
+	            try {
+	                const response = await fetch(`${API_BASE}/${logsPath}`);
+	                if (!response.ok) {
+	                    contentEl.innerHTML = '<em>Failed to load logs.</em>';
+	                    return;
+	                }
+	                const text = await response.text();
+	                const logEntries = text.trim().split('\n').map(line => {
+	                    try {
+	                        return JSON.parse(line);
+	                    } catch {
+	                        return { raw: line };
+	                    }
+	                });
+	                if (typeof formatLogs === 'function') {
+	                    contentEl.innerHTML = formatLogs(logEntries);
+	                } else {
+	                    contentEl.textContent = text;
+	                }
+	            } catch (error) {
+	                console.error('Error loading logs for comparison view:', error);
+	                contentEl.innerHTML = '<em>Error loading logs.</em>';
+	            }
+	        }
+	    } else {
+	        // Human (ground truth) selection
+	        if (viewType === 'summary') {
+	            const repoUrl = result.repo_url || '';
+	            const prLink = repoUrl ? `${repoUrl.replace('.git', '')}/pull/${result.pr_number}` : '';
+	            const repoName = repoUrl ? repoUrl.split('/').slice(-2).join('/').replace('.git', '') : '';
+	            const safeRepo = typeof escapeHtml === 'function' ? escapeHtml(repoName) : repoName;
+	            const safeLink = typeof escapeHtml === 'function' ? escapeHtml(prLink) : prLink;
+	            contentEl.innerHTML = `
+	                <div style="line-height: 1.6;">
+	                    <p><strong>Human ground truth</strong> for PR #${result.pr_number}${safeRepo ? ` on ${safeRepo}` : ''}.</p>
+	                    ${safeLink ? `<p><a href="${safeLink}" target="_blank">Open PR on GitHub</a></p>` : ''}
+	                    <p>This is the reference patch used as the human baseline when judging agent submissions.</p>
+	                </div>
+	            `;
+	        } else if (viewType === 'diff') {
+	            try {
+	                const diff = await loadGroundTruthDiffFromCommits(
+	                    result.repo_url,
+	                    result.base_commit,
+	                    result.head_commit,
+	                );
+	                if (!diff) {
+	                    contentEl.innerHTML = '<em>Error loading human diff. This may require GitHub API access.</em>';
+	                    return;
+	                }
+	                if (typeof colorizeDiff === 'function') {
+	                    contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diff)}</pre>`;
+	                } else {
+	                    contentEl.textContent = diff;
+	                }
+	            } catch (error) {
+	                console.error('Error loading human diff for comparison view:', error);
+	                contentEl.innerHTML = '<em>Error loading human diff. This may require GitHub API access.</em>';
+	            }
+	        } else if (viewType === 'logs') {
+	            contentEl.innerHTML = '<em>Human baseline has no execution logs.</em>';
+	        }
+	    }
+	}
 
 /**
  * Show a specific view (summary, diff, or logs) for an agent
@@ -558,57 +901,140 @@ async function showAgentView(agentIdSafe, viewType, logsPath = null) {
     }
 }
 
-/**
- * Display pairwise decisions
- */
-function displayPairwiseDecisions(result) {
-    const container = document.getElementById('agent-details-container');
-    if (!container) return;
+    /**
+     * Render compact metric comparison for a pairwise decision.
+     * Uses decision.raw_scores["A"|"B"] when available.
+     */
+    function renderPairwiseMetrics(rawScores) {
+        if (!rawScores || (Object.keys(rawScores).length === 0)) {
+            return '<span style="color: var(--text-muted);">N/A</span>';
+        }
 
-    container.innerHTML = '<div class="card"><h4>Pairwise Decisions</h4><div id="pairwise-decisions-content"></div></div>';
-    const content = document.getElementById('pairwise-decisions-content');
+        const scoresA = rawScores.A || rawScores.a || null;
+        const scoresB = rawScores.B || rawScores.b || null;
 
-    if (!result.pairwise_decisions || result.pairwise_decisions.length === 0) {
-        content.innerHTML = '<p>No pairwise decisions found</p>';
-        return;
+        if (!scoresA && !scoresB) {
+            return '<span style="color: var(--text-muted);">N/A</span>';
+        }
+
+        const metricOrder = [
+            'matches_human',
+            'correctness',
+            'completeness',
+            'code_reuse',
+            'best_practices',
+            'unsolicited_docs',
+            'code_quality',
+            'integration',
+        ];
+
+        const labels = {
+            matches_human: 'matches_human',
+            correctness: 'correctness',
+            completeness: 'completeness',
+            code_reuse: 'code_reuse',
+            best_practices: 'best_practices',
+            unsolicited_docs: 'unsolicited_docs',
+            code_quality: 'code_quality',
+            integration: 'integration',
+        };
+
+        const rows = [];
+
+        metricOrder.forEach(key => {
+            const aVal = scoresA && scoresA[key] !== undefined && scoresA[key] !== null
+                ? formatScore(scoresA[key])
+                : '-';
+            const bVal = scoresB && scoresB[key] !== undefined && scoresB[key] !== null
+                ? formatScore(scoresB[key])
+                : '-';
+
+            if (aVal === '-' && bVal === '-') return;
+
+            rows.push(`
+                <div style="display: flex; justify-content: space-between; gap: 4px;">
+                    <span style="flex: 0 0 40%; font-size: 0.8em; color: var(--text-muted);">${labels[key] || key}</span>
+                    <span style="flex: 0 0 30%; font-size: 0.8em;">A: ${aVal}</span>
+                    <span style="flex: 0 0 30%; font-size: 0.8em;">B: ${bVal}</span>
+                </div>
+            `);
+        });
+
+        if (rows.length === 0) {
+            return '<span style="color: var(--text-muted);">N/A</span>';
+        }
+
+        return rows.join('');
     }
 
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>Submission A</th>
-                <th>Submission B</th>
-                <th>Judge</th>
-                <th>Winner</th>
-                <th>Rationale</th>
-            </tr>
-        </thead>
-        <tbody id="pairwise-tbody"></tbody>
-    `;
+    /**
+     * Display pairwise decisions
+     */
+    function displayPairwiseDecisions(result) {
+        const container = document.getElementById('agent-details-container');
+        if (!container) return;
 
-    content.appendChild(table);
+        container.innerHTML = '<div class="card"><h4>Pairwise Decisions</h4><div id="pairwise-decisions-content"></div></div>';
+        const content = document.getElementById('pairwise-decisions-content');
 
-    const tbody = document.getElementById('pairwise-tbody');
+        if (!result.pairwise_decisions || result.pairwise_decisions.length === 0) {
+            content.innerHTML = '<p>No pairwise decisions found</p>';
+            return;
+        }
 
-    result.pairwise_decisions.forEach(decision => {
-        const row = document.createElement('tr');
-
-        const winnerDisplay = decision.winner === 'A' ? '🏆 A' : decision.winner === 'B' ? '🏆 B' : '🤝 Tie';
-        const judgeDisplay = decision.judge_runner ? `${decision.judge_runner} (${decision.judge_model || 'N/A'})` : decision.judge_model || 'N/A';
-
-        row.innerHTML = `
-            <td style="font-size: 0.85em;">${decision.submission_a_id}</td>
-            <td style="font-size: 0.85em;">${decision.submission_b_id}</td>
-            <td>${judgeDisplay}</td>
-            <td><strong>${winnerDisplay}</strong></td>
-            <td style="font-size: 0.9em; max-width: 400px;">${decision.rationale || 'N/A'}</td>
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Submission A</th>
+                    <th>Submission B</th>
+                    <th>Judge</th>
+                    <th>Winner</th>
+                    <th>Key Metrics (A vs B)</th>
+                    <th>Rationale & Notes</th>
+                </tr>
+            </thead>
+            <tbody id="pairwise-tbody"></tbody>
         `;
 
-        tbody.appendChild(row);
-    });
-}
+        content.appendChild(table);
+
+        const tbody = document.getElementById('pairwise-tbody');
+
+        result.pairwise_decisions.forEach(decision => {
+            const row = document.createElement('tr');
+
+            const winnerDisplay = decision.winner === 'A' ? '🏆 A' : decision.winner === 'B' ? '🏆 B' : '🤝 Tie';
+            const judgeDisplay = decision.judge_runner ? `${decision.judge_runner} (${decision.judge_model || 'N/A'})` : decision.judge_model || 'N/A';
+
+            const metricsHtml = renderPairwiseMetrics(decision.raw_scores || {});
+
+            const notes = decision.comparison_to_human_notes || {};
+            const notesParts = [];
+            if (notes.A) {
+                notesParts.push(`<div style="margin-top: 4px;"><strong>A notes:</strong> ${notes.A}</div>`);
+            }
+            if (notes.B) {
+                notesParts.push(`<div style="margin-top: 2px;"><strong>B notes:</strong> ${notes.B}</div>`);
+            }
+            const notesHtml = notesParts.join('');
+
+            row.innerHTML = `
+                <td style="font-size: 0.85em;">${decision.submission_a_id}</td>
+                <td style="font-size: 0.85em;">${decision.submission_b_id}</td>
+                <td>${judgeDisplay}</td>
+                <td><strong>${winnerDisplay}</strong></td>
+                <td>${metricsHtml}</td>
+                <td style="font-size: 0.9em; max-width: 420px;">
+                    <div>${decision.rationale || 'N/A'}</div>
+                    ${notesHtml}
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+    }
 
 /**
  * Update overview statistics
