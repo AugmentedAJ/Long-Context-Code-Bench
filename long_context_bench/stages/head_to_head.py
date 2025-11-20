@@ -152,7 +152,57 @@ def _parse_agent_judge_output(stdout: str) -> dict:
 
     # 2) Extract JSON from markdown code blocks, preferring the last block which
     # is usually the final answer.
+    #
+    # There are two common patterns we need to handle:
+    #   a) Classic multi-line markdown fences:
+    #        ```json\n{...}\n```
+    #   b) Runners like claude-code that log their own JSON envelope where the
+    #      assistant's markdown response (including ```json code blocks) appears
+    #      inside a larger JSON string on a single line. In that case the
+    #      content between fences is itself JSON-escaped.
     if "```" in content:
+        inline_snippets: List[str] = []
+
+        # 2a) First look for inline ```...``` segments that live on a single
+        #     line (common in structured logs).
+        for line in content.splitlines():
+            if "```" not in line:
+                continue
+            start = 0
+            while True:
+                open_idx = line.find("```", start)
+                if open_idx == -1:
+                    break
+                close_idx = line.find("```", open_idx + 3)
+                if close_idx == -1:
+                    break
+                snippet = line[open_idx + 3 : close_idx].strip()
+                if snippet:
+                    inline_snippets.append(snippet)
+                start = close_idx + 3
+
+        # Try inline snippets from last to first
+        for snippet in reversed(inline_snippets):
+            cand = snippet.strip()
+            if not cand:
+                continue
+            # Drop optional language tag like "json"
+            if cand.lower().startswith("json"):
+                cand = cand[4:].lstrip()
+            # First try as-is
+            try:
+                return json.loads(cand)
+            except json.JSONDecodeError:
+                # Then try interpreting backslash escapes inside the snippet,
+                # which is what we get when the JSON block itself has been
+                # JSON-encoded into a log line.
+                try:
+                    decoded = cand.encode("utf-8").decode("unicode_escape")
+                    return json.loads(decoded)
+                except Exception:
+                    pass
+
+        # 2b) Fall back to classic multi-line fenced blocks.
         blocks: List[str] = []
         in_block = False
         current: List[str] = []
@@ -160,32 +210,37 @@ def _parse_agent_judge_output(stdout: str) -> dict:
             stripped = line.strip()
             if stripped.startswith("```"):
                 if in_block:
-                    # end current block
                     blocks.append("\n".join(current).strip())
                     current = []
                     in_block = False
                 else:
-                    # start new block
                     in_block = True
                 continue
             if in_block:
                 current.append(line)
+
         if current:
             blocks.append("\n".join(current).strip())
 
-        # Try each block from last to first
         for block in reversed(blocks):
-            if not block:
+            cand = block.strip()
+            if not cand:
                 continue
+            if cand.lower().startswith("json"):
+                cand = cand[4:].lstrip()
             try:
-                return json.loads(block)
+                return json.loads(cand)
             except json.JSONDecodeError:
-                continue
+                try:
+                    decoded = cand.encode("utf-8").decode("unicode_escape")
+                    return json.loads(decoded)
+                except Exception:
+                    continue
 
-        # If we saw blocks at all, restrict subsequent heuristics to their
-        # combined content rather than the full transcript.
-        if blocks:
-            content = "\n".join(blocks)
+        # If we saw any fenced regions at all, restrict subsequent heuristics
+        # to their combined content rather than the full transcript.
+        if inline_snippets or blocks:
+            content = "\n".join(blocks or inline_snippets)
 
     # 3) Fallback: search for the first brace-delimited JSON object that parses.
     # This handles cases where multiple JSON objects or extra text are present
@@ -254,7 +309,7 @@ def _load_cross_agent_results_for_pr(
 def run_agent_pairwise_judge(
     sample: Sample,
     judge_runner: str,
-    judge_model: Optional[str],
+    judge_runner_model: Optional[str],
     edit_a: Edit,
     edit_b: Edit,
     submission_a_id: str,
@@ -267,7 +322,12 @@ def run_agent_pairwise_judge(
     codebase_context_paths: Optional[List[str]] = None,
     cache_dir: Optional[Path] = None,
 ) -> PairwiseJudgeDecision:
-    """Use a CLI agent as judge to compare two submissions and return a decision."""
+    """Use a CLI agent as judge to compare two submissions and return a decision.
+
+    judge_runner_model is the model string passed through to the CLI judge runner
+    (e.g., "claude-sonnet-4.5"). It is also recorded on the resulting
+    PairwiseJudgeDecision.judge_model field for traceability.
+    """
 
     # Build codebase context block (optional)
     context_block = ""
@@ -277,49 +337,76 @@ def run_agent_pairwise_judge(
             parts.append(f"### {path}\n```\n{_truncate(content, 2000)}\n```")
         context_block = "\n**Codebase Context (Base Commit):**\n" + "\n\n".join(parts)
 
-    prompt = f"""You are an expert code reviewer acting as an automated judge for TWO AI coding agents' diffs
-for the same GitHub pull request task.
+    prompt = f"""You are an expert code reviewer acting as an automated judge for TWO AI coding
+agents' diffs for the same GitHub pull request task.
 
 You are in a read-only evaluation mode:
 - Do NOT modify any files.
-- You may inspect the repository in the workspace if that helps you reason.
-- Your job is only to decide which diff is better and explain why.
+- Do NOT run git push or create new branches.
+- Your job is only to compare the diffs against the HUMAN ground truth diff and
+  decide which AI submission is better.
 
-**Task Instructions:**
+You have a materialized workspace at the PR's base commit. To inspect the FULL
+diffs, open these files in the workspace:
+- HUMAN.diff          (ground truth / human reference diff)
+- SUBMISSION_A.diff   (full diff for Submission A)
+- SUBMISSION_B.diff   (full diff for Submission B)
+
+You may also inspect other files in the workspace if that helps you reason, but
+you must not make any edits.
+
+Task Instructions:
 {sample.task_instructions}
 
-**Ground Truth Diff (Expected Changes):**
+Human Ground Truth Diff (excerpt):
 ```diff
 {_truncate(ground_truth_diff, 8000)}
 ```
 {context_block}
 
-**Submission A Diff:**
+Submission A Diff (excerpt):
 ```diff
 {_truncate(edit_a.patch_unified, 8000)}
 ```
 
-**Submission B Diff:**
+Submission B Diff (excerpt):
 ```diff
 {_truncate(edit_b.patch_unified, 8000)}
 ```
 
-You must decide which submission better implements the task according to the
-following criteria: correctness, completeness, code quality, and integration
-with the existing codebase.
+Your primary goal is to judge how closely each submission matches the HUMAN
+diff while satisfying the task instructions. Pay particular attention to:
+- correctness (does it implement the right behavior?)
+- completeness (does it cover all important changes the human made?)
+- code_reuse (does it reuse existing helpers / patterns when appropriate?)
+- best_practices (readability, maintainability, safety)
+- unsolicited_docs (useful additional comments or documentation)
 
-Respond with ONLY a valid JSON object in this exact format (no markdown, no prose before or after):
+Respond with ONLY a valid JSON object in this exact format (no markdown, no
+code blocks, no additional text before or after):
 
 {{
   "winner": "A" | "B" | "tie",
-  "correctness_preference": "A" | "B" | "tie",
-  "completeness_preference": "A" | "B" | "tie",
-  "code_quality_preference": "A" | "B" | "tie",
-  "integration_preference": "A" | "B" | "tie",
-  "rationale": "<brief explanation>",
-  "raw_scores": {{
-    "A": {{"correctness": <float>, "completeness": <float>, "code_quality": <float>, "integration": <float>}},
-    "B": {{"correctness": <float>, "completeness": <float>, "code_quality": <float>, "integration": <float>}}
+  "rationale": "<brief explanation referencing differences vs the human diff>",
+  "comparison_to_human": {{
+    "A": {{
+      "matches_human": <float 0.0-1.0>,
+      "correctness": <float -1.0 to 1.0>,
+      "completeness": <float -1.0 to 1.0>,
+      "code_reuse": <float -1.0 to 1.0>,
+      "best_practices": <float -1.0 to 1.0>,
+      "unsolicited_docs": <float -1.0 to 1.0>,
+      "notes": "<short notes about how A compares to the human diff>"
+    }},
+    "B": {{
+      "matches_human": <float 0.0-1.0>,
+      "correctness": <float -1.0 to 1.0>,
+      "completeness": <float -1.0 to 1.0>,
+      "code_reuse": <float -1.0 to 1.0>,
+      "best_practices": <float -1.0 to 1.0>,
+      "unsolicited_docs": <float -1.0 to 1.0>,
+      "notes": "<short notes about how B compares to the human diff>"
+    }}
   }}
 }}"""
 
@@ -327,6 +414,15 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no pros
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace_path = Path(tmpdir) / "workspace"
             _ = materialize_workspace(sample, workspace_path, cache_dir)
+
+            # Write full diff files for the judge to inspect.
+            (workspace_path / "HUMAN.diff").write_text(ground_truth_diff or "", encoding="utf-8")
+            (workspace_path / "SUBMISSION_A.diff").write_text(
+                edit_a.patch_unified or "", encoding="utf-8"
+            )
+            (workspace_path / "SUBMISSION_B.diff").write_text(
+                edit_b.patch_unified or "", encoding="utf-8"
+            )
 
             logs_dir = output_dir / "head_to_head" / "logs" / f"pr{sample.pr_number}_{head_to_head_run_id}"
             logs_dir.mkdir(parents=True, exist_ok=True)
@@ -337,7 +433,7 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no pros
 
             adapter = get_runner_adapter(
                 judge_runner,
-                model=judge_model or "",
+                model=judge_runner_model or "",
                 agent_binary=None,
                 timeout=1800,
                 disable_retrieval=False,
@@ -368,7 +464,7 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no pros
             pr_number=sample.pr_number,
             submission_a_id=submission_a_id,
             submission_b_id=submission_b_id,
-            judge_model=judge_model,
+            judge_model=judge_runner_model,
             judge_runner=judge_runner,
             order_seed=order_seed,
             winner="tie",
@@ -382,25 +478,88 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no pros
             codebase_context_files=codebase_context_paths,
         )
 
+    # Normalize winner field
     winner = str(raw.get("winner", "tie")).upper()
     if winner not in {"A", "B", "TIE"}:
         winner = "TIE"
+
+    # Start from any raw_scores provided by the judge (for backward compatibility)
+    raw_scores = raw.get("raw_scores") or {}
+    if not isinstance(raw_scores, dict):
+        raw_scores = {}
+
+    comparison_notes: Optional[Dict[str, str]] = None
+
+    # Optionally enrich raw_scores from comparison_to_human, and capture short notes.
+    comparison = raw.get("comparison_to_human")
+    if isinstance(comparison, dict):
+        notes: Dict[str, str] = {}
+        for label in ("A", "B"):
+            side = comparison.get(label)
+            if not isinstance(side, dict):
+                continue
+
+            side_scores = dict(raw_scores.get(label, {})) if isinstance(raw_scores.get(label), dict) else {}
+            for k, v in side.items():
+                if k == "notes":
+                    if isinstance(v, str):
+                        notes[label] = v
+                    continue
+                # Best-effort float coercion; skip non-numeric fields.
+                try:
+                    side_scores[k] = float(v)
+                except (TypeError, ValueError):
+                    continue
+
+            if side_scores:
+                raw_scores[label] = side_scores
+
+        if notes:
+            comparison_notes = notes
+
+    if not raw_scores:
+        raw_scores = None
+
+    def _preference(metric: str) -> Optional[str]:
+        if not raw_scores:
+            return None
+        try:
+            a_val = raw_scores.get("A", {}).get(metric)
+            b_val = raw_scores.get("B", {}).get(metric)
+        except AttributeError:
+            return None
+        if a_val is None or b_val is None:
+            return None
+        try:
+            a_f = float(a_val)
+            b_f = float(b_val)
+        except (TypeError, ValueError):
+            return None
+        if abs(a_f - b_f) < 1e-3:
+            return "tie"
+        return "A" if a_f > b_f else "B"
+
+    correctness_pref = raw.get("correctness_preference") or _preference("correctness")
+    completeness_pref = raw.get("completeness_preference") or _preference("completeness")
+    code_quality_pref = raw.get("code_quality_preference") or _preference("best_practices")
+    integration_pref = raw.get("integration_preference") or _preference("matches_human")
 
     return PairwiseJudgeDecision(
         repo_url=sample.repo_url,
         pr_number=sample.pr_number,
         submission_a_id=submission_a_id,
         submission_b_id=submission_b_id,
-        judge_model=judge_model,
+        judge_model=judge_runner_model,
         judge_runner=judge_runner,
         order_seed=order_seed,
         winner="A" if winner == "A" else "B" if winner == "B" else "tie",
-        correctness_preference=raw.get("correctness_preference"),
-        completeness_preference=raw.get("completeness_preference"),
-        code_quality_preference=raw.get("code_quality_preference"),
-        integration_preference=raw.get("integration_preference"),
-        raw_scores=raw.get("raw_scores"),
+        correctness_preference=correctness_pref,
+        completeness_preference=completeness_pref,
+        code_quality_preference=code_quality_pref,
+        integration_preference=integration_pref,
+        raw_scores=raw_scores,
         rationale=raw.get("rationale"),
+        comparison_to_human_notes=comparison_notes,
         timestamp=datetime.utcnow().isoformat(),
         codebase_context_files=codebase_context_paths,
     )
@@ -414,6 +573,8 @@ def run_head_to_head_for_pr(
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    judge_runner: str = "claude-code",
+    judge_runner_model: str = "claude-sonnet-4-5",
 ) -> Optional[str]:
     """Run head-to-head judging for a single PR.
 
@@ -422,7 +583,8 @@ def run_head_to_head_for_pr(
 
     head_to_head_run_id = str(uuid.uuid4())[:8]
     console.print(
-        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} (agents as judges, scores from {judge_model})[/bold]"
+        f"[bold]Starting head-to-head run {head_to_head_run_id} for PR {pr_number} "
+        f"(pairwise judge: {judge_runner}/{judge_runner_model}, scalar scores from {judge_model})[/bold]"
     )
 
     # Resolve sample
@@ -466,8 +628,8 @@ def run_head_to_head_for_pr(
     console.print("  Fetching ground truth diff...")
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-    console.print("  Using agents as judges (no LLM calls in this stage)")
-    console.print(f"  Reusing scalar scores from judge model: {judge_model}")
+    console.print(f"  Pairwise judge runner: {judge_runner} (model={judge_runner_model})")
+    console.print(f"  Reusing scalar scores from LLM judge model: {judge_model}")
 
     # Build submissions list
     submissions = []
@@ -540,17 +702,14 @@ def run_head_to_head_for_pr(
         )
         console.print(f"  Included {len(context_paths or [])} context file(s)")
 
-    # Pairwise decisions using agents as judges
+    # Pairwise decisions using a single dedicated CLI judge agent
     pairwise_decisions: List[PairwiseJudgeDecision] = []
     for i in range(len(submissions)):
         for j in range(i + 1, len(submissions)):
             sub_i = submissions[i]
             sub_j = submissions[j]
 
-            # First: agent i as judge
-            judge_edit = sub_i["edit"]
-            judge_runner = judge_edit.runner
-            judge_runner_model = judge_edit.model
+            # Decide a deterministic but randomized A/B ordering per unordered pair
             seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
             order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
             if order_seed % 2 == 0:
@@ -561,10 +720,10 @@ def run_head_to_head_for_pr(
             console.print(
                 f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
             )
-            decision_i = run_agent_pairwise_judge(
+            decision = run_agent_pairwise_judge(
                 sample=sample,
                 judge_runner=judge_runner,
-                judge_model=judge_runner_model,
+                judge_runner_model=judge_runner_model,
                 edit_a=a_sub["edit"],
                 edit_b=b_sub["edit"],
                 submission_a_id=a_sub["agent_id"],
@@ -577,39 +736,7 @@ def run_head_to_head_for_pr(
                 codebase_context_paths=context_paths,
                 cache_dir=cache_dir,
             )
-            pairwise_decisions.append(decision_i)
-
-            # Second: agent j as judge
-            judge_edit = sub_j["edit"]
-            judge_runner = judge_edit.runner
-            judge_runner_model = judge_edit.model
-            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
-            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
-            if order_seed % 2 == 0:
-                a_sub, b_sub = sub_i, sub_j
-            else:
-                a_sub, b_sub = sub_j, sub_i
-
-            console.print(
-                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
-            )
-            decision_j = run_agent_pairwise_judge(
-                sample=sample,
-                judge_runner=judge_runner,
-                judge_model=judge_runner_model,
-                edit_a=a_sub["edit"],
-                edit_b=b_sub["edit"],
-                submission_a_id=a_sub["agent_id"],
-                submission_b_id=b_sub["agent_id"],
-                ground_truth_diff=ground_truth_diff,
-                order_seed=order_seed,
-                output_dir=output_dir,
-                head_to_head_run_id=head_to_head_run_id,
-                codebase_context=context,
-                codebase_context_paths=context_paths,
-                cache_dir=cache_dir,
-            )
-            pairwise_decisions.append(decision_j)
+            pairwise_decisions.append(decision)
 
     if not pairwise_decisions:
         console.print("[yellow]No pairwise decisions produced[/yellow]")

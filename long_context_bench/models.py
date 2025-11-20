@@ -217,6 +217,10 @@ class PairwiseJudgeDecision(BaseModel):
     raw_scores: Optional[dict[str, dict[str, float]]] = None  # Optional per-submission scores
     rationale: Optional[str] = None
 
+    # Optional notes from the judge about how each submission compares to the human diff.
+    # Keys are "A" and/or "B"; values are short free-form notes.
+    comparison_to_human_notes: Optional[dict[str, str]] = None
+
     # Metadata
     timestamp: str
     codebase_context_files: Optional[List[str]] = None

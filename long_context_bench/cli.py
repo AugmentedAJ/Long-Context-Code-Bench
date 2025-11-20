@@ -273,6 +273,18 @@ def analyze_pr(
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-run even if head-to-head result already exists")
+@click.option(
+    "--judge-runner",
+    default="claude-code",
+    show_default=True,
+    help="CLI agent runner to use as the pairwise judge (e.g., claude-code)",
+)
+@click.option(
+    "--judge-runner-model",
+    default="claude-sonnet-4-5",
+    show_default=True,
+    help="Model name passed to the pairwise judge runner (e.g., claude-sonnet-4-5)",
+)
 def head_to_head_pr(
     pr_number: int,
     test_label: Optional[str],
@@ -281,21 +293,25 @@ def head_to_head_pr(
     output_dir: str,
     cache_dir: str,
     force: bool,
+    judge_runner: str,
+    judge_runner_model: str,
 ) -> None:
     """Run head-to-head evaluation for a single PR across all agents.
 
     This command finds all agent edits for the specified PR (optionally
     filtered by test_label), reuses LLM judge scores from the given JUDGE_MODEL
     for scalar per-agent metrics when available, and runs pairwise comparisons
-    where each agent acts as a judge over the others. Results are written as a
-    HeadToHeadPRResult artifact under output/head_to_head/.
+    using a single dedicated CLI judge agent (configured via --judge-runner and
+    --judge-runner-model). Results are written as a HeadToHeadPRResult artifact
+    under output/head_to_head/.
     """
     from long_context_bench.stages.head_to_head import run_head_to_head_for_pr
 
     click.echo(f"Running head-to-head evaluation for PR {pr_number}")
     if test_label:
         click.echo(f"Test label filter: {test_label}")
-    click.echo(f"Judge model: {judge_model}")
+    click.echo(f"Scalar LLM judge model for per-agent scores: {judge_model}")
+    click.echo(f"Pairwise judge runner: {judge_runner} (model={judge_runner_model})")
     if include_codebase_context:
         click.echo("Including codebase context in prompts")
 
@@ -307,6 +323,8 @@ def head_to_head_pr(
         test_label=test_label,
         cache_dir=Path(cache_dir),
         force=force,
+        judge_runner=judge_runner,
+        judge_runner_model=judge_runner_model,
     )
 
     if run_id:
