@@ -21,10 +21,11 @@
                     the ability to understand, modify, and integrate changes across massive real-world repositories.
                 </p>
                 <p>
-                    This leaderboard shows results from <strong>head-to-head agent-as-judge evaluation</strong>, where each AI agent
-                    judges every other agent's solution to the same real GitHub PRs. Each agent is tested on recreating actual PR changes
-                    given only the PR description—no access to the solution or git history. Then, each agent acts as a judge, comparing
-                    pairs of solutions and deciding which is better based on correctness, completeness, code quality, and integration.
+                    This leaderboard shows results from <strong>head-to-head LLM-judge evaluation</strong>, where a single LLM
+                    compares every pair of agents' solutions to the same real GitHub PRs. Each agent is tested on recreating actual PR
+                    changes given only the PR description—no access to the solution or git history. The LLM then compares pairs of
+                    solutions against the human ground truth diff and decides which is better based on correctness, completeness,
+                    code quality, and integration.
                 </p>
                 <p>
                     <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view each agent's judgment rationale,
@@ -42,7 +43,7 @@
             <section class="leaderboard">
                 <h2>Agent Leaderboard</h2>
                 <p class="section-description">
-                    Ranked by win rate from head-to-head agent-as-judge evaluation. Each agent judges every other agent's solution,
+                    Ranked by win rate from head-to-head LLM-judge evaluation. A single LLM compares every pair of agents' solutions,
                     and pairwise decisions determine win/loss/tie records.
                 </p>
                 <div class="table-container">

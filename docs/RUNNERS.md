@@ -111,9 +111,9 @@ Additionally, `logs.jsonl` includes an `auth_info` record with fields `auth_mode
 - Uses `--output-format stream-json` for structured output
 - Allows `Edit` and `Bash(git commit:*)` tools by default
 - Passes task instructions directly via `-p` flag
-- Runs under a pseudo-terminal (PTY) so that Claude Code's Ink-based TTY
-  handling works reliably in non-interactive contexts (e.g., CI, agent-as-judge
-  head-to-head runs).
+ - Runs under a pseudo-terminal (PTY) so that Claude Code's Ink-based TTY
+   handling works reliably in non-interactive contexts (e.g., CI, legacy
+   agent-as-judge head-to-head runs).
 
 ---
 

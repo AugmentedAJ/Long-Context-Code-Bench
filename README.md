@@ -178,16 +178,16 @@ Rank multiple agents across standardized benchmarks:
 
 1. **Run agents with a test label**: Execute multiple agents/models with the same test label (e.g., `--test-label "v0-leaderboard"`)
 2. **Generate leaderboard**: Use `compare --format leaderboard` to rank all agents by performance
-### Agents-as-judge head-to-head evaluation
+### LLM-based head-to-head evaluation
 
 In addition to scalar LLM-judge scores, Long-Context-Bench supports
-**agents acting as judges over each other**.
+**direct pairwise comparisons between agents using a single LLM judge**.
 
 The `head-to-head-pr` command:
 - Finds all agent submissions (edits) for a given PR
-- Uses each agent as a judge over every other agent's patch
 - Reuses scalar scores from a prior LLM judge run when available
-- Does **not** make any new LLM-as-judge calls in this stage
+- Uses the same LLM judge model to compare each pair of agent diffs directly
+  against the human ground truth diff
 
 Example: run head-to-head for a single Elasticsearch PR where Auggie,
 Claude Code, and Factory have all produced edits:
@@ -203,13 +203,11 @@ long-context-bench head-to-head-pr \
 ```
 
 Notes:
-- `--judge-model` is only used to look up existing scalar scores from the
-  `cross_agent_analysis` stage; no new LLM calls are made.
-- For each pairwise decision, `judge_runner` and `judge_model` are taken
-  from the agent's original edit (e.g., `auggie/sonnet4.5`,
-  `claude-code/claude-sonnet-4-5`).
-- Claude Code runs under a PTY so that its Ink-based TTY handling works
-  reliably in CI and other non-interactive environments.
+- `--judge-model` is used both to look up existing scalar scores from the
+  `cross_agent_analysis` stage and as the LLM judge for pairwise decisions.
+- Each pairwise decision compares two agents' diffs to the same human ground
+  truth diff and asks the LLM to choose a winner (or tie) and provide a
+  short rationale plus per-agent "match to human" scores.
 
 3. **Customize ranking**: Use `--rank-by` to rank by different metrics (mean_aggregate, success_rate, tasks_per_hour, etc.)
 4. **Export results**: Save leaderboard as CSV or JSON for sharing
