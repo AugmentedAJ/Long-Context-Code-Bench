@@ -263,7 +263,10 @@ def analyze_pr(
 @click.option(
     "--judge-model",
     required=True,
-    help="LLM judge model whose scores should be reused for scalar per-agent metrics (e.g., anthropic/claude-3-5-sonnet-20241022)",
+        help=(
+            "LLM judge model to use for both scalar per-agent metrics (when available) "
+            "and pairwise head-to-head decisions (e.g., anthropic/claude-3-5-sonnet-20241022)"
+        ),
 )
 @click.option(
     "--include-codebase-context/--no-codebase-context",
@@ -286,8 +289,9 @@ def head_to_head_pr(
 
     This command finds all agent edits for the specified PR (optionally
     filtered by test_label), reuses LLM judge scores from the given JUDGE_MODEL
-    for scalar per-agent metrics when available, and runs pairwise comparisons
-    where each agent acts as a judge over the others. Results are written as a
+    for scalar per-agent metrics when available, and uses the same LLM judge
+    model to perform direct pairwise comparisons between agents based on their
+    diffs and the human ground truth diff. Results are written as a
     HeadToHeadPRResult artifact under output/head_to_head/.
     """
     from long_context_bench.stages.head_to_head import run_head_to_head_for_pr

@@ -52,7 +52,7 @@ For each PR with edits from ≥2 agents:
 
 1. **Judge model selection (CLI)**
    - Use a single `judge_model` string passed via the `head-to-head-pr` CLI command.
-   - Use this judge model only to select which prior LLM judge outputs to reuse for per-agent scores (from `judge` or `cross_agent_analysis`); head-to-head itself does **not** call the LLM and relies on agents as judges for pairwise decisions.
+   - Use this judge model both to select which prior LLM judge outputs to reuse for per-agent scores (from `judge` or `cross_agent_analysis`) **and** as the LLM judge for pairwise decisions in the head-to-head stage.
 
 2. **Codebase context retrieval** (`stages/head_to_head.py`)
    - Function `get_codebase_context_for_pr(sample, max_files, max_bytes, cache_dir)`:
@@ -69,23 +69,20 @@ For each PR with edits from ≥2 agents:
    - Build an `agent_id` for each submission: `"{runner}:{model}:{edit_run_id}"`.
    - Load `AgentResult` entries per submission from existing LLM judge artifacts (prefer `cross_agent_analysis` outputs for the same `pr_number` / `test_label` / `judge_model`), falling back to neutral scores if none are available. The head-to-head stage itself does **not** call `compute_llm_scores`.
 
-2. **Pairwise judgment (agents as judges, current implementation)**
+2. **Pairwise judgment (LLM judge, current implementation)**
    - Generate all unordered pairs of agent_ids.
    - For each pair of submissions (e.g., Factory vs Auggie):
-     - For each agent in the pair that supports judging via its CLI runner:
-       - Treat that agent as the **judge runner** (e.g., `judge_runner="factory"` or `"auggie"`).
-       - Randomize which submission is A vs B (record `order_seed`).
-       - Materialize a workspace at the base commit (reuse `materialize_workspace`) so the judge agent can inspect the repo if it wants.
-       - Build a judging prompt that includes:
-         - Task instructions.
-         - Ground-truth diff (truncated if necessary).
-         - Optional codebase context (selected files at base commit).
-         - Submission A/B diffs.
-         - A strict JSON schema for the verdict and per-metric preferences.
-       - Invoke the judge runner via its existing `RunnerAdapter` with that prompt as `task_instructions` (no new LLM calls from the harness; the agent’s own model handles the reasoning).
-       - Parse the agent’s stdout from its `logs.jsonl` into a `PairwiseJudgeDecision` with `judge_runner` set (and `judge_model` optionally set to the underlying model string).
+     - Randomize which submission is A vs B in a deterministic way (record `order_seed`).
+     - Build a judging prompt that includes:
+       - Task instructions.
+       - Human ground-truth diff (truncated if necessary).
+       - Optional codebase context (selected files at base commit).
+       - Submission A/B diffs.
+       - A strict JSON schema for the verdict and per-agent "match to human" scores.
+     - Call the configured LLM judge (via LiteLLM) once per pair using `judge_model`.
+     - Parse the JSON response into a `PairwiseJudgeDecision` with `judge_model` set and `judge_runner=None`.
 
-3. **Future refinements: richer CLI judging modes**
+3. **Future refinements: richer judging modes**
    - Optionally extend `RunnerAdapter` with a dedicated `evaluate_pair(...)` API that can:
      - Materialize **two** workspaces (patch A and patch B applied) when runners support that style of comparison.
      - Enforce stricter output contracts (e.g., dedicated JSON-only channels) to reduce parsing fragility.
@@ -126,12 +123,12 @@ For each PR with edits from ≥2 agents:
 ## 8. Implementation Roadmap (Phased)
 
 1. **Phase 1: Models & LLM-based head-to-head**
-   - Implement new models and initial LLM-based pairwise judging (diff-based, optional minimal codebase context), plus a `head-to-head-pr` CLI. This phase is complete but the LLM-based head-to-head judge is no longer used in this branch (LLM judging remains in `judge` / `cross_agent_analysis`).
+   - Implement new models and LLM-based pairwise judging (diff-based, optional minimal codebase context), plus a `head-to-head-pr` CLI. This phase is complete and the LLM-based head-to-head judge is the primary implementation in this branch.
 
 2. **Phase 2: Ranking, stats, and web**
    - Implement `ranking.py`, extend `stats.py` and `cli.compare`, and update web + packaging to surface head-to-head metrics. This phase is complete.
 
-3. **Phase 3: Agents as CLI judges & richer context (current focus)**
-   - Use CLI agents (e.g., Auggie, Factory) as the primary judges for head-to-head pairwise decisions, reusing existing LLM judge outputs only for scalar per-agent scores.
-   - Optionally add a dedicated `evaluate_pair` API and richer workspace-level comparison in future iterations.
+3. **Phase 3: Agents as CLI judges & richer context (future/experimental)**
+   - Optionally explore using CLI agents (e.g., Auggie, Factory) as judges for head-to-head pairwise decisions, reusing existing LLM judge outputs only for scalar per-agent scores.
+   - Potentially add a dedicated `evaluate_pair` API and richer workspace-level comparison in future iterations.
 
