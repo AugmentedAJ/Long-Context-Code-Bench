@@ -21,6 +21,7 @@ from long_context_bench.models import (
     Edit,
     Scores,
     AgentResult,
+    AgentVsHumanDecision,
     PairwiseJudgeDecision,
     HeadToHeadAgentStats,
     HeadToHeadPRResult,
@@ -306,28 +307,27 @@ def _load_cross_agent_results_for_pr(
     return {}
 
 
-def run_agent_pairwise_judge(
+def run_agent_vs_human_judge(
     sample: Sample,
     judge_runner: str,
     judge_runner_model: Optional[str],
-    edit_a: Edit,
-    edit_b: Edit,
-    submission_a_id: str,
-    submission_b_id: str,
+    edit: Edit,
+    agent_id: str,
     ground_truth_diff: str,
-    order_seed: int,
     output_dir: Path,
     head_to_head_run_id: str,
     codebase_context: Optional[Dict[str, str]] = None,
     codebase_context_paths: Optional[List[str]] = None,
     cache_dir: Optional[Path] = None,
-) -> PairwiseJudgeDecision:
-    """Use a CLI agent as judge to compare two submissions and return a decision.
+) -> AgentVsHumanDecision:
+    """Use a CLI agent as judge to evaluate a single submission against human diff.
 
     judge_runner_model is the model string passed through to the CLI judge runner
     (e.g., "claude-sonnet-4.5"). It is also recorded on the resulting
-    PairwiseJudgeDecision.judge_model field for traceability.
+    AgentVsHumanDecision.judge_model field for traceability.
     """
+
+    console = Console()
 
     # Build codebase context block (optional)
     context_block = ""
@@ -337,20 +337,18 @@ def run_agent_pairwise_judge(
             parts.append(f"### {path}\n```\n{_truncate(content, 2000)}\n```")
         context_block = "\n**Codebase Context (Base Commit):**\n" + "\n\n".join(parts)
 
-    prompt = f"""You are an expert code reviewer acting as an automated judge for TWO AI coding
-agents' diffs for the same GitHub pull request task.
+    prompt = f"""You are an expert code reviewer acting as an automated judge evaluating an AI coding
+agent's diff against the HUMAN ground truth diff for a GitHub pull request task.
 
 You are in a read-only evaluation mode:
 - Do NOT modify any files.
 - Do NOT run git push or create new branches.
-- Your job is only to compare the diffs against the HUMAN ground truth diff and
-  decide which AI submission is better.
+- Your job is only to evaluate how well the AI submission matches the HUMAN ground truth diff.
 
 You have a materialized workspace at the PR's base commit. To inspect the FULL
 diffs, open these files in the workspace:
 - HUMAN.diff          (ground truth / human reference diff)
-- SUBMISSION_A.diff   (full diff for Submission A)
-- SUBMISSION_B.diff   (full diff for Submission B)
+- AGENT.diff          (AI agent's submission to evaluate)
 
 You may also inspect other files in the workspace if that helps you reason, but
 you must not make any edits.
@@ -364,50 +362,56 @@ Human Ground Truth Diff (excerpt):
 ```
 {context_block}
 
-Submission A Diff (excerpt):
+Agent Submission Diff (excerpt):
 ```diff
-{_truncate(edit_a.patch_unified, 8000)}
+{_truncate(edit.patch_unified, 8000)}
 ```
 
-Submission B Diff (excerpt):
-```diff
-{_truncate(edit_b.patch_unified, 8000)}
-```
+Your goal is to evaluate how well the agent's submission matches the HUMAN diff
+while satisfying the task instructions. Evaluate on these metrics:
 
-Your primary goal is to judge how closely each submission matches the HUMAN
-diff while satisfying the task instructions. Pay particular attention to:
-- correctness (does it implement the right behavior?)
-- completeness (does it cover all important changes the human made?)
-- code_reuse (does it reuse existing helpers / patterns when appropriate?)
-- best_practices (readability, maintainability, safety)
-- unsolicited_docs (useful additional comments or documentation)
+1. **correctness** (-1.0 to 1.0): Does it implement the right behavior?
+   - 1.0: Perfectly correct, matches ground truth semantics
+   - 0.0: Partially correct or neutral
+   - -1.0: Incorrect or breaks functionality
+
+2. **completeness** (-1.0 to 1.0): Does it cover all important changes?
+   - 1.0: Complete, addresses all key aspects
+   - 0.0: Partially complete
+   - -1.0: Missing critical functionality
+
+3. **code_reuse** (-1.0 to 1.0): Does it reuse existing helpers/patterns appropriately?
+   - 1.0: Excellent reuse of existing code
+   - 0.0: Neutral or mixed
+   - -1.0: Unnecessary duplication
+
+4. **best_practices** (-1.0 to 1.0): Readability, maintainability, safety
+   - 1.0: Excellent practices
+   - 0.0: Acceptable
+   - -1.0: Poor practices
+
+5. **unsolicited_docs** (-1.0 to 1.0): Penalizes documentation added when not requested
+   - 1.0: No unsolicited documentation
+   - 0.0: Minor documentation additions
+   - -1.0: Significant unsolicited documentation
+
+6. **matches_human** (0.0 to 1.0): Overall similarity to human diff
+   - 1.0: Nearly identical to human approach
+   - 0.5: Different approach but equivalent
+   - 0.0: Completely different or wrong
 
 Respond with ONLY a valid JSON object in this exact format (no markdown, no
 code blocks, no additional text before or after):
 
 {{
-  "winner": "A" | "B" | "tie",
-  "rationale": "<brief explanation referencing differences vs the human diff>",
-  "comparison_to_human": {{
-    "A": {{
-      "matches_human": <float 0.0-1.0>,
-      "correctness": <float -1.0 to 1.0>,
-      "completeness": <float -1.0 to 1.0>,
-      "code_reuse": <float -1.0 to 1.0>,
-      "best_practices": <float -1.0 to 1.0>,
-      "unsolicited_docs": <float -1.0 to 1.0>,
-      "notes": "<short notes about how A compares to the human diff>"
-    }},
-    "B": {{
-      "matches_human": <float 0.0-1.0>,
-      "correctness": <float -1.0 to 1.0>,
-      "completeness": <float -1.0 to 1.0>,
-      "code_reuse": <float -1.0 to 1.0>,
-      "best_practices": <float -1.0 to 1.0>,
-      "unsolicited_docs": <float -1.0 to 1.0>,
-      "notes": "<short notes about how B compares to the human diff>"
-    }}
-  }}
+  "correctness": <float -1.0 to 1.0>,
+  "completeness": <float -1.0 to 1.0>,
+  "code_reuse": <float -1.0 to 1.0>,
+  "best_practices": <float -1.0 to 1.0>,
+  "unsolicited_docs": <float -1.0 to 1.0>,
+  "matches_human": <float 0.0 to 1.0>,
+  "rationale": "<brief explanation of your evaluation>",
+  "notes": "<short notes about how the submission compares to the human diff>"
 }}"""
 
     try:
@@ -417,17 +421,14 @@ code blocks, no additional text before or after):
 
             # Write full diff files for the judge to inspect.
             (workspace_path / "HUMAN.diff").write_text(ground_truth_diff or "", encoding="utf-8")
-            (workspace_path / "SUBMISSION_A.diff").write_text(
-                edit_a.patch_unified or "", encoding="utf-8"
-            )
-            (workspace_path / "SUBMISSION_B.diff").write_text(
-                edit_b.patch_unified or "", encoding="utf-8"
+            (workspace_path / "AGENT.diff").write_text(
+                edit.patch_unified or "", encoding="utf-8"
             )
 
             logs_dir = output_dir / "head_to_head" / "logs" / f"pr{sample.pr_number}_{head_to_head_run_id}"
             logs_dir.mkdir(parents=True, exist_ok=True)
             logs_hash = hashlib.sha256(
-                f"{submission_a_id}|{submission_b_id}|{judge_runner}|{order_seed}".encode("utf-8")
+                f"{agent_id}|{judge_runner}".encode("utf-8")
             ).hexdigest()[:8]
             logs_path = logs_dir / f"{judge_runner}_{logs_hash}.jsonl"
 
@@ -459,107 +460,57 @@ code blocks, no additional text before or after):
 
     except Exception as e:
         console.print(f"[yellow]Warning: Agent judge {judge_runner} failed: {e}[/yellow]")
-        return PairwiseJudgeDecision(
+        return AgentVsHumanDecision(
             repo_url=sample.repo_url,
             pr_number=sample.pr_number,
-            submission_a_id=submission_a_id,
-            submission_b_id=submission_b_id,
+            agent_id=agent_id,
             judge_model=judge_runner_model,
             judge_runner=judge_runner,
-            order_seed=order_seed,
-            winner="tie",
-            correctness_preference="tie",
-            completeness_preference="tie",
-            code_quality_preference="tie",
-            integration_preference="tie",
-            raw_scores=None,
+            correctness=0.0,
+            completeness=0.0,
+            code_reuse=0.0,
+            best_practices=0.0,
+            unsolicited_docs=0.0,
+            matches_human=0.0,
+            aggregate=0.0,
             rationale=f"Agent judge {judge_runner} failed: {e}",
+            notes=None,
             timestamp=datetime.utcnow().isoformat(),
             codebase_context_files=codebase_context_paths,
         )
 
-    # Normalize winner field
-    winner = str(raw.get("winner", "tie")).upper()
-    if winner not in {"A", "B", "TIE"}:
-        winner = "TIE"
+    # Extract scores from the judge's response
+    try:
+        correctness = max(-1.0, min(1.0, float(raw.get("correctness", 0.0))))
+        completeness = max(-1.0, min(1.0, float(raw.get("completeness", 0.0))))
+        code_reuse = max(-1.0, min(1.0, float(raw.get("code_reuse", 0.0))))
+        best_practices = max(-1.0, min(1.0, float(raw.get("best_practices", 0.0))))
+        unsolicited_docs = max(-1.0, min(1.0, float(raw.get("unsolicited_docs", 1.0))))
+        matches_human = max(0.0, min(1.0, float(raw.get("matches_human", 0.0))))
+    except (TypeError, ValueError) as e:
+        console.print(f"[yellow]Warning: Failed to parse scores: {e}[/yellow]")
+        correctness = completeness = code_reuse = best_practices = 0.0
+        unsolicited_docs = 1.0
+        matches_human = 0.0
 
-    # Start from any raw_scores provided by the judge (for backward compatibility)
-    raw_scores = raw.get("raw_scores") or {}
-    if not isinstance(raw_scores, dict):
-        raw_scores = {}
+    # Calculate aggregate score (average of the 5 main metrics)
+    aggregate = (correctness + completeness + code_reuse + best_practices + unsolicited_docs) / 5.0
 
-    comparison_notes: Optional[Dict[str, str]] = None
-
-    # Optionally enrich raw_scores from comparison_to_human, and capture short notes.
-    comparison = raw.get("comparison_to_human")
-    if isinstance(comparison, dict):
-        notes: Dict[str, str] = {}
-        for label in ("A", "B"):
-            side = comparison.get(label)
-            if not isinstance(side, dict):
-                continue
-
-            side_scores = dict(raw_scores.get(label, {})) if isinstance(raw_scores.get(label), dict) else {}
-            for k, v in side.items():
-                if k == "notes":
-                    if isinstance(v, str):
-                        notes[label] = v
-                    continue
-                # Best-effort float coercion; skip non-numeric fields.
-                try:
-                    side_scores[k] = float(v)
-                except (TypeError, ValueError):
-                    continue
-
-            if side_scores:
-                raw_scores[label] = side_scores
-
-        if notes:
-            comparison_notes = notes
-
-    if not raw_scores:
-        raw_scores = None
-
-    def _preference(metric: str) -> Optional[str]:
-        if not raw_scores:
-            return None
-        try:
-            a_val = raw_scores.get("A", {}).get(metric)
-            b_val = raw_scores.get("B", {}).get(metric)
-        except AttributeError:
-            return None
-        if a_val is None or b_val is None:
-            return None
-        try:
-            a_f = float(a_val)
-            b_f = float(b_val)
-        except (TypeError, ValueError):
-            return None
-        if abs(a_f - b_f) < 1e-3:
-            return "tie"
-        return "A" if a_f > b_f else "B"
-
-    correctness_pref = raw.get("correctness_preference") or _preference("correctness")
-    completeness_pref = raw.get("completeness_preference") or _preference("completeness")
-    code_quality_pref = raw.get("code_quality_preference") or _preference("best_practices")
-    integration_pref = raw.get("integration_preference") or _preference("matches_human")
-
-    return PairwiseJudgeDecision(
+    return AgentVsHumanDecision(
         repo_url=sample.repo_url,
         pr_number=sample.pr_number,
-        submission_a_id=submission_a_id,
-        submission_b_id=submission_b_id,
+        agent_id=agent_id,
         judge_model=judge_runner_model,
         judge_runner=judge_runner,
-        order_seed=order_seed,
-        winner="A" if winner == "A" else "B" if winner == "B" else "tie",
-        correctness_preference=correctness_pref,
-        completeness_preference=completeness_pref,
-        code_quality_preference=code_quality_pref,
-        integration_preference=integration_pref,
-        raw_scores=raw_scores,
+        correctness=correctness,
+        completeness=completeness,
+        code_reuse=code_reuse,
+        best_practices=best_practices,
+        unsolicited_docs=unsolicited_docs,
+        matches_human=matches_human,
+        aggregate=aggregate,
         rationale=raw.get("rationale"),
-        comparison_to_human_notes=comparison_notes,
+        notes=raw.get("notes"),
         timestamp=datetime.utcnow().isoformat(),
         codebase_context_files=codebase_context_paths,
     )
@@ -628,8 +579,8 @@ def run_head_to_head_for_pr(
     console.print("  Fetching ground truth diff...")
     ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-    console.print(f"  Pairwise judge runner: {judge_runner} (model={judge_runner_model})")
-    console.print(f"  Reusing scalar scores from LLM judge model: {judge_model}")
+    console.print(f"  Judge runner: {judge_runner} (model={judge_runner_model})")
+    console.print(f"  Judging each agent individually against human diff")
 
     # Build submissions list
     submissions = []
@@ -702,65 +653,59 @@ def run_head_to_head_for_pr(
         )
         console.print(f"  Included {len(context_paths or [])} context file(s)")
 
-    # Pairwise decisions using a single dedicated CLI judge agent
-    pairwise_decisions: List[PairwiseJudgeDecision] = []
-    for i in range(len(submissions)):
-        for j in range(i + 1, len(submissions)):
-            sub_i = submissions[i]
-            sub_j = submissions[j]
+    # Judge each agent individually against human diff
+    agent_decisions: List[AgentVsHumanDecision] = []
+    for sub in submissions:
+        console.print(f"  Judging {sub['agent_id']} against human diff with judge runner {judge_runner}")
+        decision = run_agent_vs_human_judge(
+            sample=sample,
+            judge_runner=judge_runner,
+            judge_runner_model=judge_runner_model,
+            edit=sub["edit"],
+            agent_id=sub["agent_id"],
+            ground_truth_diff=ground_truth_diff,
+            output_dir=output_dir,
+            head_to_head_run_id=head_to_head_run_id,
+            codebase_context=context,
+            codebase_context_paths=context_paths,
+            cache_dir=cache_dir,
+        )
+        agent_decisions.append(decision)
 
-            # Decide a deterministic but randomized A/B ordering per unordered pair
-            seed_input = f"{sub_i['agent_id']}|{sub_j['agent_id']}|{judge_runner}|{judge_runner_model}"
-            order_seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest()[:8], 16)
-            if order_seed % 2 == 0:
-                a_sub, b_sub = sub_i, sub_j
-            else:
-                a_sub, b_sub = sub_j, sub_i
-
-            console.print(
-                f"  Judging pair {a_sub['agent_id']} vs {b_sub['agent_id']} with judge runner {judge_runner}"
-            )
-            decision = run_agent_pairwise_judge(
-                sample=sample,
-                judge_runner=judge_runner,
-                judge_runner_model=judge_runner_model,
-                edit_a=a_sub["edit"],
-                edit_b=b_sub["edit"],
-                submission_a_id=a_sub["agent_id"],
-                submission_b_id=b_sub["agent_id"],
-                ground_truth_diff=ground_truth_diff,
-                order_seed=order_seed,
-                output_dir=output_dir,
-                head_to_head_run_id=head_to_head_run_id,
-                codebase_context=context,
-                codebase_context_paths=context_paths,
-                cache_dir=cache_dir,
-            )
-            pairwise_decisions.append(decision)
-
-    if not pairwise_decisions:
-        console.print("[yellow]No pairwise decisions produced[/yellow]")
+    if not agent_decisions:
+        console.print("[yellow]No agent decisions produced[/yellow]")
         return None
 
-    # Per-agent stats for this PR
+    # Calculate per-agent stats by comparing scores
+    # For each agent, count wins/losses/ties against all other agents
     stats_map: Dict[str, Dict[str, int]] = {
-        sub["agent_id"]: {"wins": 0, "losses": 0, "ties": 0} for sub in submissions
+        decision.agent_id: {"wins": 0, "losses": 0, "ties": 0} for decision in agent_decisions
     }
-    for decision in pairwise_decisions:
-        a = decision.submission_a_id
-        b = decision.submission_b_id
-        stats_map.setdefault(a, {"wins": 0, "losses": 0, "ties": 0})
-        stats_map.setdefault(b, {"wins": 0, "losses": 0, "ties": 0})
 
-        if decision.winner == "A":
-            stats_map[a]["wins"] += 1
-            stats_map[b]["losses"] += 1
-        elif decision.winner == "B":
-            stats_map[a]["losses"] += 1
-            stats_map[b]["wins"] += 1
-        else:
-            stats_map[a]["ties"] += 1
-            stats_map[b]["ties"] += 1
+    # Create a mapping of agent_id to aggregate score for easy lookup
+    score_map: Dict[str, float] = {
+        decision.agent_id: decision.aggregate for decision in agent_decisions
+    }
+
+    # Compare each agent against every other agent based on scores
+    for i, decision_i in enumerate(agent_decisions):
+        for j, decision_j in enumerate(agent_decisions):
+            if i == j:
+                continue  # Don't compare agent to itself
+
+            agent_i = decision_i.agent_id
+            agent_j = decision_j.agent_id
+            score_i = score_map[agent_i]
+            score_j = score_map[agent_j]
+
+            # Determine win/loss/tie based on score comparison
+            # Use a small epsilon for tie detection
+            if abs(score_i - score_j) < 1e-3:
+                stats_map[agent_i]["ties"] += 1
+            elif score_i > score_j:
+                stats_map[agent_i]["wins"] += 1
+            else:
+                stats_map[agent_i]["losses"] += 1
 
     agent_stats = [
         HeadToHeadAgentStats(
@@ -781,8 +726,9 @@ def run_head_to_head_for_pr(
         task_instructions=sample.task_instructions,
         test_label=test_label,
         agent_results=agent_results,
-        pairwise_decisions=pairwise_decisions,
+        agent_decisions=agent_decisions,
         agent_stats=agent_stats,
+        pairwise_decisions=None,  # Deprecated, kept for backward compatibility
         head_to_head_run_id=head_to_head_run_id,
         timestamp=datetime.utcnow().isoformat(),
     )

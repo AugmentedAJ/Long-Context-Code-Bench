@@ -4,7 +4,7 @@ import pytest
 from long_context_bench.models import (
     Sample, SampleStats, Edit, Judge, Scores,
     EditRunManifest, JudgeRunManifest, AggregateSummary,
-    AgentResult, PairwiseJudgeDecision, HeadToHeadAgentStats,
+    AgentResult, AgentVsHumanDecision, PairwiseJudgeDecision, HeadToHeadAgentStats,
     HeadToHeadPRResult, HeadToHeadAgentSummary, HeadToHeadGlobalSummary,
 )
 
@@ -193,8 +193,35 @@ def test_aggregate_summary_with_test_label():
 
 
 
+def test_agent_vs_human_decision_model():
+    """Test AgentVsHumanDecision model construction."""
+    decision = AgentVsHumanDecision(
+        repo_url="https://github.com/elastic/elasticsearch",
+        pr_number=115001,
+        agent_id="runner1:model1:run1",
+        judge_model="anthropic/claude-3-5-sonnet-20241022",
+        judge_runner="claude-code",
+        correctness=0.8,
+        completeness=0.9,
+        code_reuse=0.7,
+        best_practices=0.85,
+        unsolicited_docs=1.0,
+        matches_human=0.75,
+        aggregate=0.85,
+        rationale="Good implementation overall.",
+        notes="Minor issues with edge cases",
+        timestamp="2025-01-01T00:00:00",
+        codebase_context_files=["src/main.py"],
+    )
+
+    assert decision.agent_id == "runner1:model1:run1"
+    assert decision.correctness == 0.8
+    assert decision.aggregate == 0.85
+    assert decision.matches_human == 0.75
+
+
 def test_pairwise_judge_decision_model():
-    """Test PairwiseJudgeDecision model construction."""
+    """Test PairwiseJudgeDecision model construction (deprecated)."""
     decision = PairwiseJudgeDecision(
         repo_url="https://github.com/elastic/elasticsearch",
         pr_number=115001,
@@ -252,21 +279,20 @@ def test_head_to_head_pr_result_model():
         ties=0,
     )
 
-    decision = PairwiseJudgeDecision(
+    agent_decision = AgentVsHumanDecision(
         repo_url="https://github.com/elastic/elasticsearch",
         pr_number=115001,
-        submission_a_id="runner1:model1:run1",
-        submission_b_id="runner2:model2:run2",
+        agent_id="runner1:model1:run1",
         judge_model="anthropic/claude-3-5-sonnet-20241022",
-        judge_runner=None,
-        order_seed=1,
-        winner="A",
-        correctness_preference="A",
-        completeness_preference="A",
-        code_quality_preference="A",
-        integration_preference="A",
-        raw_scores=None,
-        rationale="Agent 1 is clearly better.",
+        judge_runner="claude-code",
+        correctness=0.8,
+        completeness=0.9,
+        code_reuse=0.7,
+        best_practices=0.85,
+        unsolicited_docs=1.0,
+        matches_human=0.75,
+        aggregate=0.85,
+        rationale="Good implementation.",
         timestamp="2025-01-01T00:00:00",
         codebase_context_files=None,
     )
@@ -279,7 +305,7 @@ def test_head_to_head_pr_result_model():
         task_instructions="Fix bug in search",
         test_label="head-to-head-test",
         agent_results=[agent_result],
-        pairwise_decisions=[decision],
+        agent_decisions=[agent_decision],
         agent_stats=[stats],
         head_to_head_run_id="h2h123",
         timestamp="2025-01-01T00:00:00",
@@ -288,7 +314,8 @@ def test_head_to_head_pr_result_model():
     dumped = h2h.model_dump()
     assert dumped["pr_number"] == 115001
     assert dumped["agent_stats"][0]["wins"] == 1
-    assert dumped["pairwise_decisions"][0]["winner"] == "A"
+    assert dumped["agent_decisions"][0]["agent_id"] == "runner1:model1:run1"
+    assert dumped["agent_decisions"][0]["aggregate"] == 0.85
 
 
 def test_head_to_head_global_summary_model():

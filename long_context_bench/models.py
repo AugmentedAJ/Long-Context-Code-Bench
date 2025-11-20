@@ -193,10 +193,47 @@ class CrossAgentJudge(BaseModel):
 
 
 
+class AgentVsHumanDecision(BaseModel):
+    """Individual agent judgment against human ground truth diff.
+
+    This model stores the evaluation of a single agent's submission compared
+    to the human diff, with detailed scores for each metric.
+    """
+
+    # Identity
+    repo_url: str
+    pr_number: int
+    agent_id: str  # runner:model:edit_run_id
+    judge_model: Optional[str] = None  # LLM ID used as judge
+    judge_runner: Optional[str] = None  # If a CLI agent acted as judge
+
+    # Scores (all metrics are -1.0 to 1.0)
+    correctness: float = Field(ge=-1.0, le=1.0)
+    completeness: float = Field(ge=-1.0, le=1.0)
+    code_reuse: float = Field(ge=-1.0, le=1.0)
+    best_practices: float = Field(ge=-1.0, le=1.0)
+    unsolicited_docs: float = Field(ge=-1.0, le=1.0)
+    matches_human: float = Field(ge=0.0, le=1.0)  # Overall similarity to human diff
+
+    # Aggregate score (average of the 5 main metrics)
+    aggregate: float = Field(ge=-1.0, le=1.0)
+
+    # Explanation
+    rationale: Optional[str] = None
+    notes: Optional[str] = None  # Short notes about how submission compares to human diff
+
+    # Metadata
+    timestamp: str
+    codebase_context_files: Optional[List[str]] = None
+
+
 class PairwiseJudgeDecision(BaseModel):
     """Pairwise head-to-head judgment between two submissions on a PR.
 
     Submissions are identified by stable agent IDs (e.g. "runner:model:edit_run_id").
+
+    DEPRECATED: This model is kept for backward compatibility but new evaluations
+    should use AgentVsHumanDecision instead.
     """
 
     # Identity
@@ -236,7 +273,11 @@ class HeadToHeadAgentStats(BaseModel):
 
 
 class HeadToHeadPRResult(BaseModel):
-    """Head-to-head comparison results for a single PR."""
+    """Head-to-head comparison results for a single PR.
+
+    This model now stores individual agent-vs-human evaluations and derives
+    win/loss/tie statistics by comparing agent scores.
+    """
 
     # PR/sample metadata
     repo_url: str
@@ -246,10 +287,13 @@ class HeadToHeadPRResult(BaseModel):
     task_instructions: str
     test_label: Optional[str] = None
 
-    # Per-agent results and pairwise decisions
+    # Per-agent results and individual judgments against human
     agent_results: List[AgentResult]
-    pairwise_decisions: List[PairwiseJudgeDecision]
-    agent_stats: List[HeadToHeadAgentStats]
+    agent_decisions: List[AgentVsHumanDecision]  # Individual agent-vs-human evaluations
+    agent_stats: List[HeadToHeadAgentStats]  # Win/loss/tie derived from score comparisons
+
+    # Deprecated: kept for backward compatibility with old data
+    pairwise_decisions: Optional[List[PairwiseJudgeDecision]] = None
 
     # Run metadata
     head_to_head_run_id: str

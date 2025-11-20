@@ -87,3 +87,33 @@ Trailing notes.
     assert parsed["winner"] == "A"
     assert parsed["rationale"] == "first"
 
+
+def test_parse_agent_vs_human_json():
+    """Test parsing the new agent-vs-human JSON format."""
+
+    stdout = """
+Tool output and analysis...
+```json
+{
+  "correctness": 0.8,
+  "completeness": 0.9,
+  "code_reuse": 0.7,
+  "best_practices": 0.85,
+  "unsolicited_docs": 1.0,
+  "matches_human": 0.75,
+  "rationale": "Good implementation overall",
+  "notes": "Minor issues with edge cases"
+}
+```
+More trailing commentary.
+"""
+    parsed = _parse_agent_judge_output(stdout)
+    assert parsed["correctness"] == 0.8
+    assert parsed["completeness"] == 0.9
+    assert parsed["code_reuse"] == 0.7
+    assert parsed["best_practices"] == 0.85
+    assert parsed["unsolicited_docs"] == 1.0
+    assert parsed["matches_human"] == 0.75
+    assert parsed["rationale"] == "Good implementation overall"
+    assert parsed["notes"] == "Minor issues with edge cases"
+

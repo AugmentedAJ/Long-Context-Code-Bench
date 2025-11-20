@@ -444,15 +444,38 @@ def generate_head_to_head_summary(
         console.print(f"[yellow]No head-to-head results found for test label '{test_label}'[/yellow]")
         return None
 
-    # Collect all pairwise decisions
-    all_decisions = []
+    # Collect agent decisions (new format) or fall back to pairwise decisions (old format)
+    all_agent_decisions = []
+    all_pairwise_decisions = []
+
     for r in results:
-        all_decisions.extend(r.pairwise_decisions)
+        # Try new format first
+        if hasattr(r, 'agent_decisions') and r.agent_decisions:
+            all_agent_decisions.extend(r.agent_decisions)
+        # Fall back to old format
+        elif hasattr(r, 'pairwise_decisions') and r.pairwise_decisions:
+            all_pairwise_decisions.extend(r.pairwise_decisions)
 
-    from long_context_bench.ranking import compute_win_loss_matrix, compute_elo_ratings
+    from long_context_bench.ranking import (
+        compute_win_loss_matrix,
+        compute_elo_ratings,
+        compute_win_loss_matrix_from_scores,
+        compute_elo_ratings_from_scores,
+    )
 
-    matrix = compute_win_loss_matrix(all_decisions)
-    elo_ratings = compute_elo_ratings(all_decisions)
+    # Use new score-based ranking if we have agent decisions
+    if all_agent_decisions:
+        console.print(f"  Using score-based ranking from {len(all_agent_decisions)} agent decisions")
+        matrix = compute_win_loss_matrix_from_scores(all_agent_decisions)
+        elo_ratings = compute_elo_ratings_from_scores(all_agent_decisions)
+    # Fall back to old pairwise ranking
+    elif all_pairwise_decisions:
+        console.print(f"  Using pairwise ranking from {len(all_pairwise_decisions)} pairwise decisions (legacy)")
+        matrix = compute_win_loss_matrix(all_pairwise_decisions)
+        elo_ratings = compute_elo_ratings(all_pairwise_decisions)
+    else:
+        console.print("[yellow]No decisions found in results[/yellow]")
+        return None
 
     # Build per-agent summaries
     agent_summaries = []
