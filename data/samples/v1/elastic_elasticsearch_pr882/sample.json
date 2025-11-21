@@ -4,7 +4,7 @@
   "pr_number": 882,
   "base_commit": "f3e032315fff2ee900be3c24535c30a1b908ca50",
   "head_commit": "b9245a961b0592708c69afc43085ca484928a69e",
-  "task_instructions": "Fix the typo in the readme file where it says \"Fist of all\" instead of \"First of all\"",
+  "task_instructions": "fix readme typo",
   "stats": {
     "files_changed": 1,
     "lines_added": 1,

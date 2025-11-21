@@ -4,7 +4,7 @@
   "pr_number": 1587,
   "base_commit": "df4a3bfd379fd90b3667bbcd7ca2ed4619fee025",
   "head_commit": "d95aa9f266ccecf33894c88af329895c1693cd14",
-  "task_instructions": "need to enhance the ttl tests to properly test with routing, add configuration for 2 shards and routing settings, and test both documents with and without routing to ensure ttl purging works correctly",
+  "task_instructions": "need to enhance ttl tests to properly test routing functionality, the current tests only check basic ttl without routing which doesnt cover all scenarios when documents are distributed across multiple shards",
   "stats": {
     "files_changed": 2,
     "lines_added": 31,

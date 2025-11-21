@@ -4,7 +4,7 @@
   "pr_number": 4256,
   "base_commit": "f1bf585089db2b3acb28edf619de4f387e69f923",
   "head_commit": "811b7d7d7837010a205baf59cc75d8df3b1ad69b",
-  "task_instructions": "stop auto start on install",
+  "task_instructions": "Change the package installation scripts so elasticsearch doesn't start automatically after installation and update the documentation to show the manual startup commands",
   "stats": {
     "files_changed": 3,
     "lines_added": 44,

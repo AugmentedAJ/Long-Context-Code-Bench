@@ -4,7 +4,7 @@
   "pr_number": 3947,
   "base_commit": "e79f714b4b066f9238ff6313aad9a854c37a8c3d",
   "head_commit": "f9154de04f576077d879a777a5587661cf1e094d",
-  "task_instructions": "fix weight validation",
+  "task_instructions": "completion field mapper is silently converting float weights to integers which is confusing behavior, should reject floats instead",
   "stats": {
     "files_changed": 2,
     "lines_added": 25,

@@ -4,7 +4,7 @@
   "pr_number": 1600,
   "base_commit": "ed8a46ce09ccf43adec55af91a72fc9c5dc1ec05",
   "head_commit": "682176497f9f454943d2373dc24501ad37b8dbb0",
-  "task_instructions": "the update action has a TODO comment for ttl/timestamp handling but it's not implemented. need to add proper timestamp and TTL support when updating documents through scripts - should extract timestamp and ttl from script context, handle TTL parsing for both numeric and string values, preserve existing TTL if not specified in script, and pass both to the index request",
+  "task_instructions": "need to implement timestamp and TTL handling in the update action since its currently missing",
   "stats": {
     "files_changed": 1,
     "lines_added": 23,

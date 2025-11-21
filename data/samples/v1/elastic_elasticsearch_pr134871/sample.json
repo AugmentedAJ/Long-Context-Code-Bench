@@ -4,7 +4,7 @@
   "pr_number": 134871,
   "base_commit": "1923634bf7b0aa66d701b756aa3ded92370ffeb4",
   "head_commit": "00a7ffe9940e83e3123c50df9c5777a2c140e089",
-  "task_instructions": "Remove the unused `SizeValue` utility class and replace its usages with `Long` values in thread pool queue size handling",
+  "task_instructions": "Remove the SizeValue utility class since it's unused for formatting large numbers in API responses or accepting user input, and replace its few usages with Long instead",
   "stats": {
     "files_changed": 10,
     "lines_added": 15,

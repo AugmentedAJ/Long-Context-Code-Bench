@@ -4,7 +4,7 @@
   "pr_number": 4478,
   "base_commit": "2b6214cff72423fc5c948c7b4c39027c93494400",
   "head_commit": "a4f97bed9d3a299f1553192464ecfba17a75cfb9",
-  "task_instructions": "Optimize the shard allocation algorithm to reduce unnecessary allocation attempts and improve performance by implementing early termination strategies for unassigned shards",
+  "task_instructions": "Optimize the allocation of unassigned shards by implementing early termination strategies to avoid unnecessary allocation attempts for replicas and nodes that cannot accept allocations in the current round.",
   "stats": {
     "files_changed": 48,
     "lines_added": 542,

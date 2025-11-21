@@ -4,7 +4,7 @@
   "pr_number": 4126,
   "base_commit": "97bdc8f9c21b9f890b42c738905221241a3ceb82",
   "head_commit": "a824f69d21c709bcd578981a78a592200c999dbc",
-  "task_instructions": "package the test framework classes as a separate test jar for external use",
+  "task_instructions": "need to package the test framework classes so external projects can use them as a test dependency",
   "stats": {
     "files_changed": 1,
     "lines_added": 17,

@@ -4,7 +4,7 @@
   "pr_number": 134953,
   "base_commit": "106b3012c7faf9c693dc3ef103ee05bf243b71e4",
   "head_commit": "a123cc84804b8a24eaadc29c75c375a80fa060b8",
-  "task_instructions": "Mark the create-index-from-source action as publicly available on Serverless",
+  "task_instructions": "mark the create-index-from-source action as publicly available on serverless",
   "stats": {
     "files_changed": 10,
     "lines_added": 88,

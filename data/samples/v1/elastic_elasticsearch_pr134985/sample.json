@@ -4,7 +4,7 @@
   "pr_number": 134985,
   "base_commit": "4a2d8fd40328763780fbefc32366456e1419b48b",
   "head_commit": "72ff6378adb9f7c324886609a94d425ba9e2edab",
-  "task_instructions": "The transform error logs are too noisy in serverless making our alerts unusable. Can you reduce the log level for the most frequent transform error messages from ERROR to WARN",
+  "task_instructions": "the transform error logs are too noisy in serverless, they're making up most of our error alerts and drowning out real issues. can you change the log level from error to warn for the transform persistence failures? specifically the ones in AuthorizationStatePersistenceUtils and TransformIndex that are flooding our monitoring",
   "stats": {
     "files_changed": 2,
     "lines_added": 3,

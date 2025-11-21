@@ -4,7 +4,7 @@
   "pr_number": 2558,
   "base_commit": "2eb09e6b1abceb316c789f173988ac733a55dc8b",
   "head_commit": "3d80c53192270daa4f4e8b00a2a11c68d13ab8c1",
-  "task_instructions": "I need to make the ShardsAllocator configurable through node settings instead of being hardcoded. Currently it seems like BalancedShardsAllocator is always used by default, but I want users to be able to choose between different allocators like the EvenShardsCountAllocator through configuration. Can you add support for configuring the allocator type via a setting like 'cluster.routing.allocation.type' with short keys for the built-in allocators and also support for loading custom third-party allocators by their fully qualified class names?",
+  "task_instructions": "make ShardsAllocator configurable through node settings instead of being hardcoded",
   "stats": {
     "files_changed": 2,
     "lines_added": 100,

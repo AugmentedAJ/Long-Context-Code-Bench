@@ -4,7 +4,7 @@
   "pr_number": 134915,
   "base_commit": "dd4b8d96484bc1b0f86d7b006d79cac5916b3f45",
   "head_commit": "526e7d87ca1231e51bd44f0ec00ca32c08367b83",
-  "task_instructions": "Some InlineStats tests are failing in release builds and need to be guarded with capability checks to prevent failures when the feature is not available.",
+  "task_instructions": "some inlinestats tests are failing in release builds, need to add capability checks to guard them properly",
   "stats": {
     "files_changed": 4,
     "lines_added": 13,

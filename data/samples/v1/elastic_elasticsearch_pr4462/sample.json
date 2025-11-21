@@ -4,7 +4,7 @@
   "pr_number": 4462,
   "base_commit": "1ede9a5730e7b1a76c37d2623999740352e10fec",
   "head_commit": "040719f337d8525e2d76bd6851fb64140755ce55",
-  "task_instructions": "modify GetAliasRequest to allow retrieving all aliases when no specific alias is provided",
+  "task_instructions": "Allow GetAliasRequest to retrieve all aliases when no specific alias names are provided, reducing data transfer for the Cat API",
   "stats": {
     "files_changed": 6,
     "lines_added": 125,

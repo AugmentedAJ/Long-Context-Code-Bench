@@ -4,7 +4,7 @@
   "pr_number": 134520,
   "base_commit": "63b6d96a44939b8720a20b5809b28318dc2a75fd",
   "head_commit": "5bf27d59e00e64e243253f3b9b3b85137745e316",
-  "task_instructions": "enable tracking for write coordination threadpools",
+  "task_instructions": "Enable tracking for write_coordination threadpool",
   "stats": {
     "files_changed": 1,
     "lines_added": 2,

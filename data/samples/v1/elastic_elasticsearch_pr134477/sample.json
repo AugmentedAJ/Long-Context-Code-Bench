@@ -4,7 +4,7 @@
   "pr_number": 134477,
   "base_commit": "1ccb58a8b2b9b38bad0506c49d455dbfcbea9224",
   "head_commit": "4638f5938eebf2a7f1ad693a97a6ee7d73fa901a",
-  "task_instructions": "SearchService is logging warnings on 500 errors even when service is stopped or closed causing alerts in serverless",
+  "task_instructions": "SearchService is logging warnings for 500 errors even when the service is stopped or closed causing alerts in serverless",
   "stats": {
     "files_changed": 38,
     "lines_added": 523,

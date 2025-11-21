@@ -4,7 +4,7 @@
   "pr_number": 3936,
   "base_commit": "03a89297ba7ecc07dd514f4ba6a5c04c55ea83f4",
   "head_commit": "60550e4cc27bd11488540d911081794d69434478",
-  "task_instructions": "fix the documentation in phrase-suggest.asciidoc where prefix_length should be prefix_len to match the actual parameter name used in the API",
+  "task_instructions": "fix the documentation parameter name from prefix_length to prefix_len in phrase suggester docs",
   "stats": {
     "files_changed": 1,
     "lines_added": 1,

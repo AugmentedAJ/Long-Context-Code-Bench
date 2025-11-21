@@ -4,7 +4,7 @@
   "pr_number": 2725,
   "base_commit": "a1b24343398babc34e5c5bb372f8d041a3257c94",
   "head_commit": "dc28151ad77df81fc8b77b7ecf0ebe9d0430ffee",
-  "task_instructions": "fix the interchanged memory size values in field data stats",
+  "task_instructions": "the memory_size and memory_size_in_bytes fields are swapped in FieldDataStats toXContent method",
   "stats": {
     "files_changed": 1,
     "lines_added": 2,

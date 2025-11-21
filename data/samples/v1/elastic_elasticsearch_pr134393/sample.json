@@ -4,7 +4,7 @@
   "pr_number": 134393,
   "base_commit": "7d0ee1a56dbe93fafb200da390fbdc491dae81dd",
   "head_commit": "82b652cb1587ad3864ca18e12f14f8cb635a5d9a",
-  "task_instructions": "The PhysicalPlan object is being closed over in the listener lambda and it's causing memory issues since it can be quite large. Extract the listener creation logic to avoid keeping the entire plan in memory.",
+  "task_instructions": "The compute service is closing over the PhysicalPlan in the listener which can cause memory issues since these plans can be quite large",
   "stats": {
     "files_changed": 9,
     "lines_added": 49,

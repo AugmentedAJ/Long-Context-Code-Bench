@@ -4,7 +4,7 @@
   "pr_number": 134369,
   "base_commit": "20d6049c7f1068af75dd34270f7b74cf1f76991c",
   "head_commit": "9e4a37bd47e7c4300d36a401aab9b2f326f8715f",
-  "task_instructions": "refactor updater parameter",
+  "task_instructions": "Change RestoreSnapshotStateTask updater to accept ProjectMetadata instead of Metadata",
   "stats": {
     "files_changed": 2,
     "lines_added": 11,

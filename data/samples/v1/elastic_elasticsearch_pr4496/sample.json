@@ -4,7 +4,7 @@
   "pr_number": 4496,
   "base_commit": "5a02ec86a8f76c02304b015035c4cffac4474395",
   "head_commit": "56b394170653ee590cf9908509be00fab690d918",
-  "task_instructions": "fix partial date parsing to use 1970 as base year instead of 2000",
+  "task_instructions": "Fix the date parsing inconsistency where partial dates without year default to 2000 instead of 1970",
   "stats": {
     "files_changed": 2,
     "lines_added": 26,

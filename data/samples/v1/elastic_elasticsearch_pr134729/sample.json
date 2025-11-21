@@ -4,7 +4,7 @@
   "pr_number": 134729,
   "base_commit": "d70e2bd0d84d610b8ad101288141196261ad7628",
   "head_commit": "7454de2f410d49baa1291e58af2f1dec959a91f1",
-  "task_instructions": "The chunk-rescorer tests are failing in release builds because they're behind the RERANK_SNIPPETS feature flag but the test condition only checks for \"snippet\" in the test path. Need to also check for \"chunk_rescorer\" in the test path so these tests get properly skipped in release builds.",
+  "task_instructions": "fix release tests failing for chunk rescorer functionality behind feature flag",
   "stats": {
     "files_changed": 1,
     "lines_added": 2,

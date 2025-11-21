@@ -4,7 +4,7 @@
   "pr_number": 134665,
   "base_commit": "2886ee1833eb8679be12a7191c8532c93328694d",
   "head_commit": "d074537adafd0c1b1c031d26d36ce0ffc35d69c0",
-  "task_instructions": "Fix the flaky TextRollingUpgradeIT test that loses smallestMessage between runs",
+  "task_instructions": "fix the flaky TextRollingUpgradeIT test that loses smallestMessage between runs",
   "stats": {
     "files_changed": 30,
     "lines_added": 184,

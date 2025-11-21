@@ -4,7 +4,7 @@
   "pr_number": 134478,
   "base_commit": "7295189560dee0151019e46059d5b5e1fe0f5378",
   "head_commit": "58f680cd5c8d125c65ea833461bf8332df2317b1",
-  "task_instructions": "increase the Block memory overhead estimate for better circuit breaking with small pages",
+  "task_instructions": "Increase the Block memory overhead estimate to better handle circuit breaking with many small pages",
   "stats": {
     "files_changed": 1,
     "lines_added": 3,

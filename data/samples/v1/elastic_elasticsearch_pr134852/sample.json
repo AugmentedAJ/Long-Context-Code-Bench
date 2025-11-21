@@ -4,7 +4,7 @@
   "pr_number": 134852,
   "base_commit": "5e48fd3da4bb9b5793e4292c5d604dd86dcf98d3",
   "head_commit": "b970df0367193b33a4c34039593338886fc23bd8",
-  "task_instructions": "Fix mergeExecutorThreadCount in ThreadPoolMergeExecutorServiceDiskSpaceTests since randomIntBetween is inclusive on both ends",
+  "task_instructions": "fix mergeExecutorThreadCount in ThreadPoolMergeExecutorServiceDiskSpaceTests, randomIntBetween is inclusive on both ends but the test expects it to be exclusive on the upper bound",
   "stats": {
     "files_changed": 1,
     "lines_added": 1,

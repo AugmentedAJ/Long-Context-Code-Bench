@@ -4,7 +4,7 @@
   "pr_number": 134797,
   "base_commit": "5ce0c649d6b0ebe7c731eb23157489e8d3c46633",
   "head_commit": "e445d07963ebcc04ffeee5d7df7907cd422fdabc",
-  "task_instructions": "comment out misfiring assert",
+  "task_instructions": "Comment out the misfiring assert in TimeSeriesSourceOperatorTests testSliceIndex method that's causing test failures",
   "stats": {
     "files_changed": 1,
     "lines_added": 1,

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4437,
+  "base_commit": "95ca06cf0945233686e92ccdb3354522ff05863c",
+  "head_commit": "8c1073bb6e7e88376d954412e3777c06295c18d9",
+  "task_instructions": "refactor the basepath handling in repository classes to make it more flexible by moving basepath from concrete field to abstract method so each repository type can manage its own path logic",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 72,
+    "lines_deleted": 16,
+    "total_diff_hunks": 42,
+    "context_size_bytes": 82309,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

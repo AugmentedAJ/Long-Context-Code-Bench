@@ -4,7 +4,7 @@
   "pr_number": 4212,
   "base_commit": "22852d8040df7c789e0cdbb32d33ef1e5cc76435",
   "head_commit": "4ffd8a663c44f8ddd3a54ced2aa745a3665056b7",
-  "task_instructions": "I need to prevent repository deletion or modification when snapshots are currently running. Right now it's possible to delete or change repository settings even when there are active snapshot or restore operations using that repository, which can cause data corruption or incomplete operations.",
+  "task_instructions": "I need to prevent repository modifications when snapshots are running. Currently users can delete or modify repository settings even when the repository is actively being used by snapshot or restore operations, which causes issues. Add validation to block these operations when repositories are in use.",
   "stats": {
     "files_changed": 7,
     "lines_added": 157,

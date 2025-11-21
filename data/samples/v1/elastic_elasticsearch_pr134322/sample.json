@@ -4,7 +4,7 @@
   "pr_number": 134322,
   "base_commit": "6350fe4900f86dbbc6e21d2406e5eb0e49135ee7",
   "head_commit": "92dd38cf0a2e0586e3cfff09b8350d38801d9b31",
-  "task_instructions": "remove unused code from LuceneTopNSourceOperator that was accidentally committed",
+  "task_instructions": "remove unused memory calculation methods from LuceneTopNSourceOperator",
   "stats": {
     "files_changed": 27,
     "lines_added": 331,

@@ -4,7 +4,7 @@
   "pr_number": 1742,
   "base_commit": "43e45a111cd0405758a30a7cf666cf0466955346",
   "head_commit": "5c5a2f003dc1f278e08c5563d8dafa2e57225b1d",
-  "task_instructions": "fix the swedish light stemmer returning spanish filter instead",
+  "task_instructions": "there is a bug in the stemmer token filter factory, when i configure light_swedish or lightSwedish language it returns spanish light stem filter instead of swedish one, this is wrong and needs to be fixed",
   "stats": {
     "files_changed": 1,
     "lines_added": 2,

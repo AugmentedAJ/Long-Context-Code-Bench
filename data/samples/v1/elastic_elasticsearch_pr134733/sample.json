@@ -4,7 +4,7 @@
   "pr_number": 134733,
   "base_commit": "d662314b371d340e211d70e3b61cbe8b0bd42330",
   "head_commit": "21d04e11bb80b116384ce2bbf4943d1bed47ccc5",
-  "task_instructions": "make transport version comments parsable",
+  "task_instructions": "need to add comment support to transport version file parsing in gradle tasks, currently comments starting with # are causing parsing failures",
   "stats": {
     "files_changed": 2,
     "lines_added": 22,

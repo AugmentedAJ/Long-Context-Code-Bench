@@ -4,7 +4,7 @@
   "pr_number": 134887,
   "base_commit": "987e7af02b69cd4bb25755aa47e91a6a4bbebf1d",
   "head_commit": "295ee4a7e4d81780a5159b9f7918e9f6337e1980",
-  "task_instructions": "fix memory leak in SourceConfirmedTextQuery by avoiding SearchExecutionContext capture",
+  "task_instructions": "fix memory leak in SourceConfirmedTextQuery where lambda captures SearchExecutionContext reference causing queries to hold onto short-lived objects longer than needed",
   "stats": {
     "files_changed": 2,
     "lines_added": 7,

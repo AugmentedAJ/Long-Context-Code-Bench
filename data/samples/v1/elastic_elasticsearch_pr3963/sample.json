@@ -4,7 +4,7 @@
   "pr_number": 3963,
   "base_commit": "7867de4f5bb7bed1641e6be8d58118d3bc0c5ce3",
   "head_commit": "fb9cd5a562a13dbf085ece4e4cb75ff17c3c849a",
-  "task_instructions": "Convert the AcknowledgedRequest and AcknowledgedResponse marker interfaces to abstract classes to eliminate code duplication across implementing classes like DeleteWarmerRequest and PutWarmerRequest that currently duplicate timeout and acknowledgement handling logic",
+  "task_instructions": "refactor acknowledged request and response classes to use abstract base classes instead of marker interfaces to eliminate duplicate timeout and acknowledgment handling code",
   "stats": {
     "files_changed": 6,
     "lines_added": 89,

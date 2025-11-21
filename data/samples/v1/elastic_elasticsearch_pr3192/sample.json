@@ -4,7 +4,7 @@
   "pr_number": 3192,
   "base_commit": "a30d58aae2db60b2ed3c2f1450ddaef87119e06e",
   "head_commit": "27a8083b7d84ba3872213fa37948b645b02c1518",
-  "task_instructions": "the nodes_info REST endpoint should accept a timeout parameter to avoid long requests when sniffing for nodes",
+  "task_instructions": "expose timeout parameter in the REST interface for nodes info requests",
   "stats": {
     "files_changed": 1,
     "lines_added": 1,

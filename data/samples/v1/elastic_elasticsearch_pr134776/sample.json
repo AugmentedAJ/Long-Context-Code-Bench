@@ -4,7 +4,7 @@
   "pr_number": 134776,
   "base_commit": "2ea81d0548b2a25633ffe948cd9304a2c0c59563",
   "head_commit": "f72a759ef9c123793dbb5aeb05c295e3ecadaf0b",
-  "task_instructions": "Refactor the Authentication.newCloudApiKeyAuthentication and Authentication.newCloudAccessTokenAuthentication methods into a single unified method that can handle both cloud API keys and user tokens, including the new request-scoped-tokens for API keys",
+  "task_instructions": "Refactor the cloud authentication methods to support request-scoped-tokens by unifying the separate User and API Key authentication creation methods into a single method that handles both authentication types and subject types",
   "stats": {
     "files_changed": 3,
     "lines_added": 62,

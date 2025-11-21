@@ -4,7 +4,7 @@
   "pr_number": 4197,
   "base_commit": "513611bd48e471a6c9594301149c390476a4bc0d",
   "head_commit": "88b854e2ea5dd2a68b71f44a2fa2cf63b3a79700",
-  "task_instructions": "fix warmer validation",
+  "task_instructions": "PutWarmerRequest searchRequest field is nullable but transport action requires it, add validation to check if searchRequest is null and throw appropriate error",
   "stats": {
     "files_changed": 2,
     "lines_added": 18,

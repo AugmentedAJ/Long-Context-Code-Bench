@@ -4,7 +4,7 @@
   "pr_number": 134364,
   "base_commit": "3d2d765a1d6e99deda88603b6024bdc2f36599c2",
   "head_commit": "4e653dfe4051422a68ebab7357360efc435bf21f",
-  "task_instructions": "Fix the ClassCastException in MetricDocumentBuilderTests when testing with small timestamp values that get returned as Integer instead of Long from ObjectPath.evaluate()",
+  "task_instructions": "fix randomized test failures for small timestamps",
   "stats": {
     "files_changed": 3,
     "lines_added": 6,

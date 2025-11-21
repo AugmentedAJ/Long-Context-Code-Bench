@@ -4,7 +4,7 @@
   "pr_number": 134790,
   "base_commit": "e929c93ac04627c8d4d0ac47c45efcaa715f7fc5",
   "head_commit": "df9982136705897da6187ece3dd33562f9fdfc59",
-  "task_instructions": "There's an issue with keyword multi-field value retrieval when the same field value needs to be accessed multiple times. When we have a keyword field with multi-fields and the value contains escaped characters, the second call to getValueAsText() is not returning the optimized value but instead falls back to the original buffer. This causes inconsistent behavior and potentially incorrect results when processing keyword multi-fields with escaped characters like backslashes.",
+  "task_instructions": "Fix the selected code. The IDE does not report any issues on the selected code.",
   "stats": {
     "files_changed": 5,
     "lines_added": 103,

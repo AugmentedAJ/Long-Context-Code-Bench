@@ -4,7 +4,7 @@
   "pr_number": 4229,
   "base_commit": "0ec3eaf53d470a309d3976c7f6798f578bd668d5",
   "head_commit": "630641f2927436b2954d79d110614f58400558a6",
-  "task_instructions": "refactor put mapping api to use generic ack mechanism",
+  "task_instructions": "refactor the put mapping api to use the new generic ack mechanism",
   "stats": {
     "files_changed": 13,
     "lines_added": 169,

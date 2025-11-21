@@ -4,7 +4,7 @@
   "pr_number": 4495,
   "base_commit": "393ec2373446e50ea8430aeebab7cc5db709e2bb",
   "head_commit": "2010085e873c840cd8b442c3b5e4dba66cf3156d",
-  "task_instructions": "add js client docs",
+  "task_instructions": "add comprehensive documentation for the JavaScript client similar to what we have for Python and other clients in the docs directory",
   "stats": {
     "files_changed": 2,
     "lines_added": 141,

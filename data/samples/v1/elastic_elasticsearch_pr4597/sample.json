@@ -4,7 +4,7 @@
   "pr_number": 4597,
   "base_commit": "2a73cf4f823e113926232864b8c7468f9103f88a",
   "head_commit": "611dd0a3962fbb2b17dffbcbc17433f47cc07968",
-  "task_instructions": "fix haversine accuracy",
+  "task_instructions": "fix the ARC distance calculation in GeoDistance to use proper Haversine formula for better accuracy",
   "stats": {
     "files_changed": 1,
     "lines_added": 6,

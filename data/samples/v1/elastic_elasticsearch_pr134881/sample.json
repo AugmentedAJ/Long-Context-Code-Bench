@@ -4,7 +4,7 @@
   "pr_number": 134881,
   "base_commit": "ebc291e64630a11d26f51c7ed5385619ce81e3d9",
   "head_commit": "9d2b009034527014cfa2deb1befea3aa9cdea3a6",
-  "task_instructions": "fix json naming consistency",
+  "task_instructions": "the json for SET docs has inconsistent naming convention with snake_case and camelCase mixed together, change snapshot_only to snapshotOnly to make it consistent",
   "stats": {
     "files_changed": 2,
     "lines_added": 2,

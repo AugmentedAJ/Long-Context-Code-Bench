@@ -4,7 +4,7 @@
   "pr_number": 4422,
   "base_commit": "bb275166f1a1f20f5330691ab854d6dc61c51366",
   "head_commit": "6e4d33bb4d68b06bc296f6793e8b01020233fecc",
-  "task_instructions": "Refactor the create index API to use the new generic acknowledgment mechanism that was recently introduced",
+  "task_instructions": "Refactor create index api to use the new generic ack mechanism instead of the custom NodeIndexCreatedAction approach",
   "stats": {
     "files_changed": 12,
     "lines_added": 245,

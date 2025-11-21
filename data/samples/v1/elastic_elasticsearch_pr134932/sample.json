@@ -4,7 +4,7 @@
   "pr_number": 134932,
   "base_commit": "2c656cc5c7861d982378f7c61898529fd40c68a9",
   "head_commit": "da5c975cbe26a6df0906c5d9ce2232518b878759",
-  "task_instructions": "INLINESTATS_SUPPORTS_REMOTE capacity should depend on INLINESTATS capacity.",
+  "task_instructions": "INLINESTATS_SUPPORTS_REMOTE capability should depend on INLINESTATS capacity",
   "stats": {
     "files_changed": 6,
     "lines_added": 14,

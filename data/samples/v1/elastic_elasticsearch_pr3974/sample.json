@@ -4,7 +4,7 @@
   "pr_number": 3974,
   "base_commit": "0e9c049da1231968a56a9abbd5178f07bc49b320",
   "head_commit": "e79f714b4b066f9238ff6313aad9a854c37a8c3d",
-  "task_instructions": "refactor duplicate REST response handling",
+  "task_instructions": "refactor duplicate REST response handling for acknowledged responses across warmer actions",
   "stats": {
     "files_changed": 4,
     "lines_added": 105,

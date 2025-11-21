@@ -4,7 +4,7 @@
   "pr_number": 134657,
   "base_commit": "4c9da78b6b42c7baed8eccd0a8a69b9a225ee925",
   "head_commit": "1e7d991bc00ac01f0dd596b8b79fa78c0c84fadc",
-  "task_instructions": "Modernize the switch statements in DocIdsWriter to use arrow syntax instead of the traditional case-break pattern.",
+  "task_instructions": "modernize the switch statements in DocIdsWriter to use arrow syntax instead of break statements",
   "stats": {
     "files_changed": 1,
     "lines_added": 12,

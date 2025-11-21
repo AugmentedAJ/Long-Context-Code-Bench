@@ -4,7 +4,7 @@
   "pr_number": 134451,
   "base_commit": "fc5a7efb564eb387866cf6d00997c435a21f9d69",
   "head_commit": "5b267fe291d068b6ee370b3394a6327bf63bdc9a",
-  "task_instructions": "Fix equals and hashCode methods in SourceConfirmedTextQuery",
+  "task_instructions": "The equals and hashCode methods in SourceConfirmedTextQuery are broken. Logically equal queries are comparing as unequal because we're including the valueFetcher and Analyzer in the comparison, but these don't implement proper equals/hashCode themselves. This is causing issues with query caching and deduplication.",
   "stats": {
     "files_changed": 8,
     "lines_added": 289,

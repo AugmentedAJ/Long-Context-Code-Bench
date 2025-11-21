@@ -4,7 +4,7 @@
   "pr_number": 134999,
   "base_commit": "8272fc895484bdcf635a3828616e03183cac283d",
   "head_commit": "31bc76628f7cc184ad66a96ba2915c3902eaeae8",
-  "task_instructions": "Fix the YAML test parameter validation issue where overall_score is passed as string instead of numeric value",
+  "task_instructions": "fix the overall_score parameter type in the ML YAML test",
   "stats": {
     "files_changed": 1,
     "lines_added": 2,

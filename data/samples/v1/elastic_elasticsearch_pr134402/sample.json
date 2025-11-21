@@ -4,7 +4,7 @@
   "pr_number": 134402,
   "base_commit": "7427efd0bd64c809f924119a47792267b9cf2193",
   "head_commit": "7484369a0563024abb14327e23f6d769d779ad69",
-  "task_instructions": "update the buildkite agent docker image version to latest in the pipeline files",
+  "task_instructions": "update buildkite agent docker image to version 1.15",
   "stats": {
     "files_changed": 3,
     "lines_added": 6,
