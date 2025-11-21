@@ -1,9 +1,12 @@
 """Judge stage: Score agent edits against ground truth."""
 
 import json
+import os
 import platform
+import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -103,7 +106,7 @@ def compute_llm_scores(
         - rating: Overall rating from 0.00 to 1.00
         - summary: One-line summary
     """
-    # Construct the judge prompt
+    # Construct the judge prompt (keep output schema the same, strengthen guidance)
     prompt = f"""You are an expert code reviewer evaluating an AI coding agent's output against ground truth.
 
 **Task Instructions:**
@@ -119,39 +122,43 @@ def compute_llm_scores(
 {agent_diff}
 ```
 
-**Evaluation Criteria:**
+**Evaluation Criteria (scores between -1.0 and 1.0):**
 
-Evaluate the agent's diff against the ground truth on the following 5 metrics. Each score must be between -1.0 and 1.0:
-
-1. **Correctness** (-1.0 to 1.0): Does the agent's change implement the intended behavior correctly?
+1. **Correctness**: Does the agent's change implement the intended behavior correctly?
    - 1.0: Perfectly correct, matches ground truth semantics
    - 0.0: Partially correct or neutral
    - -1.0: Incorrect or breaks functionality
 
-2. **Completeness** (-1.0 to 1.0): Does the agent achieve all requested changes?
+2. **Completeness**: Does the agent achieve all requested changes?
    - 1.0: All changes from ground truth are present
    - 0.0: Some changes present, some missing
    - -1.0: Most or all changes missing
 
-3. **Code Reuse** (-1.0 to 1.0): Does the agent leverage existing code appropriately?
+3. **Code Reuse**: Does the agent leverage existing code appropriately?
    - 1.0: Excellent reuse, minimal duplication
    - 0.0: Neutral, some duplication
    - -1.0: Excessive duplication or unnecessary code
 
-4. **Best Practices** (-1.0 to 1.0): Does the code follow style, structure, and idiomatic patterns?
+4. **Best Practices**: Does the code follow style, structure, and idiomatic patterns?
    - 1.0: Excellent style and practices
    - 0.0: Acceptable or neutral
    - -1.0: Poor style, anti-patterns
 
-5. **Unsolicited Documentation** (-1.0 to 1.0): Penalizes documentation added when not requested.
+5. **Unsolicited Documentation**: Penalizes documentation added when not requested.
    - 1.0: No unsolicited documentation
    - 0.0: Minor documentation additions
    - -1.0: Significant unsolicited documentation (README, CHANGELOG, etc.)
 
-**Rating Calculation (0.00 to 1.00):**
+**Guidelines:**
+- Judge strictly against the task instructions and the ground truth diff; do not reward extra or unrelated changes.
+- Analyze the full diff before deciding; call out critical correctness or omission issues explicitly in rationale.
+- Penalize added files or markdown/commentary not requested by the task (unsolicited docs metric).
+- Favor minimal, targeted changes over broad refactors unless clearly required by the task.
+- Avoid hallucinating behavior or files not present in the diffs; base all reasoning on the provided changes.
+- Keep output to the exact JSON schema below — no markdown, no code fences, no extra text.
 
-The rating should be an objective measure of solution quality based on this formula:
-- Start with base score = (sum of 5 metrics + 5) / 10  (converts -1..1 range to 0..1)
+**Rating Calculation (0.00 to 1.00):**
+- Base score = (sum of 5 metrics + 5) / 10  (maps -1..1 to 0..1)
 - Apply penalties:
   - Critical errors (breaks functionality, deletes required code): -0.3 to -0.5
   - Major omissions (missing core functionality): -0.2 to -0.3
@@ -159,20 +166,10 @@ The rating should be an objective measure of solution quality based on this form
 - Final rating = max(0.0, min(1.0, base_score - penalties))
 
 **Summary Guidelines:**
+- One sentence; state what the agent DID, name the main files/functions touched, and note key differences from ground truth.
+- Use concrete technical terms; avoid vague language.
 
-The summary must be a single sentence that:
-1. States what the agent DID (not what it failed to do)
-2. Highlights the SPECIFIC approach or changes made
-3. Mentions KEY DIFFERENCES from ground truth (if any)
-4. Uses concrete technical terms (file names, function names, patterns)
-
-Good example: "Renamed test file and added try-catch in RestBulkAction but used instance variable instead of local variable for randomization"
-Bad example: "Agent partially implemented the changes but missed some requirements"
-
-**Output Format:**
-
-Respond with ONLY a valid JSON object in this exact format (no markdown, no code blocks, no additional text):
-
+**Output Format (JSON only, no markdown):**
 {{
   "correctness": <float between -1.0 and 1.0>,
   "completeness": <float between -1.0 and 1.0>,
@@ -185,18 +182,77 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
 }}"""
 
     try:
-        # Call LLM with deterministic settings
-        # Note: Some providers (e.g., Anthropic) don't support seed parameter
-        litellm.drop_params = True  # Drop unsupported params instead of erroring
-        response = litellm.completion(
-            model=judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            seed=42,  # Fixed seed for reproducibility (dropped if unsupported)
-        )
+        # Determine if we should use Claude CLI or litellm
+        use_claude_cli = judge_model in ["claude-sonnet-4-5", "sonnet", "claude-sonnet-4"]
 
-        # Extract response content
-        content = response.choices[0].message.content.strip()
+        if use_claude_cli:
+            # Use Claude CLI for subscription-based auth
+            console.print(f"  [dim]Using Claude CLI for judging...[/dim]")
+
+            # Call Claude CLI with the prompt
+            cmd = [
+                "claude",
+                "-p",  # Print mode (non-interactive)
+                prompt,
+                "--output-format", "stream-json",
+                "--verbose",
+            ]
+
+            # Add model if not using alias
+            if judge_model not in ["sonnet", "opus", "haiku"]:
+                cmd.extend(["--model", judge_model])
+
+            # Run Claude CLI
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,  # 2 minute timeout for judge
+            )
+
+            if result.returncode != 0:
+                raise Exception(f"Claude CLI failed with code {result.returncode}: {result.stderr}")
+
+            # Parse stream-json output
+            # Claude CLI outputs JSONL with events, we want the assistant message content
+            content = None
+            lines = [line for line in result.stdout.split('\n') if line.strip()]
+            for line in lines:
+                try:
+                    event = json.loads(line)
+                    # Look for assistant message with content
+                    if event.get('type') == 'assistant' and 'message' in event:
+                        message = event['message']
+                        if 'content' in message and isinstance(message['content'], list):
+                            # Extract text from content blocks
+                            text_parts = []
+                            for block in message['content']:
+                                if block.get('type') == 'text' and 'text' in block:
+                                    text_parts.append(block['text'])
+                            if text_parts:
+                                content = ''.join(text_parts)
+                                break
+                    # Also check for result type with result field
+                    elif event.get('type') == 'result' and 'result' in event:
+                        content = event['result']
+                        break
+                except json.JSONDecodeError:
+                    continue
+
+            # If we couldn't parse stream-json, use raw stdout as fallback
+            if not content:
+                content = result.stdout.strip()
+        else:
+            # Use litellm for other models
+            console.print(f"  [dim]Using litellm for judging...[/dim]")
+            litellm.drop_params = True  # Drop unsupported params instead of erroring
+            response = litellm.completion(
+                model=judge_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                seed=42,  # Fixed seed for reproducibility (dropped if unsupported)
+            )
+            content = response.choices[0].message.content.strip()
 
         # Try to parse JSON from response
         # Handle cases where LLM wraps JSON in markdown code blocks
@@ -235,18 +291,30 @@ Respond with ONLY a valid JSON object in this exact format (no markdown, no code
     except json.JSONDecodeError as e:
         console.print(f"[yellow]Warning: Failed to parse LLM response as JSON: {e}[/yellow]")
         console.print(f"[yellow]Response content: {content[:200]}...[/yellow]")
-        # Fall back to deterministic
-        scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
-        rationale = f"LLM judge failed (JSON parse error), fell back to deterministic: {str(e)}"
+        # Return zero scores on failure
+        scores = Scores(
+            correctness=0.0,
+            completeness=0.0,
+            code_reuse=0.0,
+            best_practices=0.0,
+            unsolicited_docs=0.0,
+        )
+        rationale = f"LLM judge failed (JSON parse error): {str(e)}"
         rating = 0.0
         summary = "LLM judge failed"
         return scores, rationale, rating, summary
 
     except Exception as e:
         console.print(f"[yellow]Warning: LLM judge failed: {e}[/yellow]")
-        # Fall back to deterministic
-        scores = compute_deterministic_scores(agent_diff, ground_truth_diff)
-        rationale = f"LLM judge failed, fell back to deterministic: {str(e)}"
+        # Return zero scores on failure
+        scores = Scores(
+            correctness=0.0,
+            completeness=0.0,
+            code_reuse=0.0,
+            best_practices=0.0,
+            unsolicited_docs=0.0,
+        )
+        rationale = f"LLM judge failed: {str(e)}"
         rating = 0.0
         summary = "LLM judge failed"
         return scores, rationale, rating, summary
@@ -441,6 +509,9 @@ def run_judge_stage(
     test_label: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
+    samples_dir: Optional[Path] = None,
+    concurrency: int = 1,
+    resume_judge_run_id: Optional[str] = None,
 ) -> str:
     """Run the judge stage using LLM.
 
@@ -453,6 +524,9 @@ def run_judge_stage(
         test_label: Optional label for grouping runs for comparison
         cache_dir: Optional cache directory for repositories
         force: If True, re-judge even if judge.json already exists
+        samples_dir: Optional samples directory (defaults to data/samples, falls back to output/samples)
+        concurrency: Number of concurrent judge tasks (default: 1)
+        resume_judge_run_id: Optional judge run ID to resume (skips already-judged PRs)
 
     Returns:
         Judge run ID
@@ -460,10 +534,29 @@ def run_judge_stage(
     import uuid
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    judge_run_id = str(uuid.uuid4())[:8]
 
-    console.print(f"[bold]Starting judge run {judge_run_id}[/bold]")
+    # Use provided judge_run_id for resume, or generate new one
+    if resume_judge_run_id:
+        judge_run_id = resume_judge_run_id
+        console.print(f"[bold]Resuming judge run {judge_run_id}[/bold]")
+
+        # Load existing manifest to get test_label and edit_run_ids if not provided
+        manifest_file = output_dir / "llm" / judge_model / judge_run_id / "judge_run_manifest.json"
+        if manifest_file.exists():
+            with open(manifest_file) as f:
+                manifest_data = json.load(f)
+                if not test_label and manifest_data.get("test_label"):
+                    test_label = manifest_data["test_label"]
+                    console.print(f"  Loaded test_label from manifest: {test_label}")
+                if not edit_run_ids and manifest_data.get("edit_run_ids"):
+                    edit_run_ids = manifest_data["edit_run_ids"]
+                    console.print(f"  Loaded edit_run_ids from manifest: {edit_run_ids}")
+    else:
+        judge_run_id = str(uuid.uuid4())[:8]
+        console.print(f"[bold]Starting judge run {judge_run_id}[/bold]")
+
     console.print(f"  Judge model: {judge_model}")
+    console.print(f"  Concurrency: {concurrency}")
     if test_label:
         console.print(f"  Test label: {test_label}")
 
@@ -477,13 +570,25 @@ def run_judge_stage(
 
         # Find all edits from the specified edit runs
         edits_dir = output_dir.parent / "edits"
-        samples_dir = output_dir.parent / "samples"
+
+        # Determine samples directory
+        if samples_dir is None:
+            # Try data/samples first (preferred), fall back to output/samples
+            data_samples = Path("data/samples")
+            output_samples = output_dir.parent / "samples"
+            if data_samples.exists():
+                samples_dir = data_samples
+            else:
+                samples_dir = output_samples
+
+        console.print(f"  Using samples directory: {samples_dir}")
 
         for edit_run_id in edit_run_ids:
             console.print(f"\n[cyan]Processing edit run: {edit_run_id}[/cyan]")
             evaluated_edit_run_ids.append(edit_run_id)
 
-            # Find all edit.json files with this edit_run_id
+            # Collect all (sample, edit) pairs to judge
+            tasks = []
             for edit_file in edits_dir.rglob("edit.json"):
                 edit = load_edit(edit_file)
 
@@ -500,19 +605,51 @@ def run_judge_stage(
                     continue
 
                 sample = load_sample(sample_file)
+                tasks.append((sample, edit))
 
-                # Judge this edit
-                judge = judge_edit(
-                    sample=sample,
-                    edit=edit,
-                    judge_model=judge_model,
-                    output_dir=output_dir,
-                    judge_run_id=judge_run_id,
-                    cache_dir=cache_dir,
-                    force=force,
-                    test_label=test_label,
-                )
-                judges.append(judge)
+            console.print(f"[bold]Found {len(tasks)} edits to judge[/bold]")
+
+            # Judge edits with concurrency
+            if concurrency > 1:
+                # Parallel execution
+                with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                    futures = {
+                        executor.submit(
+                            judge_edit,
+                            sample=sample,
+                            edit=edit,
+                            judge_model=judge_model,
+                            output_dir=output_dir,
+                            judge_run_id=judge_run_id,
+                            cache_dir=cache_dir,
+                            force=force,
+                            test_label=test_label,
+                        ): (sample, edit)
+                        for sample, edit in tasks
+                    }
+
+                    for future in as_completed(futures):
+                        try:
+                            judge = future.result()
+                            judges.append(judge)
+                        except Exception as e:
+                            sample, edit = futures[future]
+                            pr_id = f"{edit.repo_url.split('/')[-2]}_{edit.repo_url.split('/')[-1].replace('.git', '')}_pr{edit.pr_number}"
+                            console.print(f"[red]✗ Failed to judge {pr_id}: {e}[/red]")
+            else:
+                # Sequential execution
+                for sample, edit in tasks:
+                    judge = judge_edit(
+                        sample=sample,
+                        edit=edit,
+                        judge_model=judge_model,
+                        output_dir=output_dir,
+                        judge_run_id=judge_run_id,
+                        cache_dir=cache_dir,
+                        force=force,
+                        test_label=test_label,
+                    )
+                    judges.append(judge)
 
     # Single file mode
     elif sample_path and edit_path:

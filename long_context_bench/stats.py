@@ -175,10 +175,39 @@ def generate_summary_for_runs(
     # Load all results
     all_samples, all_edits, all_judges = load_results_from_dir(results_dir)
 
+    # If only judge_run_id provided, infer edit_run_ids from the judge manifest
+    edit_run_ids: Optional[List[str]] = None
+    if judge_run_id and not edit_run_id:
+        from long_context_bench.models import JudgeRunManifest
+
+        manifest_path = results_dir / "judges"
+        if manifest_path.exists():
+            for manifest_file in manifest_path.rglob("judge_run_manifest.json"):
+                with open(manifest_file) as f:
+                    manifest = JudgeRunManifest(**json.load(f))
+                    if manifest.judge_run_id == judge_run_id:
+                        edit_run_ids = manifest.edit_run_ids
+                        break
+
+    # Normalize edit_run_ids based on provided edit_run_id
+    if edit_run_id:
+        edit_run_ids = [edit_run_id]
+
     # Filter by run IDs
-    samples = all_samples
-    edits = [e for e in all_edits if not edit_run_id or e.edit_run_id == edit_run_id]
+    edits = [e for e in all_edits if not edit_run_ids or e.edit_run_id in edit_run_ids]
     judges = [j for j in all_judges if not judge_run_id or j.judge_run_id == judge_run_id]
+
+    # Filter samples to only those referenced by the filtered edits or judges
+    sample_keys = set()
+    for e in edits:
+        sample_keys.add((e.repo_url, e.pr_number))
+    for j in judges:
+        sample_keys.add((j.repo_url, j.pr_number))
+
+    if sample_keys:
+        samples = [s for s in all_samples if (s.repo_url, s.pr_number) in sample_keys]
+    else:
+        samples = all_samples
 
     console.print(f"  Loaded {len(samples)} samples")
     console.print(f"  Filtered to {len(edits)} edits")
@@ -214,15 +243,22 @@ def generate_summary_for_runs(
                         break
 
     # Compute summary
-    run_id = judge_run_id or edit_run_id or "summary"
+    run_id = judge_run_id or (edit_run_ids[0] if edit_run_ids else edit_run_id) or "summary"
+
+    # Derive runner/model from filtered edits
+    runner = edits[0].runner if edits else None
+    model = edits[0].model if edits else None
+
     summary = compute_aggregate_summary(
         run_id=run_id,
         samples=samples,
         edits=edits,
         judges=judges,
-        edit_run_id=edit_run_id,
+        edit_run_id=edit_run_ids[0] if edit_run_ids else edit_run_id,
         judge_run_id=judge_run_id,
         test_label=test_label,
+        runner=runner,
+        model=model,
     )
 
     # Display table

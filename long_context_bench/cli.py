@@ -146,8 +146,11 @@ def edit(
 @click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--output-dir", type=click.Path(), default="output/judges", help="Output directory for judgments")
+@click.option("--samples-dir", type=click.Path(exists=True), help="Samples directory (defaults to data/samples, falls back to output/samples)")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-judge even if judge.json already exists")
+@click.option("--concurrency", type=int, default=1, help="Number of concurrent judge tasks (default: 1)")
+@click.option("--resume-judge-run-id", help="Resume an existing judge run by ID (skips already-judged PRs)")
 def judge(
     sample_path: Optional[str],
     edit_path: Optional[str],
@@ -155,8 +158,11 @@ def judge(
     judge_model: str,
     test_label: Optional[str],
     output_dir: str,
+    samples_dir: Optional[str],
     cache_dir: str,
     force: bool,
+    concurrency: int,
+    resume_judge_run_id: Optional[str],
 ) -> None:
     """Judge stage: Score agent edits against ground truth using LLM.
 
@@ -168,6 +174,7 @@ def judge(
     saved under output/judges/llm/<judge_model>/<judge_run_id>/.
 
     By default, skips PRs that have already been judged. Use --force to re-judge.
+    Use --resume-judge-run-id to continue an incomplete judge run.
     """
     from long_context_bench.stages.judge import run_judge_stage
 
@@ -182,6 +189,8 @@ def judge(
         return
 
     click.echo(f"Running judge stage with model={judge_model}")
+    if resume_judge_run_id:
+        click.echo(f"Resuming judge run: {resume_judge_run_id}")
     if edit_run_id_list:
         click.echo(f"Evaluating edit runs: {', '.join(edit_run_id_list)}")
     if test_label:
@@ -196,6 +205,9 @@ def judge(
         test_label=test_label,
         cache_dir=Path(cache_dir),
         force=force,
+        samples_dir=Path(samples_dir) if samples_dir else None,
+        concurrency=concurrency,
+        resume_judge_run_id=resume_judge_run_id,
     )
     click.echo(f"Judge stage completed. Judge run ID: {judge_run_id}")
 
