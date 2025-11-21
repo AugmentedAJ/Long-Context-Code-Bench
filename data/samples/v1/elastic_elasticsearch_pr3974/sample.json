@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3974,
+  "base_commit": "0e9c049da1231968a56a9abbd5178f07bc49b320",
+  "head_commit": "e79f714b4b066f9238ff6313aad9a854c37a8c3d",
+  "task_instructions": "refactor duplicate REST response handling",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 105,
+    "lines_deleted": 62,
+    "total_diff_hunks": 12,
+    "context_size_bytes": 7470,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3640,
+  "base_commit": "4155741f7f486537d4a5f7193d79098d523a6ae8",
+  "head_commit": "8203d4dbcf8e61a79b72d5e9ac86bda0ff447e77",
+  "task_instructions": "fix potential blocking of NettyTransport connect and disconnect methods",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 289,
+    "lines_deleted": 43,
+    "total_diff_hunks": 22,
+    "context_size_bytes": 42078,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

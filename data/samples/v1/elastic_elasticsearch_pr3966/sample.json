@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3966,
+  "base_commit": "c9dab6991eff5c01c7b0c36aecaf0f061267e030",
+  "head_commit": "ec0880df4520366f2d81e9e1153c38d9726c5e5d",
+  "task_instructions": "I need to implement version-aware prebuilt analyzers so that when an index is created with a specific Elasticsearch version, the prebuilt analyzers match that version's behavior. Currently all prebuilt analyzers use the current version regardless of when the index was created, which causes compatibility issues when upgrading Elasticsearch versions.",
+  "stats": {
+    "files_changed": 12,
+    "lines_added": 841,
+    "lines_deleted": 114,
+    "total_diff_hunks": 46,
+    "context_size_bytes": 126267,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

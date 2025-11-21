@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3656,
+  "base_commit": "76cc8c3549cebb10eebf73ee2c6829bb2db04e55",
+  "head_commit": "f3c0e3938019cef7c9677eae67213bc8e65c9def",
+  "task_instructions": "found a typo in the elasticsearch docs - the parameter should be \"index.store.type\" not \"index.storage.type\" for setting memory storage. copied the docs example but indices were still saving to disk because of the wrong parameter name",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 2,
+    "lines_deleted": 2,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 3361,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

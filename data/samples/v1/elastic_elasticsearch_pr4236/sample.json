@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4236,
+  "base_commit": "e66c2793aac69cf8d07199133cc3f76f4a801df9",
+  "head_commit": "4774439436d44bb6d6cceb5878eb7acfbe89c49c",
+  "task_instructions": "when loading templates from config/templates directory the first field in json is being ignored, parser seems to be calling nextToken too many times",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 86,
+    "lines_deleted": 1,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 28581,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

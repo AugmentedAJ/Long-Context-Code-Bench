@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4126,
+  "base_commit": "97bdc8f9c21b9f890b42c738905221241a3ceb82",
+  "head_commit": "a824f69d21c709bcd578981a78a592200c999dbc",
+  "task_instructions": "package the test framework classes as a separate test jar for external use",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 17,
+    "lines_deleted": 0,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 47891,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

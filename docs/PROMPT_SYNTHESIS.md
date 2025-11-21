@@ -86,14 +86,14 @@ The LLM follows these rules:
 
 ## Usage
 
-### Step 1: Sample with Synthesis
+### Option A: One-off synthesis (legacy / custom datasets)
 
-Enable synthesis during the sample stage:
+You can still enable on-the-fly synthesis during the sample stage for custom PR lists:
 
 ```bash
 long-context-bench sample data/elasticsearch_prs_50.json \
     --output-dir data/samples \
-    --dataset-version v1-synthesized \
+    --dataset-version custom-synthesized \
     --synthesize \
     --synthesis-model auggie/claude-sonnet-4.5 \
     --cache-dir .repo_cache
@@ -110,25 +110,52 @@ long-context-bench sample data/elasticsearch_prs_50.json \
 2. **LiteLLM**: Use model name directly (e.g., `claude-3-7-sonnet-20250219`)
    - Requires: `pip install litellm` and API keys (e.g., `ANTHROPIC_API_KEY`)
 
-### Step 2: Run Edit Stage
+### Option B: Use pre-synthesized prompts for the public v1 Elasticsearch dataset
 
-Choose which instructions to use:
+The repository includes a public prompt dataset for 100 Elasticsearch PRs under `prompt_dataset/`.
+We precomputed and aligned 5 synthesized prompt variants per PR and wired them directly into
+the sampling stage. The v1 dataset lives at:
 
-**Option A: Use synthesized prompts**
+- PR list: `data/elasticsearch_prs_100_prompt_dataset.json`
+- Samples: `data/samples/v1/elastic_elasticsearch_pr*/sample.json`
+
+To (re)generate v1 samples from the PR list using the built-in synthesized prompts mapping:
+
 ```bash
-long-context-bench edit data/samples/v1-synthesized \
-    --runner auggie \
-    --model claude-sonnet-4.5 \
-    --use-synthesized \
-    --test-label synthesized-prompts
+long-context-bench sample data/elasticsearch_prs_100_prompt_dataset.json \
+    --output-dir data/samples \
+    --dataset-version v1 \
+    --cache-dir .repo_cache \
+    --force
 ```
 
-**Option B: Use template-based prompts (default)**
+During sampling, Long-Context-Bench will:
+
+- Look up the PR number in `prompt_dataset/synthesized_prompts_mapping.json`
+- Randomly choose one of the 5 verbosity variants for that PR
+- Use that text as `task_instructions` in `sample.json`
+- Fall back to the older template-based instructions if a PR is missing from the mapping
+
+The v1 dataset in this repository was created this way, and the resulting `sample.json` files
+are checked in for reproducibility.
+
+### Step 2: Run Edit Stage
+
+For the public v0 and v1 datasets, `task_instructions` are already populated in `sample.json`.
+You simply point the edit stage at the appropriate directory:
+
 ```bash
-long-context-bench edit data/samples/v1-synthesized \
+# v0: 40 Elasticsearch PRs
+long-context-bench edit data/samples/v0 \
     --runner auggie \
     --model claude-sonnet-4.5 \
-    --test-label template-prompts
+    --test-label v0-benchmark
+
+# v1: 100 Elasticsearch PRs using the public prompt dataset
+long-context-bench edit data/samples/v1 \
+    --runner auggie \
+    --model claude-sonnet-4.5 \
+    --test-label v1-benchmark
 ```
 
 ### Step 3: Compare Results

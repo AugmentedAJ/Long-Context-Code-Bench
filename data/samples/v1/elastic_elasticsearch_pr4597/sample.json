@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4597,
+  "base_commit": "2a73cf4f823e113926232864b8c7468f9103f88a",
+  "head_commit": "611dd0a3962fbb2b17dffbcbc17433f47cc07968",
+  "task_instructions": "fix haversine accuracy",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 6,
+    "lines_deleted": 12,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 14313,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

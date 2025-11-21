@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4448,
+  "base_commit": "c30945a3d84c7e6aa516f123a140d344f5cec42e",
+  "head_commit": "b713cf56ed3199e0f7176ce27515a30553c4348e",
+  "task_instructions": "Add support for long-style command line parameters to the elasticsearch startup script so users can pass configuration like --node.name=my-node instead of only -Des.node.name=my-node",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 25,
+    "lines_deleted": 9,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 9681,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

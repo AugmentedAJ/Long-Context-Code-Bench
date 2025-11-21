@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4422,
+  "base_commit": "bb275166f1a1f20f5330691ab854d6dc61c51366",
+  "head_commit": "6e4d33bb4d68b06bc296f6793e8b01020233fecc",
+  "task_instructions": "Refactor the create index API to use the new generic acknowledgment mechanism that was recently introduced",
+  "stats": {
+    "files_changed": 12,
+    "lines_added": 245,
+    "lines_deleted": 492,
+    "total_diff_hunks": 92,
+    "context_size_bytes": 153843,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134985,
+  "base_commit": "4a2d8fd40328763780fbefc32366456e1419b48b",
+  "head_commit": "72ff6378adb9f7c324886609a94d425ba9e2edab",
+  "task_instructions": "The transform error logs are too noisy in serverless making our alerts unusable. Can you reduce the log level for the most frequent transform error messages from ERROR to WARN",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 3,
+    "lines_deleted": 3,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 21239,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

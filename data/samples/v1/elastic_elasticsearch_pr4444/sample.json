@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4444,
+  "base_commit": "8f85d63b679b4996a2eeadba0af65caeb97e047d",
+  "head_commit": "d8ba92cfa80abd171c1c296b49e4d53ceb028681",
+  "task_instructions": "there's a deadlock happening in EsThreadPoolExecutor shutdown method, the monitor lock is held while calling shutdown which waits for mainLock, but terminated method runs under mainLock and tries to get monitor lock",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 1,
+    "lines_deleted": 1,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 2843,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

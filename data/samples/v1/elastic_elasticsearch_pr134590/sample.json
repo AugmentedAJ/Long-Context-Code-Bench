@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134590,
+  "base_commit": "2f49a5ebad3a0123b6b97d537a25ddabfdd47d55",
+  "head_commit": "c6baf40b7c5ce49e2f859f7288aac147b95500ab",
+  "task_instructions": "Fill in missing transport version error message",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 2,
+    "lines_deleted": 2,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 2650,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

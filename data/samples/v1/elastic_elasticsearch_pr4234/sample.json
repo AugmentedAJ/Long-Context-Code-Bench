@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4234,
+  "base_commit": "7d3b78c29327a1774695c4567bab0c40e7b97b6a",
+  "head_commit": "c4f3da2b9d6294a1871a87b3e489f9896b95f72e",
+  "task_instructions": "when using _only_node preference with non-existing node id, getting generic SearchPhaseExecutionException instead of useful error message",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 18,
+    "lines_deleted": 1,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 19754,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4478,
+  "base_commit": "2b6214cff72423fc5c948c7b4c39027c93494400",
+  "head_commit": "a4f97bed9d3a299f1553192464ecfba17a75cfb9",
+  "task_instructions": "Optimize the shard allocation algorithm to reduce unnecessary allocation attempts and improve performance by implementing early termination strategies for unassigned shards",
+  "stats": {
+    "files_changed": 48,
+    "lines_added": 542,
+    "lines_deleted": 399,
+    "total_diff_hunks": 328,
+    "context_size_bytes": 669991,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

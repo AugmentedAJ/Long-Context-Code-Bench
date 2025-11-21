@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134322,
+  "base_commit": "6350fe4900f86dbbc6e21d2406e5eb0e49135ee7",
+  "head_commit": "92dd38cf0a2e0586e3cfff09b8350d38801d9b31",
+  "task_instructions": "remove unused code from LuceneTopNSourceOperator that was accidentally committed",
+  "stats": {
+    "files_changed": 27,
+    "lines_added": 331,
+    "lines_deleted": 370,
+    "total_diff_hunks": 158,
+    "context_size_bytes": 271464,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

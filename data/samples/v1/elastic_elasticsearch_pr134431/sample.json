@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134431,
+  "base_commit": "be9d4e9bb1035ee52d8826bd883e9ff504b54e44",
+  "head_commit": "b41ab0a0ef61dc3fc6afedec869bcf970d2248d5",
+  "task_instructions": "We're seeing ClassCircularityError issues in the entitlement system when logging trusted system classes in the isTriviallyAllowed method. The logging of module names for trusted system classes is causing circular dependencies during class loading, particularly when ThrowableProxy and related logging classes need to be loaded. Can you remove the problematic logging statement and also reduce the log level for the other debug statements to trace to minimize the logging overhead in this critical path?",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 6,
+    "lines_deleted": 6,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 51631,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

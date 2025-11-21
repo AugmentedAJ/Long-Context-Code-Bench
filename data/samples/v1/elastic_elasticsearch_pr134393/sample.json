@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134393,
+  "base_commit": "7d0ee1a56dbe93fafb200da390fbdc491dae81dd",
+  "head_commit": "82b652cb1587ad3864ca18e12f14f8cb635a5d9a",
+  "task_instructions": "The PhysicalPlan object is being closed over in the listener lambda and it's causing memory issues since it can be quite large. Extract the listener creation logic to avoid keeping the entire plan in memory.",
+  "stats": {
+    "files_changed": 9,
+    "lines_added": 49,
+    "lines_deleted": 49,
+    "total_diff_hunks": 36,
+    "context_size_bytes": 321752,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

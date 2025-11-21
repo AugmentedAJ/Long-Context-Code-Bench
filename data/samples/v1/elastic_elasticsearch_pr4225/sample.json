@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4225,
+  "base_commit": "81e13a870b112ad2921e1627bb3aabab48bf763c",
+  "head_commit": "937a4e9d9d01ca88fce3b8d0d68e9e37d2d02927",
+  "task_instructions": "replace the manual haversin calculation in GeoDistance with SloppyMath.haversin from lucene 4.6+ for better performance and accuracy",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 128,
+    "lines_deleted": 35,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 23601,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134745,
+  "base_commit": "a682ed8af9242e283c1855c7be96169f8a5432bc",
+  "head_commit": "d2274a3a28db2c09abc16ac8fde6370ff7f96e14",
+  "task_instructions": "fix the failing ESQL test by updating the expected function count",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 1,
+    "lines_deleted": 1,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 10399,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

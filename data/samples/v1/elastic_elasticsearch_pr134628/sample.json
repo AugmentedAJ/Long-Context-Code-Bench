@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134628,
+  "base_commit": "630d52976d3fb951f6ea52a3d0e5fb492921df87",
+  "head_commit": "55ac715077699238aa74d0604b22cd6926f13663",
+  "task_instructions": "Refactor the QueryToFilterAdapter class to use modern Java pattern matching features. Replace the traditional instanceof checks with explicit casting with the newer pattern matching syntax, and convert the unwrap method's if-else chain to a switch expression for better readability and maintainability.",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 16,
+    "lines_deleted": 16,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 11334,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134330,
+  "base_commit": "cf671ff721da8a26d4d3e30346b6bb639968f268",
+  "head_commit": "43780d6c3830482019260b6e77710ccde5645f6f",
+  "task_instructions": "randomize the number of shards in the RandomizedTS test",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 66,
+    "lines_deleted": 18,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 49151,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

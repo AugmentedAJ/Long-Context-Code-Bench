@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4122,
+  "base_commit": "6f286c338207f2a333294e9e576d0f1319981148",
+  "head_commit": "4aa59aff0058b05e822592431eda4a469a6b9eef",
+  "task_instructions": "postings highlighter not working with external query, can you fix this issue",
+  "stats": {
+    "files_changed": 6,
+    "lines_added": 72,
+    "lines_deleted": 47,
+    "total_diff_hunks": 18,
+    "context_size_bytes": 172636,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

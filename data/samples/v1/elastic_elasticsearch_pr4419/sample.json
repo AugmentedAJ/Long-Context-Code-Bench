@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4419,
+  "base_commit": "4e7ce4ee02a85ca02b8a07a27ae4e82341e2db39",
+  "head_commit": "173a91bb4615c5a98c2347ea2f08d15b1b60d46a",
+  "task_instructions": "I need to track shard state changes across the cluster for monitoring purposes. Can you add a listener method to IndicesLifecycle that gets called whenever any shard changes state?",
+  "stats": {
+    "files_changed": 5,
+    "lines_added": 173,
+    "lines_deleted": 16,
+    "total_diff_hunks": 28,
+    "context_size_bytes": 71990,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

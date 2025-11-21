@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134495,
+  "base_commit": "36181aa6f726d08d5c9c779f2d6e99b732de0ccc",
+  "head_commit": "40e1e6b08cb3b21513b0c818e6c826642212e4a9",
+  "task_instructions": "The CCS metadata tests have a lot of repetitive assertion code that checks cluster execution info status, shard counts, and timing details. Extract the common patterns into helper methods to reduce the copypaste.",
+  "stats": {
+    "files_changed": 7,
+    "lines_added": 111,
+    "lines_deleted": 325,
+    "total_diff_hunks": 80,
+    "context_size_bytes": 149766,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

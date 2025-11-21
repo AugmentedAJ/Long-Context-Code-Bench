@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4253,
+  "base_commit": "9f5d01ca4cc06bf7affdb5a656dc838c383e0c4c",
+  "head_commit": "6e1a04b3706e131ebac1a4be25d665d3c23f159f",
+  "task_instructions": "Update the completion suggest mechanism by incorporating the latest changes from Lucene trunk, including updates to the analyzing suggester and fuzzy suggester with backwards compatible postings format and enhanced randomized testing",
+  "stats": {
+    "files_changed": 11,
+    "lines_added": 702,
+    "lines_deleted": 139,
+    "total_diff_hunks": 186,
+    "context_size_bytes": 143885,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

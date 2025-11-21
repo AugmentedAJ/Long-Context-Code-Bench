@@ -1,6 +1,7 @@
 """Sample stage: Extract PR metadata and create sample.json files."""
 
 import json
+import random
 import re
 import tempfile
 from pathlib import Path
@@ -20,6 +21,33 @@ from long_context_bench.synthesis import (
 )
 
 console = Console()
+
+# Load synthesized prompts mapping
+_SYNTHESIZED_PROMPTS_CACHE = None
+
+def _load_synthesized_prompts() -> dict:
+    """Load synthesized prompts from the mapping file.
+
+    Returns:
+        Dictionary mapping PR number (str) to list of prompt variants
+    """
+    global _SYNTHESIZED_PROMPTS_CACHE
+
+    if _SYNTHESIZED_PROMPTS_CACHE is not None:
+        return _SYNTHESIZED_PROMPTS_CACHE
+
+    # Try to load from the prompt_dataset directory
+    mapping_file = Path(__file__).parent.parent.parent / "prompt_dataset" / "synthesized_prompts_mapping.json"
+
+    if mapping_file.exists():
+        with open(mapping_file) as f:
+            _SYNTHESIZED_PROMPTS_CACHE = json.load(f)
+            console.print(f"[dim]Loaded synthesized prompts for {len(_SYNTHESIZED_PROMPTS_CACHE)} PRs[/dim]")
+    else:
+        console.print(f"[yellow]Warning: Synthesized prompts mapping not found at {mapping_file}[/yellow]")
+        _SYNTHESIZED_PROMPTS_CACHE = {}
+
+    return _SYNTHESIZED_PROMPTS_CACHE
 
 
 def parse_pr_url(url: str) -> tuple[str, str, int]:
@@ -76,18 +104,45 @@ def fetch_pr_metadata(
     return response.json()
 
 
-def create_task_instructions(pr_metadata: dict) -> str:
+def create_task_instructions(pr_metadata: dict, pr_number: Optional[int] = None, variant: Optional[int] = None) -> str:
     """Create task instructions from PR metadata.
 
-    Per R-3.4: Use PR title followed by PR body, truncated to 10,000 characters.
-    Enhanced with context to clarify this is a code editing task.
+    This function now uses synthesized prompts from the prompt_dataset when available.
+    Falls back to the template-based approach if no synthesized prompt is found.
 
     Args:
         pr_metadata: PR metadata from GitHub API
+        pr_number: Optional PR number to look up synthesized prompt
+        variant: Optional variant number (0-4) to select specific prompt. If None, randomly selects one.
 
     Returns:
         Task instructions string
     """
+    # Try to use synthesized prompt if PR number is provided
+    if pr_number is not None:
+        prompts_map = _load_synthesized_prompts()
+        pr_key = str(pr_number)
+
+        if pr_key in prompts_map:
+            variants = prompts_map[pr_key]
+
+            if variants:
+                # Select variant
+                if variant is not None and 0 <= variant < len(variants):
+                    selected_variant = variants[variant]
+                else:
+                    # Randomly select a variant
+                    selected_variant = random.choice(variants)
+
+                prompt = selected_variant["prompt"]
+                console.print(f"[dim]Using synthesized prompt (variant {selected_variant['rollout']}) for PR {pr_number}[/dim]")
+                return prompt
+            else:
+                console.print(f"[yellow]Warning: No variants found for PR {pr_number}, falling back to template[/yellow]")
+        else:
+            console.print(f"[yellow]Warning: No synthesized prompt found for PR {pr_number}, falling back to template[/yellow]")
+
+    # Fallback to template-based approach
     title = pr_metadata.get("title", "")
     body = pr_metadata.get("body") or ""
 
@@ -283,8 +338,8 @@ def sample_pr(
         )
         context_size_bytes, truncated = compute_context_size(git_repo, base_sha, head_sha)
 
-        # Create task instructions (template-based)
-        task_instructions = create_task_instructions(pr_metadata)
+        # Create task instructions (uses synthesized prompts when available)
+        task_instructions = create_task_instructions(pr_metadata, pr_number=pr_number)
 
         # Optionally synthesize task instructions using LLM
         synthesized_instructions = None

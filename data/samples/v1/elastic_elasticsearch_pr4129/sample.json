@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4129,
+  "base_commit": "f7d5d1e5c9a04117f780a62cac970dbe24ddebf7",
+  "head_commit": "77239a76f81879742d21004454691d2dfc6499b4",
+  "task_instructions": "Make CompletionTokenStream compatible with Percolator by adding lazy CharTermAttribute support that only converts UTF-8 to UTF-16 when needed",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 98,
+    "lines_deleted": 28,
+    "total_diff_hunks": 26,
+    "context_size_bytes": 57131,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

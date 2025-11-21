@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "head_commit": "f1f4bbab46a6f06890d09c8c354f3a4926b6ae2b",
+  "task_instructions": "optimize memory usage in function classes",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 1,
+    "lines_deleted": 4,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 2178,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

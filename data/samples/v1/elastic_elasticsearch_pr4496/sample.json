@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4496,
+  "base_commit": "5a02ec86a8f76c02304b015035c4cffac4474395",
+  "head_commit": "56b394170653ee590cf9908509be00fab690d918",
+  "task_instructions": "fix partial date parsing to use 1970 as base year instead of 2000",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 26,
+    "lines_deleted": 2,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 18758,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

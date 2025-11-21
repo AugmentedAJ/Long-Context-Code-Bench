@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4530,
+  "base_commit": "bbffeb1b39b864a8bf6c9844dfa23869e44c8639",
+  "head_commit": "0bef2c66a996d7a30dc369df7db5e7bc34dcf292",
+  "task_instructions": "the config/templates loading is broken after the recent changes, need to revert back to the 0.90.7 behavior where templates had the wrapper structure with template names as keys",
+  "stats": {
+    "files_changed": 5,
+    "lines_added": 22,
+    "lines_deleted": 16,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 32252,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

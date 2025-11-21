@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 1609,
+  "base_commit": "0530115f62fc2128196fc0f3e39af4d4d1a2aea5",
+  "head_commit": "4b21cf2993f4c71d984e6f07cc3aeb6f6e7f6ae8",
+  "task_instructions": "add percolation support to update action",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 93,
+    "lines_deleted": 3,
+    "total_diff_hunks": 24,
+    "context_size_bytes": 32602,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134936,
+  "base_commit": "0d0c0ad2354f522d2dbd3ecd2db295f3cf085ba0",
+  "head_commit": "e75974063e20ef78b33d4b25344493d87a09fe1a",
+  "task_instructions": "the conditional processor in ingest node has a bug where sets can be modified from within scripts even though maps and lists are properly wrapped as unmodifiable, need to fix this security issue by adding set support to the immutable wrapping logic",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 120,
+    "lines_deleted": 17,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 25966,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4427,
+  "base_commit": "f0e1f9215b1864d21214c1b44d7d127580d8950a",
+  "head_commit": "e2e19203d778064efa563dd66993ca4f8faf650e",
+  "task_instructions": "Remove IndexFieldData.getHighestNumberOfSeenUniqueValues().",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 0,
+    "lines_deleted": 28,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 13371,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

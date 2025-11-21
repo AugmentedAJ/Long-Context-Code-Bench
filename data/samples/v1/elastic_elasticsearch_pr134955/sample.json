@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134955,
+  "base_commit": "8272fc895484bdcf635a3828616e03183cac283d",
+  "head_commit": "aa70015f22c9d6f8b2a977f7e93e5b3d5fa5ad95",
+  "task_instructions": "fix transform pit close",
+  "stats": {
+    "files_changed": 5,
+    "lines_added": 63,
+    "lines_deleted": 21,
+    "total_diff_hunks": 28,
+    "context_size_bytes": 156595,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

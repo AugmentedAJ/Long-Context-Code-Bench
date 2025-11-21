@@ -80,3 +80,6 @@ v0-LCB-public/
 
 # Temporary scripts
 scripts/add_logs_path.py
+
+# Prompt dataset
+prompt_dataset/

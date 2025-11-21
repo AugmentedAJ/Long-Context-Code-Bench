@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134420,
+  "base_commit": "2f49a5ebad3a0123b6b97d537a25ddabfdd47d55",
+  "head_commit": "75a3a3d43aa377f191204cf16036a6328379267e",
+  "task_instructions": "The gradle task name generateTransportVersionDefinition is too long and confusing for developers who just want to generate transport versions",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 8,
+    "lines_deleted": 8,
+    "total_diff_hunks": 12,
+    "context_size_bytes": 29681,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}

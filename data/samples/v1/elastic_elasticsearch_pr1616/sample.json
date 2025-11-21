@@ -1,0 +1,19 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 1616,
+  "base_commit": "56a9c66df183ea4e9e2cfb8861877283d4048304",
+  "head_commit": "08108088648f90cbc56aa5be9df8a5d25f045b60",
+  "task_instructions": "there is a bug in the TTL field mapper where when a default TTL is configured but no TTL is provided during indexing, the default value is used for expiration but not properly set in the source context",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 19,
+    "lines_deleted": 1,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 15762,
+    "truncated": false
+  },
+  "synthesized_task_instructions": null,
+  "synthesis_model": null,
+  "synthesis_timestamp": null
+}
