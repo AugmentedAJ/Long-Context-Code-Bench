@@ -165,9 +165,9 @@ async function loadSingleAgentPRDetails() {
             return;
         }
 
-        // Get the first run with judge results
-        const judgeRun = index.runs.find(run => run.judge_run_id);
-        if (!judgeRun) {
+        // Get all runs with judge results
+        const judgeRuns = index.runs.filter(run => run.judge_run_id);
+        if (judgeRuns.length === 0) {
             const listContainer = document.getElementById('analysis-list');
             if (listContainer) {
                 listContainer.innerHTML = '<p class="loading">No judge results found</p>';
@@ -175,40 +175,54 @@ async function loadSingleAgentPRDetails() {
             return;
         }
 
-        // Load PR results from the judge run
-        const prResults = [];
-        // Use test_label as sample version, default to 'v1' if not set
-        const sampleVersion = judgeRun.test_label || 'v1';
+        // Group results by PR ID, collecting all agents for each PR
+        const prResultsMap = new Map();
 
-        for (const prId of judgeRun.pr_ids) {
-            try {
-                // Try to load judge result for this PR
-                const judgeResponse = await fetch(`/api/judges/llm/claude-sonnet-4-5/${judgeRun.judge_run_id}/${prId}/judge.json`);
-                if (!judgeResponse.ok) continue;
+        for (const judgeRun of judgeRuns) {
+            // Use test_label as sample version, default to 'v1' if not set
+            const sampleVersion = judgeRun.test_label || 'v1';
 
-                const judgeData = await judgeResponse.json();
+            for (const prId of judgeRun.pr_ids) {
+                try {
+                    // Try to load judge result for this PR
+                    const judgeResponse = await fetch(`/api/judges/llm/claude-sonnet-4-5/${judgeRun.judge_run_id}/${prId}/judge.json`);
+                    if (!judgeResponse.ok) continue;
 
-                // Load sample data to get PR title
-                const sampleResponse = await fetch(`/api/samples/${sampleVersion}/${prId}/sample.json`);
-                let prTitle = prId;
-                if (sampleResponse.ok) {
-                    const sampleData = await sampleResponse.json();
-                    prTitle = sampleData.title || prId;
+                    const judgeData = await judgeResponse.json();
+
+                    // Initialize PR entry if not exists
+                    if (!prResultsMap.has(prId)) {
+                        // Load sample data to get PR title
+                        const sampleResponse = await fetch(`/api/samples/${sampleVersion}/${prId}/sample.json`);
+                        let prTitle = prId;
+                        if (sampleResponse.ok) {
+                            const sampleData = await sampleResponse.json();
+                            prTitle = sampleData.title || prId;
+                        }
+
+                        prResultsMap.set(prId, {
+                            pr_id: prId,
+                            pr_title: prTitle,
+                            sample_version: sampleVersion,
+                            agents: []
+                        });
+                    }
+
+                    // Add agent data to this PR
+                    prResultsMap.get(prId).agents.push({
+                        runner: judgeRun.runner,
+                        model: judgeRun.model,
+                        edit_run_id: judgeRun.edit_run_id,
+                        judge_run_id: judgeRun.judge_run_id,
+                        judge_data: judgeData
+                    });
+                } catch (err) {
+                    console.warn(`Failed to load judge result for ${prId} (${judgeRun.runner}:${judgeRun.model}):`, err);
                 }
-
-                prResults.push({
-                    pr_id: prId,
-                    pr_title: prTitle,
-                    judge_data: judgeData,
-                    runner: judgeRun.runner,
-                    model: judgeRun.model,
-                    edit_run_id: judgeRun.edit_run_id,
-                    sample_version: sampleVersion
-                });
-            } catch (err) {
-                console.warn(`Failed to load judge result for ${prId}:`, err);
             }
         }
+
+        const prResults = Array.from(prResultsMap.values());
 
         if (prResults.length === 0) {
             const listContainer = document.getElementById('analysis-list');
@@ -254,18 +268,28 @@ function displaySingleAgentPRList(prResults) {
         card.className = 'analysis-card';
         card.style.cursor = 'pointer';
 
-        const scores = pr.judge_data.scores || {};
-        const aggregate = pr.judge_data.aggregate || 0;
+        // Use the first agent's data for the card display (or compute average if multiple agents)
+        const firstAgent = pr.agents[0];
+        const scores = firstAgent.judge_data.scores || {};
+        const aggregate = firstAgent.judge_data.aggregate || 0;
 
         // Determine color based on aggregate score
         let scoreClass = 'neutral';
         if (aggregate > 0.5) scoreClass = 'positive';
         else if (aggregate < -0.5) scoreClass = 'negative';
 
+        // Show agent count if multiple agents
+        const agentCountBadge = pr.agents.length > 1
+            ? `<span class="agent-count-badge">${pr.agents.length} agents</span>`
+            : '';
+
         card.innerHTML = `
             <div class="analysis-card-header">
                 <h4>${pr.pr_title}</h4>
-                <span class="score-badge ${scoreClass}">${(aggregate * 100).toFixed(0)}%</span>
+                <div>
+                    <span class="score-badge ${scoreClass}">${(aggregate * 100).toFixed(0)}%</span>
+                    ${agentCountBadge}
+                </div>
             </div>
             <div class="analysis-card-body">
                 <div class="metric-row">
@@ -336,13 +360,13 @@ function displaySingleAgentPRDetail(pr) {
     // Hide comparative section (not applicable for single-agent)
     document.getElementById('comparative-section').style.display = 'none';
 
-    // Display agent results
+    // Display agent results (now supports multiple agents)
     displaySingleAgentResults(pr);
 
-    // Initialize side-by-side agent/human inspector
+    // Initialize side-by-side agent/human inspector (now supports multiple agents)
     initSingleAgentComparison(pr);
 
-    // Display judge rationale
+    // Display judge rationale (for the first/selected agent)
     displayJudgeRationale(pr);
 }
 
@@ -355,23 +379,34 @@ function displaySingleAgentResults(pr) {
 
     tbody.innerHTML = '';
 
-    const aggregate = pr.judge_data.aggregate || 0;
+    // Sort agents by aggregate score descending
+    const sortedAgents = [...pr.agents].sort((a, b) => {
+        const aggA = a.judge_data.aggregate || 0;
+        const aggB = b.judge_data.aggregate || 0;
+        return aggB - aggA;
+    });
 
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td>1</td>
-        <td><strong>${pr.runner}:${pr.model}</strong></td>
-        <td>-</td>
-        <td>-</td>
-        <td>${(aggregate * 100).toFixed(1)}%</td>
-        <td>-</td>
-    `;
+    sortedAgents.forEach((agent, index) => {
+        const aggregate = agent.judge_data.aggregate || 0;
+        const rank = index + 1;
 
-    tbody.appendChild(row);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${rank}</td>
+            <td><strong>${agent.runner}:${agent.model}</strong></td>
+            <td>-</td>
+            <td>-</td>
+            <td>${(aggregate * 100).toFixed(1)}%</td>
+            <td>-</td>
+        `;
+
+        tbody.appendChild(row);
+    });
 }
 
 /**
  * Display judge rationale in the agent details container
+ * Shows rationale for all agents if multiple agents are present
  */
 function displayJudgeRationale(pr) {
     const container = document.getElementById('agent-details-container');
@@ -379,48 +414,63 @@ function displayJudgeRationale(pr) {
 
     container.innerHTML = '';
 
-    const card = document.createElement('div');
-    card.className = 'card';
+    // Display judge analysis for each agent
+    pr.agents.forEach((agent, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
 
-    const scores = pr.judge_data.scores || {};
-    const aggregate = pr.judge_data.aggregate || 0;
-    const rationale = pr.judge_data.rationale || 'No rationale provided';
+        const scores = agent.judge_data.scores || {};
+        const aggregate = agent.judge_data.aggregate || 0;
+        const rationale = agent.judge_data.rationale || 'No rationale provided';
 
-    card.innerHTML = `
-        <h4>Judge Analysis</h4>
-        <div class="judge-scores">
-            <div class="score-item">
-                <span class="score-label">Aggregate:</span>
-                <span class="score-value">${(aggregate * 100).toFixed(1)}%</span>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Correctness:</span>
-                <span class="score-value">${(scores.correctness || 0) * 100}%</span>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Completeness:</span>
-                <span class="score-value">${(scores.completeness || 0) * 100}%</span>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Code Reuse:</span>
-                <span class="score-value">${(scores.code_reuse || 0) * 100}%</span>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Best Practices:</span>
-                <span class="score-value">${(scores.best_practices || 0) * 100}%</span>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Unsolicited Docs:</span>
-                <span class="score-value">${(scores.unsolicited_docs || 0) * 100}%</span>
-            </div>
-        </div>
-        <div class="rationale-section">
-            <h5>Overall Rationale</h5>
-            <p>${rationale}</p>
-        </div>
-    `;
+        // Add agent identifier if multiple agents
+        const agentHeader = pr.agents.length > 1
+            ? `<h4>Judge Analysis - ${agent.runner}:${agent.model}</h4>`
+            : `<h4>Judge Analysis</h4>`;
 
-    container.appendChild(card);
+        card.innerHTML = `
+            ${agentHeader}
+            <div class="judge-scores">
+                <div class="score-item">
+                    <span class="score-label">Aggregate:</span>
+                    <span class="score-value">${(aggregate * 100).toFixed(1)}%</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Correctness:</span>
+                    <span class="score-value">${(scores.correctness || 0) * 100}%</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Completeness:</span>
+                    <span class="score-value">${(scores.completeness || 0) * 100}%</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Code Reuse:</span>
+                    <span class="score-value">${(scores.code_reuse || 0) * 100}%</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Best Practices:</span>
+                    <span class="score-value">${(scores.best_practices || 0) * 100}%</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Unsolicited Docs:</span>
+                    <span class="score-value">${(scores.unsolicited_docs || 0) * 100}%</span>
+                </div>
+            </div>
+            <div class="rationale-section">
+                <h5>Overall Rationale</h5>
+                <p>${rationale}</p>
+            </div>
+        `;
+
+        container.appendChild(card);
+
+        // Add spacing between cards if multiple agents
+        if (index < pr.agents.length - 1) {
+            const spacer = document.createElement('div');
+            spacer.style.height = '20px';
+            container.appendChild(spacer);
+        }
+    });
 }
 
 /**
@@ -1914,10 +1964,12 @@ function initSingleAgentComparison(pr) {
     if (!card) return;
 
     // Store the PR data for comparison
+    // Default to first agent if multiple agents available
+    const defaultAgent = pr.agents[0];
     currentSingleAgentComparison = {
         pr,
         selection: {
-            left: 'agent',
+            left: `agent:${defaultAgent.runner}:${defaultAgent.model}`,
             right: 'human',
         },
         view: {
@@ -1954,11 +2006,22 @@ function buildSingleAgentComparisonColumn(side) {
     const contentId = `comparison-${side}-content`;
     const sideLabelText = side === 'left' ? 'Left side' : 'Right side';
 
-    // Options: agent or human
-    const options = [
-        { value: 'agent', label: `${pr.runner}:${pr.model}` },
-        { value: 'human', label: 'Human (ground truth)' },
-    ];
+    // Build options: all agents + human
+    const options = [];
+
+    // Add all agents as options
+    pr.agents.forEach(agent => {
+        options.push({
+            value: `agent:${agent.runner}:${agent.model}`,
+            label: `${agent.runner}:${agent.model}`
+        });
+    });
+
+    // Add human option
+    options.push({
+        value: 'human',
+        label: 'Human (ground truth)'
+    });
 
     const optionsHtml = options.map(opt => {
         const selected = opt.value === currentSingleAgentComparison.selection[side] ? 'selected' : '';
@@ -2036,10 +2099,22 @@ async function updateSingleAgentComparisonSide(side) {
     // Clear content while loading
     contentEl.innerHTML = '<em>Loading…</em>';
 
-    if (selection === 'agent') {
+    if (selection.startsWith('agent:')) {
+        // Parse agent selection: "agent:runner:model"
+        const parts = selection.split(':');
+        const runner = parts[1];
+        const model = parts[2];
+
+        // Find the agent data
+        const agent = pr.agents.find(a => a.runner === runner && a.model === model);
+        if (!agent) {
+            contentEl.innerHTML = '<em>Agent not found.</em>';
+            return;
+        }
+
         // Load agent data
         try {
-            const editResponse = await fetch(`/api/edits/${pr.runner}/${pr.model}/${pr.edit_run_id}/${pr.pr_id}/edit.json`);
+            const editResponse = await fetch(`/api/edits/${runner}/${model}/${agent.edit_run_id}/${pr.pr_id}/edit.json`);
             if (!editResponse.ok) {
                 contentEl.innerHTML = '<em>Failed to load agent data.</em>';
                 return;
@@ -2082,11 +2157,11 @@ async function updateSingleAgentComparisonSide(side) {
             console.error('Error loading agent data:', error);
             contentEl.innerHTML = '<em>Error loading agent data.</em>';
         }
-    } else {
+    } else if (selection === 'human') {
         // Human (ground truth) selection
+        // Use the first agent's judge data to get ground truth (same for all agents)
+        const judgeData = pr.agents[0].judge_data;
         try {
-            // Load ground truth patch from judge data
-            const judgeData = pr.judge_data;
 
             if (viewType === 'summary') {
                 const repoUrl = judgeData.repo_url || '';

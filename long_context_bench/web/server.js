@@ -104,13 +104,18 @@ app.get('/api/judges/:judgeMode/:judgeModel/:judgeRunId/:prId/judge.json', (req,
 // API endpoint to get sample data
 app.get('/api/samples/:version/:prId/sample.json', (req, res) => {
     const { version, prId } = req.params;
-    const samplePath = path.join(OUTPUT_DIR, 'samples', version, prId, 'sample.json');
 
-    if (!fs.existsSync(samplePath)) {
+    // Try output directory first, then fall back to data directory
+    const outputSamplePath = path.join(OUTPUT_DIR, 'samples', version, prId, 'sample.json');
+    const dataSamplePath = path.join(__dirname, '..', '..', 'data', 'samples', version, prId, 'sample.json');
+
+    if (fs.existsSync(outputSamplePath)) {
+        return res.sendFile(outputSamplePath);
+    } else if (fs.existsSync(dataSamplePath)) {
+        return res.sendFile(dataSamplePath);
+    } else {
         return res.status(404).json({ error: `Sample not found` });
     }
-
-    res.sendFile(samplePath);
 });
 
 // API endpoint to list cross-agent analyses
