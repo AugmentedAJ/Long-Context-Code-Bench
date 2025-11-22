@@ -268,10 +268,27 @@ function displaySingleAgentPRList(prResults) {
         card.className = 'analysis-card';
         card.style.cursor = 'pointer';
 
-        // Use the first agent's data for the card display (or compute average if multiple agents)
-        const firstAgent = pr.agents[0];
-        const scores = firstAgent.judge_data.scores || {};
-        const aggregate = firstAgent.judge_data.aggregate || 0;
+        // Determine winner if multiple agents
+        let winnerBadge = '';
+        let displayAgent = pr.agents[0];
+        let aggregate = displayAgent.judge_data.aggregate || 0;
+        let scores = displayAgent.judge_data.scores || {};
+
+        if (pr.agents.length > 1) {
+            // Find the agent with the highest aggregate score
+            const sortedAgents = [...pr.agents].sort((a, b) => {
+                const aggA = a.judge_data.aggregate || 0;
+                const aggB = b.judge_data.aggregate || 0;
+                return aggB - aggA;
+            });
+
+            displayAgent = sortedAgents[0];
+            aggregate = displayAgent.judge_data.aggregate || 0;
+            scores = displayAgent.judge_data.scores || {};
+
+            const winnerName = `${displayAgent.runner}:${displayAgent.model}`;
+            winnerBadge = `<span class="winner-badge">🏆 ${winnerName}</span>`;
+        }
 
         // Determine color based on aggregate score
         let scoreClass = 'neutral';
@@ -289,6 +306,7 @@ function displaySingleAgentPRList(prResults) {
                 <div>
                     <span class="score-badge ${scoreClass}">${(aggregate * 100).toFixed(0)}%</span>
                     ${agentCountBadge}
+                    ${winnerBadge}
                 </div>
             </div>
             <div class="analysis-card-body">
