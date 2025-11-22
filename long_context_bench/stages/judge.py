@@ -445,6 +445,7 @@ def judge_edit(
             rationale=rationale,
             edit_run_id=edit.edit_run_id,
             judge_run_id=judge_run_id,
+            ground_truth_patch=ground_truth_diff,
         )
 
         # Write judge.json
@@ -477,6 +478,7 @@ def judge_edit(
             rationale=f"Error: {str(e)}",
             edit_run_id=edit.edit_run_id,
             judge_run_id=judge_run_id,
+            ground_truth_patch=None,  # Not available on error
         )
         
         judge_file = judge_dir / "judge.json"
@@ -569,13 +571,13 @@ def run_judge_stage(
         console.print(f"[bold]Evaluating {len(edit_run_ids)} edit run(s)...[/bold]")
 
         # Find all edits from the specified edit runs
-        edits_dir = output_dir.parent / "edits"
+        edits_dir = output_dir / "edits"
 
         # Determine samples directory
         if samples_dir is None:
             # Try data/samples first (preferred), fall back to output/samples
             data_samples = Path("data/samples")
-            output_samples = output_dir.parent / "samples"
+            output_samples = output_dir / "samples"
             if data_samples.exists():
                 samples_dir = data_samples
             else:

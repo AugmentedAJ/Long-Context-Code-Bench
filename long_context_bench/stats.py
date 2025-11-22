@@ -288,6 +288,15 @@ def generate_summary_for_runs(
 
     # Write output files
     if output_dir:
+        # Create a subdirectory for this run if output_dir doesn't already contain the run_id
+        # Format: <run_id>_<runner>_<model> or just <run_id> if runner/model not available
+        if run_id not in str(output_dir):
+            if runner and model:
+                run_subdir = f"{run_id}_{runner}_{model}"
+            else:
+                run_subdir = run_id
+            output_dir = output_dir / run_subdir
+
         output_dir.mkdir(parents=True, exist_ok=True)
 
         summary_file = output_dir / "summary.json"

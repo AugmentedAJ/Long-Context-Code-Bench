@@ -21,29 +21,30 @@
                     the ability to understand, modify, and integrate changes across massive real-world repositories.
                 </p>
                 <p>
-                    This leaderboard shows results from <strong>head-to-head agent-as-judge evaluation</strong>, where each AI agent
-                    judges every other agent's solution to the same real GitHub PRs. Each agent is tested on recreating actual PR changes
-                    given only the PR description—no access to the solution or git history. Then, each agent acts as a judge, comparing
-                    pairs of solutions and deciding which is better based on correctness, completeness, code quality, and integration.
+                    Each agent is tested on recreating actual PR changes from the Elasticsearch repository given only the PR description—no
+                    access to the solution or git history. Solutions are then evaluated by an LLM judge (Claude Sonnet 4.5) that compares
+                    the agent's changes against the ground truth diff, scoring on correctness, completeness, code reuse, best practices,
+                    and unsolicited documentation.
                 </p>
                 <p>
-                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view each agent's judgment rationale,
+                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view the judge's detailed rationale,
                     side-by-side diff comparisons, and complete agent execution logs—making this the most transparent and verifiable
                     coding agent benchmark available. The entire benchmark is <strong>reproducible and fully open source</strong> at
                     <a href="https://github.com/AugmentedAJ/Long-Context-Code-Bench" target="_blank">github.com/AugmentedAJ/Long-Context-Code-Bench</a>.
                 </p>
                 <div class="version-notice">
-                    <strong>📊 Version v0</strong> — This is our initial release featuring 40 PRs from the Elasticsearch repository
-                    (~40,000 files). Future versions will expand to include diverse codebases across multiple languages (Java, TypeScript,
-                    Go, Rust) and even larger repository sizes to comprehensively evaluate context engines and retrieval systems at scale.
+                    <strong>📊 Version v1</strong> — This release features 100 PRs from the Elasticsearch repository (~40,000 files)
+                    with single-agent LLM-as-judge evaluation. Future versions will include head-to-head agent-as-judge comparisons,
+                    diverse codebases across multiple languages (Java, TypeScript, Go, Rust), and even larger repository sizes to
+                    comprehensively evaluate context engines and retrieval systems at scale.
                 </div>
             </section>
 
             <section class="leaderboard">
                 <h2>Agent Leaderboard</h2>
                 <p class="section-description">
-                    Ranked by win rate from head-to-head agent-as-judge evaluation. Each agent judges every other agent's solution,
-                    and pairwise decisions determine win/loss/tie records.
+                    Results from single-agent evaluation. For detailed per-PR results and judge scores, visit the
+                    <a href="summary.html">Run Details</a> page.
                 </p>
                 <div class="table-container">
                     <table id="h2h-leaderboard-table">
@@ -51,15 +52,17 @@
                             <tr>
                                 <th>Rank</th>
                                 <th>Agent</th>
-                                <th>Win Rate</th>
-                                <th>Wins</th>
-                                <th>Losses</th>
-                                <th>Ties</th>
+                                <th>Aggregate</th>
+                                <th>Correctness</th>
+                                <th>Completeness</th>
+                                <th>Code Reuse</th>
+                                <th>Best Practices</th>
+                                <th>Unsol. Docs</th>
                             </tr>
                         </thead>
                         <tbody id="h2h-leaderboard-body">
                             <tr>
-                                <td colspan="6" class="loading">Loading leaderboard...</td>
+                                <td colspan="8" class="loading">Loading leaderboard...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -133,7 +136,7 @@
 	                    <div class="card" id="agent-comparison-card" style="display: none;">
 	                        <h4>Side-by-Side Inspector</h4>
 	                        <p class="section-description">
-	                            Compare two agents or an agent against the human ground truth
+	                            Compare the agent's changes against the human ground truth
 	                            across summaries, diffs, or logs.
 	                        </p>
 	                        <div class="agent-comparison-layout">

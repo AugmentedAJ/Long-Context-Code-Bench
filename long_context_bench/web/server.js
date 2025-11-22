@@ -27,14 +27,23 @@ console.log(`Web files directory: ${__dirname}`);
 // Serve static files (HTML, CSS, JS, etc.) from the web directory
 app.use(express.static(__dirname));
 
+// Serve data files from the output directory at /data path
+// This allows the web app to access output/head_to_head_metadata.json at /data/head_to_head_metadata.json
+app.use('/data', express.static(OUTPUT_DIR));
+
 // API endpoint to get the index manifest
 app.get('/api/index.json', (req, res) => {
     const indexPath = path.join(OUTPUT_DIR, 'index.json');
-    
+
     if (!fs.existsSync(indexPath)) {
         return res.status(404).json({ error: 'Index not found. Run a benchmark first.' });
     }
-    
+
+    // Disable caching for index.json to always get fresh data
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.sendFile(indexPath);
 });
 
@@ -47,6 +56,11 @@ app.get('/api/summaries/:runId(*)/summary.json', (req, res) => {
     if (!fs.existsSync(summaryPath)) {
         return res.status(404).json({ error: `Summary not found for run ${runId}` });
     }
+
+    // Disable caching for summary data to always get fresh results
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     res.sendFile(summaryPath);
 });

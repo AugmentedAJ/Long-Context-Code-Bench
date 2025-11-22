@@ -69,6 +69,7 @@ class Judge(BaseModel):
     rationale: Optional[str] = None
     edit_run_id: Optional[str] = None  # ID of the edit run being evaluated
     judge_run_id: Optional[str] = None  # ID of the judge run that produced this
+    ground_truth_patch: Optional[str] = None  # Ground truth unified diff
 
 
 class EditRunManifest(BaseModel):
