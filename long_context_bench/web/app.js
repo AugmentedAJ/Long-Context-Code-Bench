@@ -288,13 +288,20 @@ function displayHeadToHeadLeaderboard(leaderboard) {
     if (!tbody) return;
 
     if (!leaderboard || leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">No head-to-head results found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">No head-to-head results found</td></tr>';
         return;
     }
 
     tbody.innerHTML = '';
 
     const medals = ['🥇', '🥈', '🥉'];
+
+    // Helper to format and color-code scores
+    const formatScore = (score) => {
+        if (score === null || score === undefined) return '<span style="color: #9ca3af;">—</span>';
+        const color = score >= 0.5 ? '#10b981' : score >= 0 ? '#f59e0b' : '#ef4444';
+        return `<span style="color: ${color}; font-weight: 600;">${score.toFixed(2)}</span>`;
+    };
 
     leaderboard.forEach((agent, index) => {
         const row = document.createElement('tr');
@@ -303,13 +310,110 @@ function displayHeadToHeadLeaderboard(leaderboard) {
         row.innerHTML = `
             <td>${rankDisplay}</td>
             <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-            <td>${formatPercentage(agent.win_rate)}</td>
-            <td>${agent.wins}</td>
-            <td>${agent.losses}</td>
-            <td>${agent.ties}</td>
+            <td>${formatScore(agent.mean_aggregate)}</td>
+            <td>${formatScore(agent.mean_correctness)}</td>
+            <td>${formatScore(agent.mean_completeness)}</td>
+            <td>${formatScore(agent.mean_code_reuse)}</td>
+            <td>${formatScore(agent.mean_best_practices)}</td>
+            <td>${formatScore(agent.mean_unsolicited_docs)}</td>
+            <td>${formatPercentage(agent.success_rate)}</td>
         `;
 
         tbody.appendChild(row);
+    });
+
+    // Create metrics comparison chart
+    createMetricsComparisonChart(leaderboard);
+}
+
+/**
+ * Create horizontal bar chart showing all metrics for all agents
+ */
+function createMetricsComparisonChart(leaderboard) {
+    const canvas = document.getElementById('metrics-bar-chart');
+    if (!canvas) return;
+
+    // Destroy existing chart if it exists
+    if (window.metricsChart) {
+        window.metricsChart.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    // Take top 5 agents for clarity
+    const topAgents = leaderboard.slice(0, Math.min(5, leaderboard.length));
+
+    // Prepare data for each metric
+    const metricLabels = ['Correctness', 'Completeness', 'Code Reuse', 'Best Practices', 'Unsol. Docs'];
+    const metricKeys = ['mean_correctness', 'mean_completeness', 'mean_code_reuse', 'mean_best_practices', 'mean_unsolicited_docs'];
+
+    const colors = [
+        'rgba(79, 70, 229, 0.8)',   // Indigo
+        'rgba(16, 185, 129, 0.8)',  // Green
+        'rgba(245, 158, 11, 0.8)',  // Amber
+        'rgba(239, 68, 68, 0.8)',   // Red
+        'rgba(139, 92, 246, 0.8)'   // Purple
+    ];
+
+    const datasets = topAgents.map((agent, idx) => {
+        return {
+            label: `${agent.runner}:${agent.model}`,
+            data: metricKeys.map(key => agent[key] || 0),
+            backgroundColor: colors[idx],
+            borderColor: colors[idx].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+
+    window.metricsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: metricLabels,
+            datasets: datasets
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: 'Performance Across All Metrics (Top 5 Agents)',
+                    font: {
+                        size: 16
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.x.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: -1,
+                    max: 1,
+                    title: {
+                        display: true,
+                        text: 'Score (-1 to 1)'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -324,29 +428,52 @@ async function loadLLMJudgeLeaderboard() {
         const index = await loadIndex();
 
         if (!index.runs || index.runs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="loading">No results found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">No results found</td></tr>';
             return;
         }
 
-        // Filter to runs with mean_aggregate scores (all test labels)
-        const llmRuns = index.runs
-            .filter(run => run.mean_aggregate !== undefined && run.total_samples >= 40)
-            .map(run => ({
-                runner: run.runner,
-                model: run.model,
-                aggregate_score: run.mean_aggregate,
-                success_rate: run.success_rate,
-                total_samples: run.total_samples
-            }))
-            .sort((a, b) => b.aggregate_score - a.aggregate_score);
+        // Load summaries to get detailed metrics
+        const llmRuns = [];
+        for (const run of index.runs) {
+            if (!run.mean_aggregate || run.total_samples < 40) continue;
+
+            try {
+                const summary = await loadSummary(run.run_id);
+                if (summary) {
+                    llmRuns.push({
+                        runner: run.runner,
+                        model: run.model,
+                        mean_aggregate: summary.mean_aggregate || 0,
+                        mean_correctness: summary.mean_correctness || 0,
+                        mean_completeness: summary.mean_completeness || 0,
+                        mean_code_reuse: summary.mean_code_reuse || 0,
+                        mean_best_practices: summary.mean_best_practices || 0,
+                        mean_unsolicited_docs: summary.mean_unsolicited_docs || 0,
+                        success_rate: summary.success_rate || 0,
+                        total_samples: run.total_samples
+                    });
+                }
+            } catch (e) {
+                console.warn(`Failed to load summary for run ${run.run_id}:`, e);
+            }
+        }
+
+        llmRuns.sort((a, b) => b.mean_aggregate - a.mean_aggregate);
 
         if (llmRuns.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="loading">No LLM judge results found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">No LLM judge results found</td></tr>';
             return;
         }
 
         tbody.innerHTML = '';
         const medals = ['🥇', '🥈', '🥉'];
+
+        // Helper to format and color-code scores
+        const formatScore = (score) => {
+            if (score === null || score === undefined) return '<span style="color: #9ca3af;">—</span>';
+            const color = score >= 0.5 ? '#10b981' : score >= 0 ? '#f59e0b' : '#ef4444';
+            return `<span style="color: ${color}; font-weight: 600;">${score.toFixed(2)}</span>`;
+        };
 
         llmRuns.forEach((agent, index) => {
             const row = document.createElement('tr');
@@ -355,30 +482,23 @@ async function loadLLMJudgeLeaderboard() {
             row.innerHTML = `
                 <td>${rankDisplay}</td>
                 <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-                <td>${agent.aggregate_score.toFixed(3)}</td>
-                <td>${agent.total_samples || 0}</td>
-                <td>${formatPercentage(agent.success_rate / 100)}</td>
-                <td>-</td>
+                <td>${formatScore(agent.mean_aggregate)}</td>
+                <td>${formatScore(agent.mean_correctness)}</td>
+                <td>${formatScore(agent.mean_completeness)}</td>
+                <td>${formatScore(agent.mean_code_reuse)}</td>
+                <td>${formatScore(agent.mean_best_practices)}</td>
+                <td>${formatScore(agent.mean_unsolicited_docs)}</td>
+                <td>${formatPercentage(agent.success_rate)}</td>
             `;
 
             tbody.appendChild(row);
         });
 
-        // Update table header for LLM judge mode
-        const thead = tbody.closest('table')?.querySelector('thead tr');
-        if (thead) {
-            thead.innerHTML = `
-                <th>Rank</th>
-                <th>Agent</th>
-                <th>Aggregate Score</th>
-                <th>Tasks</th>
-                <th>Success Rate</th>
-                <th>-</th>
-            `;
-        }
+        // Create metrics comparison chart
+        createMetricsComparisonChart(llmRuns);
     } catch (error) {
         console.error('Error loading LLM judge leaderboard:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Error loading LLM judge results</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">Error loading LLM judge results</td></tr>';
     }
 }
 
@@ -489,13 +609,60 @@ async function loadLLMJudgePRDetails() {
             const agentCount = pr.agents.length;
             const agentList = pr.agents.map(a => a.agentKey).join(', ');
 
-            // For winner, we'd need to load judge results - for now show TBD
-            const winnerLabel = '🏆 TBD';
+            // Load judge results to determine winner
+            let winnerLabel = '⏳ Loading...';
+
+            // Load winner asynchronously
+            (async () => {
+                try {
+                    const agentScores = [];
+                    for (const agent of pr.agents) {
+                        try {
+                            // Use the correct path structure: judges/llm/claude-sonnet-4-5/{judge_run_id}/{pr_id}/judge.json
+                            const judgePath = `judges/llm/claude-sonnet-4-5/${agent.judge_run_id}/${pr.pr_id}/judge.json`;
+                            const judgeData = await fetch(`${API_BASE}/${judgePath}`).then(r => r.json());
+                            if (judgeData && judgeData.aggregate !== undefined) {
+                                agentScores.push({
+                                    agent: `${agent.runner}:${agent.model}`,
+                                    score: judgeData.aggregate
+                                });
+                            }
+                        } catch (e) {
+                            // Skip if judge data not found
+                        }
+                    }
+
+                    if (agentScores.length > 0) {
+                        agentScores.sort((a, b) => b.score - a.score);
+                        const best = agentScores[0];
+                        const secondBest = agentScores[1];
+
+                        if (secondBest && Math.abs(best.score - secondBest.score) < 0.05) {
+                            winnerLabel = '🤝 Tie';
+                        } else {
+                            winnerLabel = `🏆 ${best.agent}`;
+                        }
+                    } else {
+                        winnerLabel = '—';
+                    }
+
+                    // Update the cell
+                    const winnerCell = row.querySelector('.winner-cell');
+                    if (winnerCell) {
+                        winnerCell.textContent = winnerLabel;
+                    }
+                } catch (e) {
+                    const winnerCell = row.querySelector('.winner-cell');
+                    if (winnerCell) {
+                        winnerCell.textContent = '—';
+                    }
+                }
+            })();
 
             row.innerHTML = `
                 <td><strong>${pr.pr_number}</strong></td>
                 <td>${agentCount} agent${agentCount !== 1 ? 's' : ''}</td>
-                <td>${winnerLabel}</td>
+                <td class="winner-cell">${winnerLabel}</td>
                 <td>
                     <button class="btn-primary" onclick="showLLMJudgeDetail('${pr.pr_id}')">
                         View Details
@@ -716,7 +883,7 @@ async function showLLMJudgeDetail(prId) {
         let taskInstructions = 'N/A';
         let humanDiff = '';
         try {
-            const samplePath = `samples/v1/${prId}/sample.json`;
+            const samplePath = `/api/samples/v1/${prId}/sample.json`;
             const sampleResponse = await fetch(samplePath);
             if (sampleResponse.ok) {
                 const sampleData = await sampleResponse.json();
@@ -733,9 +900,9 @@ async function showLLMJudgeDetail(prId) {
             const judgeRunId = run.judge_run_id || run.run_id;
             const editRunId = run.edit_run_id;
 
-            // Load judge result
-            const judgePath = `judges/llm/claude-sonnet-4-5/${judgeRunId}/${prId}/judge.json`;
-            const editPath = `edits/${run.runner}/${run.model.replace('-mcp', '')}/${editRunId}/${prId}/edit.json`;
+            // Load judge result - use /api/ prefix for server endpoint
+            const judgePath = `/api/judges/llm/claude-sonnet-4-5/${judgeRunId}/${prId}/judge.json`;
+            const editPath = `/api/edits/${run.runner}/${run.model.replace('-mcp', '')}/${editRunId}/${prId}/edit.json`;
 
             try {
                 const [judgeResponse, editResponse] = await Promise.all([
