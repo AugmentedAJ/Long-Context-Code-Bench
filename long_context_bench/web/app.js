@@ -581,8 +581,27 @@ async function loadLLMJudgePRDetails() {
             return;
         }
 
+        // Get the total number of agents in the benchmark
+        const allAgents = new Set();
+        for (const run of index.runs) {
+            if (run.mean_aggregate && run.pr_ids && run.total_samples >= 40) {
+                allAgents.add(`${run.runner}:${run.model}`);
+            }
+        }
+        const expectedAgentCount = allAgents.size;
+
+        // Filter to only PRs where all agents have results
+        const filteredPRs = Array.from(prMap.values()).filter(pr => pr.agents.length === expectedAgentCount);
+
+        console.log(`Total PRs: ${prMap.size}, PRs with all ${expectedAgentCount} agents: ${filteredPRs.length}`);
+
+        if (filteredPRs.length === 0) {
+            listContainer.innerHTML = '<p class="loading">No PRs found where all agents competed</p>';
+            return;
+        }
+
         // Sort PRs by number
-        const prList = Array.from(prMap.values()).sort((a, b) => a.pr_number - b.pr_number);
+        const prList = filteredPRs.sort((a, b) => a.pr_number - b.pr_number);
 
         // Create table
         const table = document.createElement('table');
@@ -902,7 +921,7 @@ async function showLLMJudgeDetail(prId) {
 
             // Load judge result - use /api/ prefix for server endpoint
             const judgePath = `/api/judges/llm/claude-sonnet-4-5/${judgeRunId}/${prId}/judge.json`;
-            const editPath = `/api/edits/${run.runner}/${run.model.replace('-mcp', '')}/${editRunId}/${prId}/edit.json`;
+            const editPath = `/api/edits/${run.runner}/${run.model}/${editRunId}/${prId}/edit.json`;
 
             try {
                 const [judgeResponse, editResponse] = await Promise.all([

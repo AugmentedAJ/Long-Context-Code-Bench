@@ -932,7 +932,8 @@ def generate_index_manifest(output_dir: Path) -> None:
                     edit_dir = output_dir / "edits" / runner / model / run_id_to_check
                     if edit_dir.exists():
                         for pr_dir in edit_dir.iterdir():
-                            if pr_dir.is_dir():
+                            # Only include PRs that have an edit.json file (not just logs)
+                            if pr_dir.is_dir() and (pr_dir / "edit.json").exists():
                                 pr_ids.append(pr_dir.name)
 
                 run_info = {
