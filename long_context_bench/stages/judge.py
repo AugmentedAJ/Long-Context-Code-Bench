@@ -1,4 +1,11 @@
-"""Judge stage: Score agent edits against ground truth."""
+"""Judge stage: Score agent edits against ground truth.
+
+NOTE: This is the **legacy Long-Context-Bench v0 judge** implementation.
+Canonical v1 Elasticsearch benchmark runs use the agent-eval `JudgeTask`
+pipeline (pairwise preference judge via Auggie + Claude Sonnet 4.5) and
+**not** this scalar judge. You can still use this module for historical
+v0-style experiments, but it should not be treated as the v1 judge.
+"""
 
 import json
 import os
