@@ -18,23 +18,18 @@ const LEADERBOARD_INCREMENT = 10;
 const CROSS_AGENT_INCREMENT = 20;
 
 /**
- * Load and display leaderboard (single-agent or head-to-head)
+ * Load and display leaderboard (head-to-head only)
  */
 async function loadLeaderboard() {
     try {
         const index = await loadIndex();
 
-        // Try loading single-agent results first
-        const hasSingleAgentResults = await loadSingleAgentLeaderboard();
+        // Load head-to-head results
+        await loadHeadToHeadLeaderboard();
 
-        // If no single-agent results, try head-to-head
-        if (!hasSingleAgentResults) {
-            await loadHeadToHeadLeaderboard();
-
-            // Load head-to-head PR details
-            if (typeof loadHeadToHeadPRDetails === 'function') {
-                await loadHeadToHeadPRDetails();
-            }
+        // Load head-to-head PR details
+        if (typeof loadHeadToHeadPRDetails === 'function') {
+            await loadHeadToHeadPRDetails();
         }
 
         // Update timestamp
@@ -49,450 +44,8 @@ async function loadLeaderboard() {
 }
 
 /**
- * Load and display single-agent leaderboard from index.json
- * Returns true if single-agent results were found and displayed
- */
-async function loadSingleAgentLeaderboard() {
-    const tbody = document.getElementById('h2h-leaderboard-body');
-
-    try {
-        const index = await loadIndex();
-
-        if (!index.runs || index.runs.length === 0) {
-            return false;
-        }
-
-        // Filter for runs with summaries
-        const runsWithSummaries = index.runs.filter(run => run.summary_path);
-
-        if (runsWithSummaries.length === 0) {
-            return false;
-        }
-
-        // Load summaries for each run
-        const leaderboardData = [];
-        for (const run of runsWithSummaries) {
-            try {
-                const summaryPath = `/api/${run.summary_path}`;
-                const response = await fetch(summaryPath);
-                if (!response.ok) continue;
-
-                const summary = await response.json();
-                leaderboardData.push({
-                    runner: run.runner,
-                    model: run.model,
-                    test_label: run.test_label,
-                    aggregate_score: summary.mean_aggregate || 0,
-                    correctness: summary.mean_correctness || 0,
-                    completeness: summary.mean_completeness || 0,
-                    code_reuse: summary.mean_code_reuse || 0,
-                    best_practices: summary.mean_best_practices || 0,
-                    unsolicited_docs: summary.mean_unsolicited_docs || 0,
-                    success_rate: summary.success_rate || 0,
-                    total_samples: summary.total_samples || 0
-                });
-            } catch (err) {
-                console.warn(`Failed to load summary for run ${run.run_id}:`, err);
-            }
-        }
-
-        if (leaderboardData.length === 0) {
-            return false;
-        }
-
-        // Sort by aggregate score descending
-        leaderboardData.sort((a, b) => b.aggregate_score - a.aggregate_score);
-
-        // Display single-agent leaderboard
-        displaySingleAgentLeaderboard(leaderboardData);
-
-        // Load single-agent PR details
-        await loadSingleAgentPRDetails();
-
-        return true;
-    } catch (error) {
-        console.error('Error loading single-agent leaderboard:', error);
-        return false;
-    }
-}
-
-/**
- * Display single-agent leaderboard in the table
- */
-function displaySingleAgentLeaderboard(leaderboardData) {
-    const tbody = document.getElementById('h2h-leaderboard-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    leaderboardData.forEach((agent, index) => {
-        const row = document.createElement('tr');
-
-        // Rank with medal
-        const rank = index + 1;
-        let rankDisplay = rank.toString();
-        if (rank === 1) rankDisplay = '🥇 1';
-        else if (rank === 2) rankDisplay = '🥈 2';
-        else if (rank === 3) rankDisplay = '🥉 3';
-
-        // Agent name
-        const agentName = `${agent.runner}:${agent.model}`;
-        const testLabelSuffix = agent.test_label ? ` (${agent.test_label})` : '';
-
-        row.innerHTML = `
-            <td>${rankDisplay}</td>
-            <td><strong>${agentName}</strong>${testLabelSuffix}</td>
-            <td>${(agent.aggregate_score * 100).toFixed(1)}%</td>
-            <td>${(agent.correctness * 100).toFixed(1)}%</td>
-            <td>${(agent.completeness * 100).toFixed(1)}%</td>
-            <td>${(agent.code_reuse * 100).toFixed(1)}%</td>
-            <td>${(agent.best_practices * 100).toFixed(1)}%</td>
-            <td>${(agent.unsolicited_docs * 100).toFixed(1)}%</td>
-        `;
-
-        tbody.appendChild(row);
-    });
-}
-
-/**
- * Load and display single-agent PR details
- */
-async function loadSingleAgentPRDetails() {
-    try {
-        const index = await loadIndex();
-
-        if (!index.runs || index.runs.length === 0) {
-            return;
-        }
-
-        // Get all runs with judge results
-        const judgeRuns = index.runs.filter(run => run.judge_run_id);
-        if (judgeRuns.length === 0) {
-            const listContainer = document.getElementById('analysis-list');
-            if (listContainer) {
-                listContainer.innerHTML = '<p class="loading">No judge results found</p>';
-            }
-            return;
-        }
-
-        // Group results by PR ID, collecting all agents for each PR
-        const prResultsMap = new Map();
-
-        for (const judgeRun of judgeRuns) {
-            // Use test_label as sample version, default to 'v1' if not set
-            const sampleVersion = judgeRun.test_label || 'v1';
-
-            for (const prId of judgeRun.pr_ids) {
-                try {
-                    // Try to load judge result for this PR
-                    const judgeResponse = await fetch(`/api/judges/llm/claude-sonnet-4-5/${judgeRun.judge_run_id}/${prId}/judge.json`);
-                    if (!judgeResponse.ok) continue;
-
-                    const judgeData = await judgeResponse.json();
-
-                    // Initialize PR entry if not exists
-                    if (!prResultsMap.has(prId)) {
-                        // Load sample data to get PR title
-                        const sampleResponse = await fetch(`/api/samples/${sampleVersion}/${prId}/sample.json`);
-                        let prTitle = prId;
-                        if (sampleResponse.ok) {
-                            const sampleData = await sampleResponse.json();
-                            prTitle = sampleData.title || prId;
-                        }
-
-                        prResultsMap.set(prId, {
-                            pr_id: prId,
-                            pr_title: prTitle,
-                            sample_version: sampleVersion,
-                            agents: []
-                        });
-                    }
-
-                    // Add agent data to this PR
-                    prResultsMap.get(prId).agents.push({
-                        runner: judgeRun.runner,
-                        model: judgeRun.model,
-                        edit_run_id: judgeRun.edit_run_id,
-                        judge_run_id: judgeRun.judge_run_id,
-                        judge_data: judgeData
-                    });
-                } catch (err) {
-                    console.warn(`Failed to load judge result for ${prId} (${judgeRun.runner}:${judgeRun.model}):`, err);
-                }
-            }
-        }
-
-        const prResults = Array.from(prResultsMap.values());
-
-        if (prResults.length === 0) {
-            const listContainer = document.getElementById('analysis-list');
-            if (listContainer) {
-                listContainer.innerHTML = '<p class="loading">No PR results found</p>';
-            }
-            return;
-        }
-
-        // Display list of PRs with judge results
-        displaySingleAgentPRList(prResults);
-    } catch (error) {
-        console.error('Error loading single-agent PR details:', error);
-        const listContainer = document.getElementById('analysis-list');
-        if (listContainer) {
-            listContainer.innerHTML = '<p class="loading">Error loading PR results</p>';
-        }
-    }
-}
-
-/**
- * Display list of PRs with single-agent judge results
- */
-function displaySingleAgentPRList(prResults) {
-    const listContainer = document.getElementById('analysis-list');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = '';
-
-    // Update section title
-    const sectionTitle = document.querySelector('.cross-agent-details h2');
-    if (sectionTitle) {
-        sectionTitle.textContent = 'PR Details';
-    }
-
-    const sectionDescription = document.querySelector('.cross-agent-details .section-description');
-    if (sectionDescription) {
-        sectionDescription.textContent = 'View judge scores and analysis for each PR';
-    }
-
-    prResults.forEach(pr => {
-        const card = document.createElement('div');
-        card.className = 'analysis-card';
-        card.style.cursor = 'pointer';
-
-        // Determine winner if multiple agents
-        let winnerBadge = '';
-        let displayAgent = pr.agents[0];
-        let aggregate = displayAgent.judge_data.aggregate || 0;
-        let scores = displayAgent.judge_data.scores || {};
-
-        if (pr.agents.length > 1) {
-            // Find the agent with the highest aggregate score
-            const sortedAgents = [...pr.agents].sort((a, b) => {
-                const aggA = a.judge_data.aggregate || 0;
-                const aggB = b.judge_data.aggregate || 0;
-                return aggB - aggA;
-            });
-
-            displayAgent = sortedAgents[0];
-            aggregate = displayAgent.judge_data.aggregate || 0;
-            scores = displayAgent.judge_data.scores || {};
-
-            const winnerName = `${displayAgent.runner}:${displayAgent.model}`;
-            winnerBadge = `<span class="winner-badge">🏆 ${winnerName}</span>`;
-        }
-
-        // Determine color based on aggregate score
-        let scoreClass = 'neutral';
-        if (aggregate > 0.5) scoreClass = 'positive';
-        else if (aggregate < -0.5) scoreClass = 'negative';
-
-        // Show agent count if multiple agents
-        const agentCountBadge = pr.agents.length > 1
-            ? `<span class="agent-count-badge">${pr.agents.length} agents</span>`
-            : '';
-
-        card.innerHTML = `
-            <div class="analysis-card-header">
-                <h4>${pr.pr_title}</h4>
-                <div>
-                    <span class="score-badge ${scoreClass}">${(aggregate * 100).toFixed(0)}%</span>
-                    ${agentCountBadge}
-                    ${winnerBadge}
-                </div>
-            </div>
-            <div class="analysis-card-body">
-                <div class="metric-row">
-                    <span class="metric-label">Correctness:</span>
-                    <span class="metric-value">${(scores.correctness || 0) * 100}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Completeness:</span>
-                    <span class="metric-value">${(scores.completeness || 0) * 100}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Code Reuse:</span>
-                    <span class="metric-value">${(scores.code_reuse || 0) * 100}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Best Practices:</span>
-                    <span class="metric-value">${(scores.best_practices || 0) * 100}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Unsolicited Docs:</span>
-                    <span class="metric-value">${(scores.unsolicited_docs || 0) * 100}%</span>
-                </div>
-            </div>
-        `;
-
-        card.addEventListener('click', () => {
-            displaySingleAgentPRDetail(pr);
-        });
-
-        listContainer.appendChild(card);
-    });
-}
-
-/**
- * Load task instructions for a PR
- */
-async function loadTaskInstructions(prId, sampleVersion = 'v1') {
-    try {
-        const response = await fetch(`/api/samples/${sampleVersion}/${prId}/sample.json`);
-        if (!response.ok) {
-            document.getElementById('task-instructions').textContent = 'Task instructions not available';
-            return;
-        }
-        const sampleData = await response.json();
-        const instructions = sampleData.task_instructions || sampleData.description || 'No task instructions available';
-        document.getElementById('task-instructions').textContent = instructions;
-    } catch (error) {
-        console.error('Error loading task instructions:', error);
-        document.getElementById('task-instructions').textContent = 'Error loading task instructions';
-    }
-}
-
-/**
- * Display detailed view for a single PR with judge results
- */
-function displaySingleAgentPRDetail(pr) {
-    // Hide list, show detail
-    document.getElementById('analysis-list').style.display = 'none';
-    document.getElementById('analysis-detail').style.display = 'block';
-
-    // Set title
-    document.getElementById('detail-title').textContent = pr.pr_title;
-
-    // Load and display task instructions
-    const sampleVersion = pr.sample_version || 'v1';
-    loadTaskInstructions(pr.pr_id, sampleVersion);
-
-    // Hide comparative section (not applicable for single-agent)
-    document.getElementById('comparative-section').style.display = 'none';
-
-    // Display agent results (now supports multiple agents)
-    displaySingleAgentResults(pr);
-
-    // Initialize side-by-side agent/human inspector (now supports multiple agents)
-    initSingleAgentComparison(pr);
-
-    // Display judge rationale (for the first/selected agent)
-    displayJudgeRationale(pr);
-}
-
-/**
- * Display agent results for single-agent evaluation
- */
-function displaySingleAgentResults(pr) {
-    const tbody = document.getElementById('agent-results-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    // Sort agents by aggregate score descending
-    const sortedAgents = [...pr.agents].sort((a, b) => {
-        const aggA = a.judge_data.aggregate || 0;
-        const aggB = b.judge_data.aggregate || 0;
-        return aggB - aggA;
-    });
-
-    sortedAgents.forEach((agent, index) => {
-        const aggregate = agent.judge_data.aggregate || 0;
-        const rank = index + 1;
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${rank}</td>
-            <td><strong>${agent.runner}:${agent.model}</strong></td>
-            <td>-</td>
-            <td>-</td>
-            <td>${(aggregate * 100).toFixed(1)}%</td>
-            <td>-</td>
-        `;
-
-        tbody.appendChild(row);
-    });
-}
-
-/**
- * Display judge rationale in the agent details container
- * Shows rationale for all agents if multiple agents are present
- */
-function displayJudgeRationale(pr) {
-    const container = document.getElementById('agent-details-container');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    // Display judge analysis for each agent
-    pr.agents.forEach((agent, index) => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const scores = agent.judge_data.scores || {};
-        const aggregate = agent.judge_data.aggregate || 0;
-        const rationale = agent.judge_data.rationale || 'No rationale provided';
-
-        // Add agent identifier if multiple agents
-        const agentHeader = pr.agents.length > 1
-            ? `<h4>Judge Analysis - ${agent.runner}:${agent.model}</h4>`
-            : `<h4>Judge Analysis</h4>`;
-
-        card.innerHTML = `
-            ${agentHeader}
-            <div class="judge-scores">
-                <div class="score-item">
-                    <span class="score-label">Aggregate:</span>
-                    <span class="score-value">${(aggregate * 100).toFixed(1)}%</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Correctness:</span>
-                    <span class="score-value">${(scores.correctness || 0) * 100}%</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Completeness:</span>
-                    <span class="score-value">${(scores.completeness || 0) * 100}%</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Code Reuse:</span>
-                    <span class="score-value">${(scores.code_reuse || 0) * 100}%</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Best Practices:</span>
-                    <span class="score-value">${(scores.best_practices || 0) * 100}%</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Unsolicited Docs:</span>
-                    <span class="score-value">${(scores.unsolicited_docs || 0) * 100}%</span>
-                </div>
-            </div>
-            <div class="rationale-section">
-                <h5>Overall Rationale</h5>
-                <p>${rationale}</p>
-            </div>
-        `;
-
-        container.appendChild(card);
-
-        // Add spacing between cards if multiple agents
-        if (index < pr.agents.length - 1) {
-            const spacer = document.createElement('div');
-            spacer.style.height = '20px';
-            container.appendChild(spacer);
-        }
-    });
-}
-
-/**
  * Load and display head-to-head leaderboard (Elo-based).
+ * Falls back to LLM judge results if no head-to-head results are available.
  */
 async function loadHeadToHeadLeaderboard() {
     const tbody = document.getElementById('h2h-leaderboard-body');
@@ -502,9 +55,9 @@ async function loadHeadToHeadLeaderboard() {
         const metadata = await loadHeadToHeadMetadata();
 
         if (!metadata || metadata.length === 0) {
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">No head-to-head results found. Run head-to-head evaluation first.</td></tr>';
-            }
+            // Fall back to LLM judge results
+            console.log('No head-to-head results found, falling back to LLM judge results');
+            await loadLLMJudgeLeaderboard();
             return;
         }
 
@@ -513,8 +66,14 @@ async function loadHeadToHeadLeaderboard() {
         displayHeadToHeadLeaderboard(headToHeadLeaderboard);
     } catch (error) {
         console.error('Error loading head-to-head leaderboard:', error);
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading head-to-head results</td></tr>';
+        // Try LLM judge fallback
+        try {
+            await loadLLMJudgeLeaderboard();
+        } catch (fallbackError) {
+            console.error('Error loading LLM judge fallback:', fallbackError);
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading results</td></tr>';
+            }
         }
     }
 }
@@ -755,7 +314,77 @@ function displayHeadToHeadLeaderboard(leaderboard) {
 }
 
 /**
+ * Load and display LLM judge leaderboard (fallback when no head-to-head results).
+ */
+async function loadLLMJudgeLeaderboard() {
+    const tbody = document.getElementById('h2h-leaderboard-body');
+    if (!tbody) return;
+
+    try {
+        const index = await loadIndex();
+
+        if (!index.runs || index.runs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">No results found</td></tr>';
+            return;
+        }
+
+        // Filter to runs with mean_aggregate scores (all test labels)
+        const llmRuns = index.runs
+            .filter(run => run.mean_aggregate !== undefined && run.total_samples >= 40)
+            .map(run => ({
+                runner: run.runner,
+                model: run.model,
+                aggregate_score: run.mean_aggregate,
+                success_rate: run.success_rate,
+                total_samples: run.total_samples
+            }))
+            .sort((a, b) => b.aggregate_score - a.aggregate_score);
+
+        if (llmRuns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">No LLM judge results found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        const medals = ['🥇', '🥈', '🥉'];
+
+        llmRuns.forEach((agent, index) => {
+            const row = document.createElement('tr');
+            const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
+
+            row.innerHTML = `
+                <td>${rankDisplay}</td>
+                <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
+                <td>${agent.aggregate_score.toFixed(3)}</td>
+                <td>${agent.total_samples || 0}</td>
+                <td>${formatPercentage(agent.success_rate / 100)}</td>
+                <td>-</td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        // Update table header for LLM judge mode
+        const thead = tbody.closest('table')?.querySelector('thead tr');
+        if (thead) {
+            thead.innerHTML = `
+                <th>Rank</th>
+                <th>Agent</th>
+                <th>Aggregate Score</th>
+                <th>Tasks</th>
+                <th>Success Rate</th>
+                <th>-</th>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading LLM judge leaderboard:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Error loading LLM judge results</td></tr>';
+    }
+}
+
+/**
  * Load and display head-to-head PR details
+ * Falls back to LLM judge PR details if no head-to-head results are available.
  */
 async function loadHeadToHeadPRDetails() {
     try {
@@ -763,10 +392,9 @@ async function loadHeadToHeadPRDetails() {
         const metadata = await loadHeadToHeadMetadata();
 
         if (!metadata || metadata.length === 0) {
-            const listContainer = document.getElementById('analysis-list');
-            if (listContainer) {
-                listContainer.innerHTML = '<p class="loading">No head-to-head results found</p>';
-            }
+            // Fall back to LLM judge PR details
+            console.log('No head-to-head PR details found, falling back to LLM judge PR details');
+            await loadLLMJudgePRDetails();
             return;
         }
 
@@ -774,11 +402,122 @@ async function loadHeadToHeadPRDetails() {
         displayHeadToHeadPRList(metadata);
     } catch (error) {
         console.error('Error loading head-to-head PR details:', error);
-        const listContainer = document.getElementById('analysis-list');
-        if (listContainer) {
-            listContainer.innerHTML = '<p class="loading">Error loading head-to-head results</p>';
+        try {
+            await loadLLMJudgePRDetails();
+        } catch (fallbackError) {
+            console.error('Error loading LLM judge PR details fallback:', fallbackError);
+            const listContainer = document.getElementById('analysis-list');
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="loading">Error loading results</p>';
+            }
         }
     }
+}
+
+/**
+ * Load and display LLM judge PR details (fallback when no head-to-head results).
+ */
+async function loadLLMJudgePRDetails() {
+    const listContainer = document.getElementById('analysis-list');
+    if (!listContainer) return;
+
+    try {
+        const index = await loadIndex();
+
+        if (!index.runs || index.runs.length === 0) {
+            listContainer.innerHTML = '<p class="loading">No results found</p>';
+            return;
+        }
+
+        // Get all PRs from runs with mean_aggregate scores
+        const prMap = new Map(); // pr_id -> { pr_id, agents: [{runner, model, run_id, judge_run_id}] }
+
+        for (const run of index.runs) {
+            if (!run.mean_aggregate || !run.pr_ids || run.total_samples < 40) continue;
+
+            const agentKey = `${run.runner}:${run.model}`;
+
+            for (const prId of run.pr_ids) {
+                if (!prMap.has(prId)) {
+                    prMap.set(prId, {
+                        pr_id: prId,
+                        agents: [],
+                        pr_number: extractPRNumber(prId)
+                    });
+                }
+
+                prMap.get(prId).agents.push({
+                    runner: run.runner,
+                    model: run.model,
+                    agentKey: agentKey,
+                    edit_run_id: run.edit_run_id,
+                    judge_run_id: run.judge_run_id || run.run_id
+                });
+            }
+        }
+
+        if (prMap.size === 0) {
+            listContainer.innerHTML = '<p class="loading">No PR results found</p>';
+            return;
+        }
+
+        // Sort PRs by number
+        const prList = Array.from(prMap.values()).sort((a, b) => a.pr_number - b.pr_number);
+
+        // Create table
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>PR Number</th>
+                    <th>Agents</th>
+                    <th>Winner</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="llm-pr-list-body"></tbody>
+        `;
+
+        listContainer.innerHTML = '';
+        listContainer.appendChild(table);
+
+        const tbody = document.getElementById('llm-pr-list-body');
+
+        for (const pr of prList) {
+            const row = document.createElement('tr');
+            const agentCount = pr.agents.length;
+            const agentList = pr.agents.map(a => a.agentKey).join(', ');
+
+            // For winner, we'd need to load judge results - for now show TBD
+            const winnerLabel = '🏆 TBD';
+
+            row.innerHTML = `
+                <td><strong>${pr.pr_number}</strong></td>
+                <td>${agentCount} agent${agentCount !== 1 ? 's' : ''}</td>
+                <td>${winnerLabel}</td>
+                <td>
+                    <button class="btn-primary" onclick="showLLMJudgeDetail('${pr.pr_id}')">
+                        View Details
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        }
+
+    } catch (error) {
+        console.error('Error loading LLM judge PR details:', error);
+        listContainer.innerHTML = '<p class="loading">Error loading LLM judge PR details</p>';
+    }
+}
+
+/**
+ * Extract PR number from PR ID (e.g., "elastic_elasticsearch_pr134296" -> 134296)
+ */
+function extractPRNumber(prId) {
+    const match = prId.match(/pr(\d+)$/);
+    return match ? parseInt(match[1]) : 0;
 }
 
 /**
@@ -949,6 +688,189 @@ async function showHeadToHeadDetail(runId, prNumber) {
     } catch (error) {
         console.error('Error showing head-to-head detail:', error);
         alert('Error loading head-to-head details');
+    }
+}
+
+/**
+ * Show LLM judge detail view for a specific PR
+ */
+async function showLLMJudgeDetail(prId) {
+    try {
+        const index = await loadIndex();
+
+        // Find all runs that have this PR
+        const runsWithPR = index.runs.filter(run =>
+            run.pr_ids && run.pr_ids.includes(prId) && run.total_samples >= 40
+        );
+
+        if (runsWithPR.length === 0) {
+            alert('No results found for PR ' + prId);
+            return;
+        }
+
+        // Load judge results for each agent
+        const agentResults = [];
+        const prNumber = extractPRNumber(prId);
+
+        // Try to load sample.json for task instructions
+        let taskInstructions = 'N/A';
+        let humanDiff = '';
+        try {
+            const samplePath = `samples/v1/${prId}/sample.json`;
+            const sampleResponse = await fetch(samplePath);
+            if (sampleResponse.ok) {
+                const sampleData = await sampleResponse.json();
+                taskInstructions = sampleData.task_instructions ||
+                                  sampleData.synthesized_task_instructions ||
+                                  'N/A';
+            }
+        } catch (err) {
+            console.warn(`Could not load sample.json for ${prId}:`, err);
+        }
+
+        for (const run of runsWithPR) {
+            const agentKey = `${run.runner}:${run.model}`;
+            const judgeRunId = run.judge_run_id || run.run_id;
+            const editRunId = run.edit_run_id;
+
+            // Load judge result
+            const judgePath = `judges/llm/claude-sonnet-4-5/${judgeRunId}/${prId}/judge.json`;
+            const editPath = `edits/${run.runner}/${run.model.replace('-mcp', '')}/${editRunId}/${prId}/edit.json`;
+
+            try {
+                const [judgeResponse, editResponse] = await Promise.all([
+                    fetch(judgePath),
+                    fetch(editPath)
+                ]);
+
+                if (judgeResponse.ok && editResponse.ok) {
+                    const judgeData = await judgeResponse.json();
+                    const editData = await editResponse.json();
+
+                    // Get human diff from judge data if available
+                    if (judgeData.ground_truth_patch && !humanDiff) {
+                        humanDiff = judgeData.ground_truth_patch;
+                    }
+
+                    agentResults.push({
+                        runner: run.runner,
+                        model: run.model,
+                        agentKey: agentKey,
+                        judge: judgeData,
+                        edit: editData,
+                        edit_run_id: editRunId
+                    });
+                }
+            } catch (err) {
+                console.error(`Error loading data for ${agentKey}:`, err);
+            }
+        }
+
+        if (agentResults.length === 0) {
+            alert('Could not load judge results for PR ' + prId);
+            return;
+        }
+
+        // Hide list, show detail
+        document.getElementById('analysis-list').style.display = 'none';
+        document.getElementById('analysis-detail').style.display = 'block';
+
+        // Set title
+        document.getElementById('detail-title').textContent = `PR ${prNumber} - LLM Judge Results`;
+
+        // Show task instructions
+        document.getElementById('task-instructions').textContent = taskInstructions;
+
+        // Hide pairwise decisions section (not used in LLM judge)
+        const pairwiseSection = document.getElementById('pairwise-decisions-section');
+        if (pairwiseSection) {
+            pairwiseSection.style.display = 'none';
+        }
+
+        // Display agent results with LLM judge scores
+        displayLLMJudgeAgentResults(agentResults);
+
+        // Initialize side-by-side comparison
+        if (typeof initAgentComparison === 'function') {
+            // Adapt the data structure for the comparison viewer
+            const adaptedResult = {
+                pr_number: prNumber,
+                pr_id: prId,
+                task_instructions: taskInstructions,
+                agent_results: agentResults.map(ar => ({
+                    runner: ar.runner,
+                    model: ar.model,
+                    edit_run_id: ar.edit_run_id,
+                    patch_unified: ar.edit.patch_unified || ar.edit.diff || '',
+                    elapsed_ms: ar.edit.elapsed_ms || 0,
+                    logs_path: ar.edit.logs_path || '',
+                    llm_summary: ar.judge.rationale || 'No judge rationale available',
+                    judge_scores: ar.judge.scores || {}
+                })),
+                human_diff: humanDiff,
+                repo_url: agentResults[0].judge.repo_url || '',
+                base_commit: agentResults[0].judge.base_commit || '',
+                head_commit: agentResults[0].judge.head_commit || ''
+            };
+            initAgentComparison(adaptedResult);
+        }
+
+    } catch (error) {
+        console.error('Error showing LLM judge detail:', error);
+        alert('Error loading LLM judge details');
+    }
+}
+
+/**
+ * Display agent results for LLM judge
+ */
+function displayLLMJudgeAgentResults(agentResults) {
+    const tbody = document.getElementById('agent-results-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Sort by aggregate score (descending)
+    const sorted = [...agentResults].sort((a, b) => {
+        const scoreA = a.judge.aggregate || 0;
+        const scoreB = b.judge.aggregate || 0;
+        return scoreB - scoreA;
+    });
+
+    sorted.forEach((agentResult, index) => {
+        const agentId = agentResult.agentKey;
+        const judge = agentResult.judge;
+
+        const aggregateScore = judge.aggregate?.toFixed(3) || 'N/A';
+        const correctness = judge.scores?.correctness?.toFixed(3) || 'N/A';
+        const completeness = judge.scores?.completeness?.toFixed(3) || 'N/A';
+        const codeQuality = judge.scores?.best_practices?.toFixed(3) || 'N/A';
+        const elapsedSec = (agentResult.edit.elapsed_ms / 1000).toFixed(1);
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><strong>${agentId}</strong></td>
+            <td>${aggregateScore}</td>
+            <td title="Correctness: ${correctness}, Completeness: ${completeness}, Quality: ${codeQuality}">
+                ${correctness} / ${completeness} / ${codeQuality}
+            </td>
+            <td>${elapsedSec}s</td>
+        `;
+
+        tbody.appendChild(row);
+    });
+
+    // Update table header for LLM judge mode
+    const thead = tbody.closest('table')?.querySelector('thead tr');
+    if (thead) {
+        thead.innerHTML = `
+            <th>Rank</th>
+            <th>Agent</th>
+            <th>Aggregate</th>
+            <th>Scores (C/C/Q)</th>
+            <th>Time</th>
+        `;
     }
 }
 
@@ -1271,24 +1193,31 @@ function displayAgentDiffsAndLogs(agentResults) {
 	                </div>
 	            `;
 	        } else if (viewType === 'diff') {
-	            try {
-	                const diff = await loadGroundTruthDiffFromCommits(
-	                    result.repo_url,
-	                    result.base_commit,
-	                    result.head_commit,
-	                );
-	                if (!diff) {
-	                    contentEl.innerHTML = '<em>Error loading human diff. This may require GitHub API access.</em>';
-	                    return;
+	            // Try to use the human_diff from the result first
+	            let diff = result.human_diff;
+
+	            // If not available, try to load from GitHub API
+	            if (!diff) {
+	                try {
+	                    diff = await loadGroundTruthDiffFromCommits(
+	                        result.repo_url,
+	                        result.base_commit,
+	                        result.head_commit,
+	                    );
+	                } catch (error) {
+	                    console.error('Error loading human diff from GitHub:', error);
 	                }
-	                if (typeof colorizeDiff === 'function') {
-	                    contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diff)}</pre>`;
-	                } else {
-	                    contentEl.textContent = diff;
-	                }
-	            } catch (error) {
-	                console.error('Error loading human diff for comparison view:', error);
-	                contentEl.innerHTML = '<em>Error loading human diff. This may require GitHub API access.</em>';
+	            }
+
+	            if (!diff) {
+	                contentEl.innerHTML = '<em>No human diff available.</em>';
+	                return;
+	            }
+
+	            if (typeof colorizeDiff === 'function') {
+	                contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diff)}</pre>`;
+	            } else {
+	                contentEl.textContent = diff;
 	            }
 	        } else if (viewType === 'logs') {
 	            contentEl.innerHTML = '<em>Human baseline has no execution logs.</em>';
@@ -1972,246 +1901,3 @@ function displayComparisonTable(summaries) {
     });
 }
 
-/**
- * Initialize the side-by-side agent/human inspector for single-agent evaluation
- */
-let currentSingleAgentComparison = null;
-
-function initSingleAgentComparison(pr) {
-    const card = document.getElementById('agent-comparison-card');
-    if (!card) return;
-
-    // Store the PR data for comparison
-    // Default to first agent if multiple agents available
-    const defaultAgent = pr.agents[0];
-    currentSingleAgentComparison = {
-        pr,
-        selection: {
-            left: `agent:${defaultAgent.runner}:${defaultAgent.model}`,
-            right: 'human',
-        },
-        view: {
-            left: 'diff',
-            right: 'diff',
-        },
-    };
-
-    // Build both columns
-    buildSingleAgentComparisonColumn('left');
-    buildSingleAgentComparisonColumn('right');
-
-    // Show the card
-    card.style.display = 'block';
-
-    // Render initial content
-    updateSingleAgentComparisonSide('left');
-    updateSingleAgentComparisonSide('right');
-}
-
-/**
- * Build one side (left/right) of the comparison UI for single-agent
- */
-function buildSingleAgentComparisonColumn(side) {
-    if (!currentSingleAgentComparison) return;
-    const { pr } = currentSingleAgentComparison;
-
-    const columnId = side === 'left' ? 'agent-comparison-left' : 'agent-comparison-right';
-    const column = document.getElementById(columnId);
-    if (!column) return;
-
-    const selectId = `comparison-${side}-entity`;
-    const viewToggleId = `comparison-${side}-view-toggle`;
-    const contentId = `comparison-${side}-content`;
-    const sideLabelText = side === 'left' ? 'Left side' : 'Right side';
-
-    // Build options: all agents + human
-    const options = [];
-
-    // Add all agents as options
-    pr.agents.forEach(agent => {
-        options.push({
-            value: `agent:${agent.runner}:${agent.model}`,
-            label: `${agent.runner}:${agent.model}`
-        });
-    });
-
-    // Add human option
-    options.push({
-        value: 'human',
-        label: 'Human (ground truth)'
-    });
-
-    const optionsHtml = options.map(opt => {
-        const selected = opt.value === currentSingleAgentComparison.selection[side] ? 'selected' : '';
-        return `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
-    }).join('');
-
-    column.innerHTML = `
-        <div class="agent-comparison-header">
-            <label class="agent-comparison-label">
-                <span>${sideLabelText}</span>
-                <select id="${selectId}" class="agent-comparison-select">
-                    ${optionsHtml}
-                </select>
-            </label>
-            <div class="agent-comparison-view-toggle" id="${viewToggleId}">
-                <button class="btn-action" data-view="summary"><span class="btn-icon">📝</span> Summary</button>
-                <button class="btn-action" data-view="diff"><span class="btn-icon">📄</span> Diff</button>
-                <button class="btn-action" data-view="logs"><span class="btn-icon">📋</span> Logs</button>
-            </div>
-        </div>
-        <div id="${contentId}" class="agent-comparison-content code-block">
-            <em>Loading…</em>
-        </div>
-    `;
-
-    // Add event listeners
-    const selectEl = document.getElementById(selectId);
-    const viewToggleEl = document.getElementById(viewToggleId);
-
-    if (selectEl) {
-        selectEl.addEventListener('change', () => {
-            currentSingleAgentComparison.selection[side] = selectEl.value;
-            updateSingleAgentComparisonSide(side);
-        });
-    }
-
-    if (viewToggleEl) {
-        viewToggleEl.addEventListener('click', (event) => {
-            const btn = event.target.closest('button[data-view]');
-            if (!btn) return;
-
-            const viewType = btn.getAttribute('data-view');
-            currentSingleAgentComparison.view[side] = viewType;
-
-            // Update active state
-            viewToggleEl.querySelectorAll('button[data-view]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            updateSingleAgentComparisonSide(side);
-        });
-
-        // Set initial active button
-        const initialView = currentSingleAgentComparison.view[side] || 'diff';
-        const initialBtn = viewToggleEl.querySelector(`button[data-view="${initialView}"]`);
-        if (initialBtn) {
-            initialBtn.classList.add('active');
-        }
-    }
-}
-
-/**
- * Update the content for one side of the comparison
- */
-async function updateSingleAgentComparisonSide(side) {
-    if (!currentSingleAgentComparison) return;
-    const { pr } = currentSingleAgentComparison;
-
-    const contentId = side === 'left' ? 'comparison-left-content' : 'comparison-right-content';
-    const contentEl = document.getElementById(contentId);
-    if (!contentEl) return;
-
-    const selection = currentSingleAgentComparison.selection[side];
-    const viewType = currentSingleAgentComparison.view[side];
-
-    // Clear content while loading
-    contentEl.innerHTML = '<em>Loading…</em>';
-
-    if (selection.startsWith('agent:')) {
-        // Parse agent selection: "agent:runner:model"
-        const parts = selection.split(':');
-        const runner = parts[1];
-        const model = parts[2];
-
-        // Find the agent data
-        const agent = pr.agents.find(a => a.runner === runner && a.model === model);
-        if (!agent) {
-            contentEl.innerHTML = '<em>Agent not found.</em>';
-            return;
-        }
-
-        // Load agent data
-        try {
-            const editResponse = await fetch(`/api/edits/${runner}/${model}/${agent.edit_run_id}/${pr.pr_id}/edit.json`);
-            if (!editResponse.ok) {
-                contentEl.innerHTML = '<em>Failed to load agent data.</em>';
-                return;
-            }
-            const editData = await editResponse.json();
-
-            if (viewType === 'summary') {
-                const summaryText = editData.llm_summary || 'No summary available';
-                contentEl.innerHTML = `<div style="line-height: 1.6;">${escapeHtml(summaryText)}</div>`;
-            } else if (viewType === 'diff') {
-                const diffText = editData.patch_unified || 'No diff available';
-                contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diffText)}</pre>`;
-            } else if (viewType === 'logs') {
-                const logsPath = editData.logs_path;
-                if (!logsPath) {
-                    contentEl.innerHTML = '<em>No logs available for this agent.</em>';
-                    return;
-                }
-                try {
-                    const response = await fetch(`/api/${logsPath}`);
-                    if (!response.ok) {
-                        contentEl.innerHTML = '<em>Failed to load logs.</em>';
-                        return;
-                    }
-                    const text = await response.text();
-                    const logEntries = text.trim().split('\n').map(line => {
-                        try {
-                            return JSON.parse(line);
-                        } catch {
-                            return { raw: line };
-                        }
-                    });
-                    contentEl.innerHTML = formatLogs(logEntries);
-                } catch (error) {
-                    console.error('Error loading logs:', error);
-                    contentEl.innerHTML = '<em>Error loading logs.</em>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading agent data:', error);
-            contentEl.innerHTML = '<em>Error loading agent data.</em>';
-        }
-    } else if (selection === 'human') {
-        // Human (ground truth) selection
-        // Use the first agent's judge data to get ground truth (same for all agents)
-        const judgeData = pr.agents[0].judge_data;
-        try {
-
-            if (viewType === 'summary') {
-                const repoUrl = judgeData.repo_url || '';
-                const prLink = repoUrl ? `${repoUrl.replace('.git', '')}/pull/${judgeData.pr_number}` : '';
-                const repoName = repoUrl ? repoUrl.split('/').slice(-2).join('/').replace('.git', '') : '';
-                contentEl.innerHTML = `
-                    <div style="line-height: 1.6;">
-                        <p><strong>Human ground truth</strong> for PR #${judgeData.pr_number}${repoName ? ` on ${repoName}` : ''}.</p>
-                        ${prLink ? `<p><a href="${prLink}" target="_blank">Open PR on GitHub</a></p>` : ''}
-                        <p>This is the reference patch used as the human baseline when judging agent submissions.</p>
-                    </div>
-                `;
-            } else if (viewType === 'diff') {
-                const diffText = judgeData.ground_truth_patch || 'Ground truth patch not available. Please re-run the judge stage to generate it.';
-                contentEl.innerHTML = `<pre class="code-block">${colorizeDiff(diffText)}</pre>`;
-            } else if (viewType === 'logs') {
-                contentEl.innerHTML = '<em>Human baseline has no execution logs.</em>';
-            }
-        } catch (error) {
-            console.error('Error loading ground truth data:', error);
-            contentEl.innerHTML = '<em>Error loading ground truth data.</em>';
-        }
-    }
-}
-
-// Set up back button handler for PR details
-document.addEventListener('DOMContentLoaded', () => {
-    const backButton = document.getElementById('back-button');
-    if (backButton) {
-        backButton.addEventListener('click', () => {
-            document.getElementById('analysis-detail').style.display = 'none';
-            document.getElementById('analysis-list').style.display = 'block';
-        });
-    }
-});
