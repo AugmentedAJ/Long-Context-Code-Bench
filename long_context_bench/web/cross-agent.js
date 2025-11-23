@@ -219,45 +219,62 @@ function displayAgentDetails(agentResults) {
                 <button class="btn-action" onclick="toggleSection('diff-${agentId}')">
                     <span class="btn-icon">📄</span> View Diff
                 </button>
-                ${result.logs_path ? `
-                    <button class="btn-action" onclick="toggleSection('logs-${agentId}')">
-                        <span class="btn-icon">📋</span> View Logs
-                    </button>
-                ` : ''}
+                <button class="btn-action" onclick="toggleSection('logs-${agentId}')">
+                    <span class="btn-icon">📋</span> View Logs
+                </button>
             </div>
             <div id="diff-${agentId}" class="collapsible-section" style="display: none;">
                 <pre class="code-block">${colorizeDiff(result.patch_unified)}</pre>
             </div>
-            ${result.logs_path ? `
-                <div id="logs-${agentId}" class="collapsible-section logs-container" style="display: none;">
-                    <div style="text-align: center; padding: 20px; color: #666;">
-                        <em>Loading logs...</em>
-                    </div>
+            <div id="logs-${agentId}" class="collapsible-section logs-container" style="display: none;">
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <em>Loading logs...</em>
                 </div>
-            ` : ''}
+            </div>
         </div>
         `;
     }).join('');
 
     container.innerHTML = html;
 
-    // Load logs for each agent that has logs_path
+    // Load logs for each agent
     agentResults.forEach(result => {
-        if (result.logs_path) {
-            const agentId = `${result.runner}-${result.model}-${result.edit_run_id}`.replace(/[^a-zA-Z0-9-]/g, '-');
-            loadAgentLogs(result.logs_path, agentId);
-        }
+        const agentId = `${result.runner}-${result.model}-${result.edit_run_id}`.replace(/[^a-zA-Z0-9-]/g, '-');
+        loadAgentLogs(result.logs_path, agentId, result.errors);
     });
 }
 
 /**
  * Load and display agent logs
  */
-async function loadAgentLogs(logsPath, agentId) {
+async function loadAgentLogs(logsPath, agentId, errors = null) {
     const container = document.getElementById(`logs-${agentId}`);
 
+    if (!logsPath) {
+        // No logs path - show error message if available
+        if (errors && errors.length > 0) {
+            const errorHtml = errors.map(err =>
+                `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 4px; margin-bottom: 8px;">
+                    <strong>Error:</strong><br>
+                    <pre style="margin-top: 8px; white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(err)}</pre>
+                </div>`
+            ).join('');
+            container.innerHTML = `
+                <div style="padding: 10px;">
+                    <p style="color: #666; margin-bottom: 12px;"><em>Agent failed before logs could be generated.</em></p>
+                    ${errorHtml}
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<div style="padding: 10px; color: #666;"><em>No logs available for this agent.</em></div>';
+        }
+        return;
+    }
+
     try {
-        const response = await fetch(`${API_BASE}/${logsPath}`);
+        // Prepend 'edits/' if not already present
+        const normalizedLogsPath = logsPath.startsWith('edits/') ? logsPath : `edits/${logsPath}`;
+        const response = await fetch(`${API_BASE}/${normalizedLogsPath}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }

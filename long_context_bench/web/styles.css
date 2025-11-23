@@ -991,7 +991,7 @@ footer {
     border-radius: 4px;
     padding: 16px;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 9px;
     line-height: 1.6;
     overflow-x: auto;
     white-space: pre-wrap;
@@ -1225,7 +1225,7 @@ footer {
 .log-stdout pre,
 .log-stderr pre {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 8.4px;
     line-height: 1.5;
     margin: 8px 0;
     padding: 8px;
@@ -1243,7 +1243,7 @@ footer {
 
 .log-details {
     margin-top: 8px;
-    font-size: 13px;
+    font-size: 9px;
 }
 
 .log-detail {
@@ -1287,7 +1287,7 @@ footer {
     border-left: 3px solid var(--border-color);
     padding: 10px 12px;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 9px;
 }
 
 .log-entry.log-start {

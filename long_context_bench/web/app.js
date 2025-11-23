@@ -1217,11 +1217,9 @@ function displayAgentDiffsAndLogs(agentResults) {
                         <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'diff')">
                             <span class="btn-icon">📄</span> Diff
                         </button>
-                        ${agentResult.logs_path ? `
-                            <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'logs', '${agentResult.logs_path}')">
-                                <span class="btn-icon">📋</span> Logs
-                            </button>
-                        ` : ''}
+                        <button class="btn-action" onclick="showAgentView('${agentIdSafe}', 'logs', '${agentResult.logs_path || ''}')">
+                            <span class="btn-icon">📋</span> Logs
+                        </button>
                     </div>
                 </div>
                 <div id="summary-${agentIdSafe}" class="agent-view-section">
@@ -1232,13 +1230,11 @@ function displayAgentDiffsAndLogs(agentResults) {
                 <div id="diff-${agentIdSafe}" class="agent-view-section" style="display: none;">
                     <pre class="code-block">${colorizeDiff(agentResult.patch_unified || 'No diff available')}</pre>
                 </div>
-                ${agentResult.logs_path ? `
-                    <div id="logs-${agentIdSafe}" class="agent-view-section logs-container" style="display: none;">
-                        <div style="text-align: center; padding: 20px; color: #666;">
-                            <em>Click "Logs" button to load...</em>
-                        </div>
+                <div id="logs-${agentIdSafe}" class="agent-view-section logs-container" style="display: none;">
+                    <div style="text-align: center; padding: 20px; color: #666;">
+                        <em>Click "Logs" button to load...</em>
                     </div>
-                ` : ''}
+                </div>
             </div>
         `;
     }).join('');
@@ -1438,13 +1434,31 @@ function displayAgentDiffsAndLogs(agentResults) {
 	        } else if (viewType === 'logs') {
 	            const logsPath = agentResult.logs_path;
 	            if (!logsPath) {
-	                contentEl.innerHTML = '<em>No logs available for this agent.</em>';
+	                // Show error information if available
+	                if (agentResult.errors && agentResult.errors.length > 0) {
+	                    const errorHtml = agentResult.errors.map(err =>
+	                        `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 4px; margin-bottom: 8px;">
+	                            <strong>Error:</strong><br>
+	                            <pre style="margin-top: 8px; white-space: pre-wrap; word-wrap: break-word;">${typeof escapeHtml === 'function' ? escapeHtml(err) : err}</pre>
+	                        </div>`
+	                    ).join('');
+	                    contentEl.innerHTML = `
+	                        <div style="padding: 10px;">
+	                            <p style="color: #666; margin-bottom: 12px;"><em>Agent failed before logs could be generated.</em></p>
+	                            ${errorHtml}
+	                        </div>
+	                    `;
+	                } else {
+	                    contentEl.innerHTML = '<div style="padding: 10px; color: #666;"><em>No logs available for this agent.</em></div>';
+	                }
 	                return;
 	            }
 	            try {
-	                const response = await fetch(`${API_BASE}/${logsPath}`);
+	                // Prepend 'edits/' if not already present
+	                const normalizedLogsPath = logsPath.startsWith('edits/') ? logsPath : `edits/${logsPath}`;
+	                const response = await fetch(`${API_BASE}/${normalizedLogsPath}`);
 	                if (!response.ok) {
-	                    contentEl.innerHTML = '<em>Failed to load logs.</em>';
+	                    contentEl.innerHTML = '<div style="padding: 10px; color: #d32f2f;"><em>Failed to load logs.</em></div>';
 	                    return;
 	                }
 	                const text = await response.text();
@@ -1462,7 +1476,7 @@ function displayAgentDiffsAndLogs(agentResults) {
 	                }
 	            } catch (error) {
 	                console.error('Error loading logs for comparison view:', error);
-	                contentEl.innerHTML = '<em>Error loading logs.</em>';
+	                contentEl.innerHTML = '<div style="padding: 10px; color: #d32f2f;"><em>Error loading logs.</em></div>';
 	            }
 	        }
 	    } else {
@@ -1535,32 +1549,39 @@ async function showAgentView(agentIdSafe, viewType, logsPath = null) {
         logsSection.style.display = 'block';
 
         // Load logs if not yet loaded
-        if (logsPath && logsSection.querySelector('em')) {
-            logsSection.innerHTML = '<div style="text-align: center; padding: 20px;"><em>Loading logs...</em></div>';
+        if (logsSection.querySelector('em')) {
+            if (!logsPath) {
+                // No logs path - show error message if available from agentResult
+                logsSection.innerHTML = '<div style="padding: 10px; color: #666;"><em>No logs available for this agent.</em></div>';
+            } else {
+                logsSection.innerHTML = '<div style="text-align: center; padding: 20px;"><em>Loading logs...</em></div>';
 
-            try {
-                const response = await fetch(`${API_BASE}/${logsPath}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const text = await response.text();
-                const lines = text.trim().split('\n');
-                const logEntries = lines.map(line => {
-                    try {
-                        return JSON.parse(line);
-                    } catch (e) {
-                        return { raw: line };
+                try {
+                    // Prepend 'edits/' if not already present
+                    const normalizedLogsPath = logsPath.startsWith('edits/') ? logsPath : `edits/${logsPath}`;
+                    const response = await fetch(`${API_BASE}/${normalizedLogsPath}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
                     }
-                });
 
-                logsSection.innerHTML = formatLogs(logEntries);
-            } catch (error) {
-                logsSection.innerHTML = `
-                    <div style="color: #d32f2f; padding: 10px;">
-                        <strong>Error loading logs:</strong> ${error.message}
-                    </div>
-                `;
+                    const text = await response.text();
+                    const lines = text.trim().split('\n');
+                    const logEntries = lines.map(line => {
+                        try {
+                            return JSON.parse(line);
+                        } catch (e) {
+                            return { raw: line };
+                        }
+                    });
+
+                    logsSection.innerHTML = formatLogs(logEntries);
+                } catch (error) {
+                    logsSection.innerHTML = `
+                        <div style="color: #d32f2f; padding: 10px;">
+                            <strong>Error loading logs:</strong> ${error.message}
+                        </div>
+                    `;
+                }
             }
         }
     }
