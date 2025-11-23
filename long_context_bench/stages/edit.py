@@ -133,6 +133,7 @@ def run_edit_on_sample(
     test_label: Optional[str] = None,
     use_synthesized: bool = False,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
 ) -> Edit:
     """Run edit stage on a single sample.
 
@@ -152,6 +153,7 @@ def run_edit_on_sample(
         test_label: Optional test label for grouping runs
         use_synthesized: If True, use synthesized task instructions instead of template-based
         stream_output: If True, stream agent output to console in real-time
+        mcp_config_path: Optional path to MCP configuration file
 
     Returns:
         Edit object
@@ -252,6 +254,7 @@ def run_edit_on_sample(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        mcp_config_path=mcp_config_path,
         stream_output=stream_output,
     )
     

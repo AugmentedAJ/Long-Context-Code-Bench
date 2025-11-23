@@ -28,6 +28,7 @@ class RunnerAdapter(ABC):
         disable_retrieval: bool = False,
         disable_shell: bool = False,
         enable_mcp_codebase_qa: bool = False,
+        mcp_config_path: Optional[str] = None,
         stream_output: bool = False,
         **kwargs: Any,
     ):
@@ -40,6 +41,7 @@ class RunnerAdapter(ABC):
             disable_retrieval: Disable retrieval features
             disable_shell: Disable shell access
             enable_mcp_codebase_qa: Enable MCP codebase QA
+            mcp_config_path: Optional path to MCP configuration file
             stream_output: Stream agent output to console in real-time
             **kwargs: Additional adapter-specific arguments
         """
@@ -49,6 +51,7 @@ class RunnerAdapter(ABC):
         self.disable_retrieval = disable_retrieval
         self.disable_shell = disable_shell
         self.enable_mcp_codebase_qa = enable_mcp_codebase_qa
+        self.mcp_config_path = mcp_config_path
         self.stream_output = stream_output
         self.extra_kwargs = kwargs
     

@@ -65,7 +65,7 @@ def get_dataset_path(dataset_version: str) -> Path:
     """Get path to built-in dataset file.
 
     Args:
-        dataset_version: Dataset version (e.g., 'v0')
+        dataset_version: Dataset version (e.g., 'v0', 'v1')
 
     Returns:
         Path to dataset JSON file
@@ -73,7 +73,13 @@ def get_dataset_path(dataset_version: str) -> Path:
     # Get the package directory
     import long_context_bench
     package_dir = Path(long_context_bench.__file__).parent.parent
-    dataset_path = package_dir / "data" / f"elasticsearch_prs_50.json"
+
+    # Map dataset versions to their corresponding files
+    if dataset_version == "v1":
+        dataset_path = package_dir / "data" / "elasticsearch_prs_100_v1.json"
+    else:
+        # Default to v0 dataset
+        dataset_path = package_dir / "data" / "elasticsearch_prs_50.json"
 
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
@@ -149,6 +155,7 @@ def _run_single_agent(
     judge_model: Optional[str],
     dataset_version: str,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run a single agent configuration on all samples.
 
@@ -203,6 +210,7 @@ def _run_single_agent(
                 force=force,
                 test_label=test_label,
                 stream_output=stream_output,
+                mcp_config_path=mcp_config_path,
             )
             edits.append(edit)
 
@@ -257,6 +265,7 @@ def run_pipeline(
     cache_dir: Path,
     force: bool = False,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
     agent_configs: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
@@ -281,6 +290,7 @@ def run_pipeline(
         pr_indices: Comma-separated PR indices to run
         cache_dir: Directory for caching cloned repositories
         force: If True, re-run all stages even if outputs already exist
+        mcp_config_path: Optional path to MCP configuration file
         agent_configs: Optional list of agent configurations for parallel execution.
             Each config is a dict with keys: runner, model, agent_binary (optional).
             If provided, runner/model/agent_binary args are ignored.
@@ -402,6 +412,7 @@ def run_pipeline(
             judge_model=judge_model,
             dataset_version=dataset_version,
             stream_output=stream_output,
+            mcp_config_path=mcp_config_path,
         )
         all_agent_results.append(result)
     else:
@@ -429,6 +440,7 @@ def run_pipeline(
                     judge_model=judge_model,
                     dataset_version=dataset_version,
                     stream_output=stream_output,
+                    mcp_config_path=mcp_config_path,
                 )
                 futures[future] = f"{cfg['runner']}/{cfg['model']}"
 

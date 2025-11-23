@@ -364,6 +364,7 @@ def head_to_head_pr(
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
 @click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--mcp-config-path", type=click.Path(exists=True), help="Path to MCP configuration file (JSON)")
 @click.option("--pr-numbers", help="Comma-separated list of PR numbers to run (e.g., '115001,114998')")
 @click.option("--pr-indices", help="Comma-separated list of PR indices to run (0-based, e.g., '0,1,2')")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
@@ -385,6 +386,7 @@ def pipeline(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
+    mcp_config_path: Optional[str],
     pr_numbers: Optional[str],
     pr_indices: Optional[str],
     cache_dir: str,
@@ -428,6 +430,7 @@ def pipeline(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        mcp_config_path=mcp_config_path,
         pr_numbers=pr_numbers,
         pr_indices=pr_indices,
         cache_dir=Path(cache_dir),
