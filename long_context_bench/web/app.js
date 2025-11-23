@@ -1058,6 +1058,108 @@ function displayLLMJudgeAgentResults(agentResults) {
             <th>Time</th>
         `;
     }
+
+    // Create scores chart
+    createAgentScoresChart(sorted);
+}
+
+/**
+ * Create grouped bar chart showing all metrics for all agents (PR detail view)
+ * Matches the style of the landing page metrics chart
+ */
+function createAgentScoresChart(agentResults) {
+    const chartContainer = document.getElementById('agent-scores-charts-container');
+
+    if (!chartContainer) return;
+
+    // Show the chart container
+    chartContainer.style.display = 'block';
+
+    // Destroy existing chart if any
+    if (window.agentScoresChartInstance) {
+        window.agentScoresChartInstance.destroy();
+    }
+
+    const canvas = document.getElementById('agent-scores-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Prepare data
+    const metricLabels = ['Correctness', 'Completeness', 'Code Reuse', 'Best Practices', 'Unsol. Docs'];
+    const metricKeys = ['correctness', 'completeness', 'code_reuse', 'best_practices', 'unsolicited_docs'];
+
+    // Agent colors (matching landing page style)
+    const colors = [
+        'rgba(79, 70, 229, 0.8)',   // Indigo
+        'rgba(16, 185, 129, 0.8)',  // Green
+        'rgba(245, 158, 11, 0.8)',  // Amber
+        'rgba(239, 68, 68, 0.8)',   // Red
+        'rgba(139, 92, 246, 0.8)'   // Purple
+    ];
+
+    // Create datasets - one per agent
+    const datasets = agentResults.map((agentResult, idx) => {
+        return {
+            label: agentResult.agentKey,
+            data: metricKeys.map(key => agentResult.judge.scores?.[key] || 0),
+            backgroundColor: colors[idx % colors.length],
+            borderColor: colors[idx % colors.length].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+
+    window.agentScoresChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: metricLabels,
+            datasets: datasets
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bars
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: 'Agent Performance Across All Metrics',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.x.toFixed(3)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: -1,
+                    max: 1,
+                    title: {
+                        display: true,
+                        text: 'Score (-1 to 1)'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 }
 
 /**
