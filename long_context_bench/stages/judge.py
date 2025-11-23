@@ -131,30 +131,32 @@ def compute_llm_scores(
 
 **Evaluation Criteria (scores between -1.0 and 1.0):**
 
+Score interpretation: -1 = much worse than human, 0 = human level (ground truth), 1 = better than human
+
 1. **Correctness**: Does the agent's change implement the intended behavior correctly?
-   - 1.0: Perfectly correct, matches ground truth semantics
-   - 0.0: Partially correct or neutral
-   - -1.0: Incorrect or breaks functionality
+   - 1.0: Better than ground truth (e.g., fixes additional bugs, more robust)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (incorrect or breaks functionality)
 
 2. **Completeness**: Does the agent achieve all requested changes?
-   - 1.0: All changes from ground truth are present
-   - 0.0: Some changes present, some missing
-   - -1.0: Most or all changes missing
+   - 1.0: Better than ground truth (includes all changes plus beneficial extras)
+   - 0.0: Matches ground truth (human level completeness)
+   - -1.0: Much worse than ground truth (most or all changes missing)
 
 3. **Code Reuse**: Does the agent leverage existing code appropriately?
-   - 1.0: Excellent reuse, minimal duplication
-   - 0.0: Neutral, some duplication
-   - -1.0: Excessive duplication or unnecessary code
+   - 1.0: Better than ground truth (superior reuse, less duplication)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (excessive duplication or unnecessary code)
 
 4. **Best Practices**: Does the code follow style, structure, and idiomatic patterns?
-   - 1.0: Excellent style and practices
-   - 0.0: Acceptable or neutral
-   - -1.0: Poor style, anti-patterns
+   - 1.0: Better than ground truth (superior style and practices)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (poor style, anti-patterns)
 
 5. **Unsolicited Documentation**: Penalizes documentation added when not requested.
-   - 1.0: No unsolicited documentation
-   - 0.0: Minor documentation additions
-   - -1.0: Significant unsolicited documentation (README, CHANGELOG, etc.)
+   - 1.0: Better than ground truth (no unsolicited documentation)
+   - 0.0: Matches ground truth (human level)
+   - -1.0: Much worse than ground truth (significant unsolicited documentation like README, CHANGELOG, etc.)
 
 **Guidelines:**
 - Judge strictly against the task instructions and the ground truth diff; do not reward extra or unrelated changes.

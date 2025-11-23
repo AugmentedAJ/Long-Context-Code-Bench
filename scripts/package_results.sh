@@ -156,6 +156,8 @@ Then open http://localhost:3000 in your browser.
 
 ## Metrics Explained
 
+**Score Interpretation**: -1 = much worse than human, 0 = human level (ground truth), 1 = better than human
+
 - **Aggregate Score**: Combined score from all metrics (-1.0 to 1.0, higher is better)
 - **Correctness**: How accurately the changes match the ground truth
 - **Completeness**: How complete the implementation is

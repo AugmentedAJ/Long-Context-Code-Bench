@@ -370,30 +370,32 @@ Agent Submission Diff (excerpt):
 Your goal is to evaluate how well the agent's submission matches the HUMAN diff
 while satisfying the task instructions. Evaluate on these metrics:
 
+Score interpretation: -1 = much worse than human, 0 = human level (ground truth), 1 = better than human
+
 1. **correctness** (-1.0 to 1.0): Does it implement the right behavior?
-   - 1.0: Perfectly correct, matches ground truth semantics
-   - 0.0: Partially correct or neutral
-   - -1.0: Incorrect or breaks functionality
+   - 1.0: Better than ground truth (e.g., fixes additional bugs, more robust)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (incorrect or breaks functionality)
 
 2. **completeness** (-1.0 to 1.0): Does it cover all important changes?
-   - 1.0: Complete, addresses all key aspects
-   - 0.0: Partially complete
-   - -1.0: Missing critical functionality
+   - 1.0: Better than ground truth (includes all changes plus beneficial extras)
+   - 0.0: Matches ground truth (human level completeness)
+   - -1.0: Much worse than ground truth (missing critical functionality)
 
 3. **code_reuse** (-1.0 to 1.0): Does it reuse existing helpers/patterns appropriately?
-   - 1.0: Excellent reuse of existing code
-   - 0.0: Neutral or mixed
-   - -1.0: Unnecessary duplication
+   - 1.0: Better than ground truth (superior reuse, less duplication)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (unnecessary duplication)
 
 4. **best_practices** (-1.0 to 1.0): Readability, maintainability, safety
-   - 1.0: Excellent practices
-   - 0.0: Acceptable
-   - -1.0: Poor practices
+   - 1.0: Better than ground truth (superior practices)
+   - 0.0: Matches ground truth quality (human level)
+   - -1.0: Much worse than ground truth (poor practices)
 
 5. **unsolicited_docs** (-1.0 to 1.0): Penalizes documentation added when not requested
-   - 1.0: No unsolicited documentation
-   - 0.0: Minor documentation additions
-   - -1.0: Significant unsolicited documentation
+   - 1.0: Better than ground truth (no unsolicited documentation)
+   - 0.0: Matches ground truth (human level)
+   - -1.0: Much worse than ground truth (significant unsolicited documentation)
 
 6. **matches_human** (0.0 to 1.0): Overall similarity to human diff
    - 1.0: Nearly identical to human approach

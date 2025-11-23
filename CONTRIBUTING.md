@@ -134,6 +134,8 @@ class Scores(BaseModel):
     new_metric: float = Field(ge=-1.0, le=1.0)
 ```
 
+**Note**: All metrics use the scale: -1 = much worse than human, 0 = human level (ground truth), 1 = better than human
+
 2. Update judge logic in `long_context_bench/stages/judge.py`
 
 3. Update aggregate calculation to include new metric

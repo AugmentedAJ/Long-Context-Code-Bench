@@ -516,6 +516,8 @@ long-context-bench judge --edit-run-ids aaaa1111 --judge-model gpt-4
 
 Each sample is scored on five primary metrics (range: -1.0 to 1.0):
 
+**Score Interpretation**: -1 = much worse than human, 0 = human level (ground truth), 1 = better than human
+
 1. **Correctness**: Does the change implement the intended behavior?
 2. **Completeness**: Does it achieve all requested changes?
 3. **Code Reuse**: Preference for leveraging existing code over duplication
