@@ -24,6 +24,8 @@ def extract_metadata(result_data):
         ],
         # Include agent stats for leaderboard calculation
         'agent_stats': result_data.get('agent_stats', []),
+        # Include agent results for score aggregation
+        'agent_results': result_data.get('agent_results', []),
     }
 
 

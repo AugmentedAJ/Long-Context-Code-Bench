@@ -1342,6 +1342,40 @@ footer {
     word-break: break-word;
 }
 
+.log-message {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f9f9f9;
+    border-radius: 3px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-tool-use {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: #e3f2fd;
+    border-left: 3px solid #2196f3;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+
+.log-tool-result {
+    margin-top: 6px;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 3px;
+}
+
+.log-tool-result strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: #666;
+}
+
 /* Agent Header with Score */
 .agent-header {
     margin-bottom: 16px;

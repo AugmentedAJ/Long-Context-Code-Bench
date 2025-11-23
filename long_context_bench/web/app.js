@@ -94,15 +94,16 @@ function normalizeAgentId(agentId) {
 
 /**
  * Aggregate head-to-head data from metadata (lightweight version).
- * This only uses agent_stats from metadata, not full pairwise decisions.
+ * This uses agent_stats for win/loss/tie and agent_results for mean scores.
  */
 function aggregateHeadToHeadDataFromMetadata(metadata) {
     const agentStats = {};
 
-    // Aggregate stats from metadata
+    // Aggregate stats and scores from metadata
     for (const prMeta of metadata) {
         if (!prMeta.agent_stats) continue;
 
+        // Aggregate win/loss/tie stats
         for (const stat of prMeta.agent_stats) {
             const fullAgentId = stat.agent_id;
             const normalizedId = normalizeAgentId(fullAgentId);
@@ -112,13 +113,38 @@ function aggregateHeadToHeadDataFromMetadata(metadata) {
                     agent_id: normalizedId,
                     wins: 0,
                     losses: 0,
-                    ties: 0
+                    ties: 0,
+                    total_aggregate: 0,
+                    total_correctness: 0,
+                    total_completeness: 0,
+                    total_code_reuse: 0,
+                    total_best_practices: 0,
+                    total_unsolicited_docs: 0,
+                    pr_count: 0
                 };
             }
 
             agentStats[normalizedId].wins += stat.wins || 0;
             agentStats[normalizedId].losses += stat.losses || 0;
             agentStats[normalizedId].ties += stat.ties || 0;
+        }
+
+        // Aggregate scores from agent_results
+        if (prMeta.agent_results) {
+            for (const result of prMeta.agent_results) {
+                const agentId = `${result.runner}:${result.model}`;
+                const normalizedId = normalizeAgentId(agentId);
+
+                if (agentStats[normalizedId]) {
+                    agentStats[normalizedId].total_aggregate += result.aggregate || 0;
+                    agentStats[normalizedId].total_correctness += result.scores?.correctness || 0;
+                    agentStats[normalizedId].total_completeness += result.scores?.completeness || 0;
+                    agentStats[normalizedId].total_code_reuse += result.scores?.code_reuse || 0;
+                    agentStats[normalizedId].total_best_practices += result.scores?.best_practices || 0;
+                    agentStats[normalizedId].total_unsolicited_docs += result.scores?.unsolicited_docs || 0;
+                    agentStats[normalizedId].pr_count += 1;
+                }
+            }
         }
     }
 
@@ -139,7 +165,13 @@ function aggregateHeadToHeadDataFromMetadata(metadata) {
             losses: stats.losses,
             ties: stats.ties,
             matches,
-            win_rate: winRate
+            win_rate: winRate,
+            mean_aggregate: stats.pr_count > 0 ? stats.total_aggregate / stats.pr_count : 0,
+            mean_correctness: stats.pr_count > 0 ? stats.total_correctness / stats.pr_count : 0,
+            mean_completeness: stats.pr_count > 0 ? stats.total_completeness / stats.pr_count : 0,
+            mean_code_reuse: stats.pr_count > 0 ? stats.total_code_reuse / stats.pr_count : 0,
+            mean_best_practices: stats.pr_count > 0 ? stats.total_best_practices / stats.pr_count : 0,
+            mean_unsolicited_docs: stats.pr_count > 0 ? stats.total_unsolicited_docs / stats.pr_count : 0
         };
     });
 
@@ -316,7 +348,7 @@ function displayHeadToHeadLeaderboard(leaderboard) {
             <td>${formatScore(agent.mean_code_reuse)}</td>
             <td>${formatScore(agent.mean_best_practices)}</td>
             <td>${formatScore(agent.mean_unsolicited_docs)}</td>
-            <td>${formatPercentage(agent.success_rate)}</td>
+            <td>${formatPercentage(agent.win_rate)}</td>
         `;
 
         tbody.appendChild(row);
@@ -479,6 +511,9 @@ async function loadLLMJudgeLeaderboard() {
             const row = document.createElement('tr');
             const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
 
+            // For LLM judge fallback, use success_rate as win_rate since there's no head-to-head data
+            const winRate = agent.win_rate !== undefined ? agent.win_rate : agent.success_rate;
+
             row.innerHTML = `
                 <td>${rankDisplay}</td>
                 <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
@@ -488,7 +523,7 @@ async function loadLLMJudgeLeaderboard() {
                 <td>${formatScore(agent.mean_code_reuse)}</td>
                 <td>${formatScore(agent.mean_best_practices)}</td>
                 <td>${formatScore(agent.mean_unsolicited_docs)}</td>
-                <td>${formatPercentage(agent.success_rate)}</td>
+                <td>${formatPercentage(winRate)}</td>
             `;
 
             tbody.appendChild(row);
