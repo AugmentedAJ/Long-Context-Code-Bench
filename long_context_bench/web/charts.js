@@ -457,6 +457,13 @@ function createMetricBreakdownChart(canvasId, summaries, topN = 10) {
             borderWidth: 1
         },
         {
+            label: 'Best Practices',
+            data: agents.map(s => s.mean_best_practices),
+            backgroundColor: 'rgba(108, 117, 125, 0.7)',
+            borderColor: 'rgba(108, 117, 125, 1)',
+            borderWidth: 1
+        },
+        {
             label: 'Unsolicited Docs',
             data: agents.map(s => s.mean_unsolicited_docs),
             backgroundColor: 'rgba(220, 53, 69, 0.7)',
