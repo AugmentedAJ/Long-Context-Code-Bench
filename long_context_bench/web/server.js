@@ -186,12 +186,6 @@ app.get('/', (req, res) => {
 // Start the server
 app.listen(PORT, () => {
     console.log(`\n✓ Server running at http://localhost:${PORT}`);
-    console.log(`\nAvailable pages:`);
-    console.log(`  - Leaderboard:       http://localhost:${PORT}/`);
-    console.log(`  - Summary:           http://localhost:${PORT}/summary.html`);
-    console.log(`  - Comparison:        http://localhost:${PORT}/comparison.html`);
-    console.log(`  - Cross-Agent:       http://localhost:${PORT}/cross-agent.html`);
-    console.log(`  - Task Detail:       http://localhost:${PORT}/task.html`);
     console.log(`\nPress Ctrl+C to stop the server\n`);
 });
 
