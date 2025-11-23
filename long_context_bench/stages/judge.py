@@ -211,7 +211,12 @@ def compute_llm_scores(
             )
 
             if result.returncode != 0:
-                raise Exception(f"Claude CLI failed with code {result.returncode}: {result.stderr}")
+                error_msg = f"Claude CLI failed with code {result.returncode}"
+                if result.stderr:
+                    error_msg += f"\nstderr: {result.stderr}"
+                if result.stdout:
+                    error_msg += f"\nstdout: {result.stdout}"
+                raise Exception(error_msg)
 
             # Parse stream-json output
             # Claude CLI outputs JSONL with events, we want the assistant message content
