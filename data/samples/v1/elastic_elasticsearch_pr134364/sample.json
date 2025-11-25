@@ -13,7 +13,8 @@
     "context_size_bytes": 63447,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Fix the ClassCastException in MetricDocumentBuilderTests when testing with small timestamp values that get returned as Integer instead of Long from ObjectPath.evaluate()",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

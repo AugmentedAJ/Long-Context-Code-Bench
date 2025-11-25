@@ -13,7 +13,8 @@
     "context_size_bytes": 139307,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Refactor the cloud authentication methods to support request-scoped-tokens by unifying the separate User and API Key authentication creation methods into a single method that handles both authentication types and subject types",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

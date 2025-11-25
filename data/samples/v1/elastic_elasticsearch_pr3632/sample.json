@@ -13,7 +13,8 @@
     "context_size_bytes": 210550,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "I need to add support for specifying a custom highlight query that's different from the search query. This would be really useful when using rescore queries since those aren't considered by highlighting by default. I want to be able to highlight terms that aren't in the original search query or sort highlighted snippets based on a different query altogether.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

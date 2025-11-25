@@ -13,7 +13,8 @@
     "context_size_bytes": 7470,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "All Rest handlers that use AcknowledgedResponse look identical and have duplicate response handling code, can you abstract this logic away since we gonna have more of them in the future",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

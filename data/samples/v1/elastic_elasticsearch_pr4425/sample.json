@@ -13,7 +13,8 @@
     "context_size_bytes": 18777,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "template loading from files is not working properly for settings that don't have the index prefix, like when i have \"settings\" : { \"number_of_shards\" : 12 } instead of \"settings\" : { \"index.number_of_shards\" : 12 }, the fix in #4235 only handled some cases but missed this one",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

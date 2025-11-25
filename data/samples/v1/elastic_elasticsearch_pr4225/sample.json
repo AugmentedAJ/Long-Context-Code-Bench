@@ -13,7 +13,8 @@
     "context_size_bytes": 23601,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "replace the manual haversin calculation in GeoDistance with SloppyMath.haversin from lucene 4.6+ for better performance and accuracy",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

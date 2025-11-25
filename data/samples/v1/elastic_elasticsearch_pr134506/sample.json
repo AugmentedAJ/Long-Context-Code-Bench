@@ -13,7 +13,8 @@
     "context_size_bytes": 44552,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "The error message for unknown transport version names is not helpful when users make typos. Update the error message to suggest similar transport version names using a fuzzy matching algorithm when an unknown transport version is provided.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

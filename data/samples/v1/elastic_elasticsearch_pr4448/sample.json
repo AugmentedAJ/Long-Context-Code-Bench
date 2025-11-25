@@ -13,7 +13,8 @@
     "context_size_bytes": 9681,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Add support for long-style command line parameters in the elasticsearch startup script so users can pass configuration options like --node.name=my-node instead of only using -D parameters",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

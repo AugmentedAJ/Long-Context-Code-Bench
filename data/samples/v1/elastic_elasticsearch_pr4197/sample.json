@@ -13,7 +13,8 @@
     "context_size_bytes": 6907,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "The PutWarmerRequest validation is broken - it allows creating warmers without a search request but the transport action crashes when trying to access the null searchRequest. Need to make the SearchRequest mandatory and add proper validation to prevent NPEs in the transport layer",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

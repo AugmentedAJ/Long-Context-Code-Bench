@@ -13,7 +13,8 @@
     "context_size_bytes": 14123,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Modernize the switch statements in DocIdsWriter to use arrow syntax instead of the traditional case-break pattern.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

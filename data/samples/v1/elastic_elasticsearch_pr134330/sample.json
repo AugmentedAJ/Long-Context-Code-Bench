@@ -13,7 +13,8 @@
     "context_size_bytes": 49151,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "add random number of shards to the RandomizedTimeSeriesIT test to create different execution characteristics",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

@@ -13,7 +13,8 @@
     "context_size_bytes": 25966,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "ConditionalProcessor has a security issue where Sets in IngestDocument data can be modified from within conditional scripts, but Maps and Lists are properly protected with unmodifiable wrappers",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

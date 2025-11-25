@@ -74,6 +74,7 @@ def sample(
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
 @click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--mcp-config-path", type=click.Path(exists=True), help="Path to MCP configuration file (JSON)")
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
@@ -91,6 +92,7 @@ def edit(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
+    mcp_config_path: Optional[str],
     dataset_version: str,
     test_label: Optional[str],
     cache_dir: str,
@@ -135,6 +137,7 @@ def edit(
         force=force,
         use_synthesized=use_synthesized,
         stream_output=stream_output,
+        mcp_config_path=mcp_config_path,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 
@@ -203,7 +206,7 @@ def judge(
         output_dir=Path(output_dir),
         edit_run_ids=edit_run_id_list,
         test_label=test_label,
-        cache_dir=Path(cache_dir),
+        cache_dir=Path(cache_dir) if cache_dir else None,
         force=force,
         samples_dir=Path(samples_dir) if samples_dir else None,
         concurrency=concurrency,
@@ -351,6 +354,7 @@ def head_to_head_pr(
 @main.command()
 @click.option("--runner", required=True, help="Agent runner name")
 @click.option("--model", required=True, help="Model name")
+@click.option("--model-dir", help="Model directory name (defaults to model name, useful when model has special chars like 'custom:glm-4.6')")
 @click.option("--agent-binary", type=click.Path(), help="Path to agent binary")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--dataset-version", default="v0", help="Dataset version")
@@ -373,6 +377,7 @@ def head_to_head_pr(
 def pipeline(
     runner: str,
     model: str,
+    model_dir: Optional[str],
     agent_binary: Optional[str],
     output_dir: str,
     dataset_version: str,
@@ -417,6 +422,7 @@ def pipeline(
     run_pipeline(
         runner=runner,
         model=model,
+        model_dir=model_dir,
         agent_binary=agent_binary,
         output_dir=Path(output_dir),
         dataset_version=dataset_version,

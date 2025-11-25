@@ -13,7 +13,8 @@
     "context_size_bytes": 101820,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "The equals and hashCode methods in SourceConfirmedTextQuery are broken. Logically equal queries are comparing as unequal because we're including the valueFetcher and Analyzer in the comparison, but these don't implement proper equals/hashCode themselves. This is causing issues with query caching and deduplication.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

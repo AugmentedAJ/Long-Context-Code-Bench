@@ -13,7 +13,8 @@
     "context_size_bytes": 14313,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "implement proper haversine formula for the ARC distance calculation in GeoDistance, the current implementation has accuracy issues and needs to be replaced with the standard haversine approach for better precision",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

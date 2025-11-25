@@ -13,7 +13,8 @@
     "context_size_bytes": 12441,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "the update action has a TODO comment for ttl/timestamp handling, need to implement proper timestamp and TTL support in the shardOperation method",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

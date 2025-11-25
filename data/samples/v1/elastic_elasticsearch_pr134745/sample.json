@@ -13,7 +13,8 @@
     "context_size_bytes": 10399,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "The release tests are failing because the expected function count in the ESQL telemetry test is incorrect. We added a new function but forgot to update the count from 150 to 151 in the non-snapshot version test.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

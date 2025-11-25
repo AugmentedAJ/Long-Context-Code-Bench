@@ -13,7 +13,8 @@
     "context_size_bytes": 1948,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "need to make ShardsAllocator configurable through node settings instead of being hardcoded. currently it defaults to BalancedShardsAllocator but want to be able to switch between different allocators like EvenShardsCountAllocator via cluster.routing.allocation.type setting",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

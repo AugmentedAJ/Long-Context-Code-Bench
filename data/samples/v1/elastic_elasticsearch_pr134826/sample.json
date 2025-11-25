@@ -13,7 +13,8 @@
     "context_size_bytes": 124069,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "there's a bug in the rate function where it's excluding rows with values instead of rows without values, can you fix the null check logic in the rate aggregator functions",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

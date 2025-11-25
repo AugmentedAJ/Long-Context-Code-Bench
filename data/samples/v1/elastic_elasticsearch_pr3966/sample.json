@@ -13,7 +13,8 @@
     "context_size_bytes": 126267,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "We need to make prebuilt analyzers version-aware so they use the correct Lucene analyzer version based on when the index was created. Currently all prebuilt analyzers always use the current version which breaks backward compatibility when we upgrade Lucene versions. If an index was created with version 0.90.4, the prebuilt analyzers should behave exactly like they did in 0.90.4, not use the current version's behavior. This is important for maintaining consistent analysis behavior across upgrades and allowing users to change prebuilt analyzers like the standard one between releases.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

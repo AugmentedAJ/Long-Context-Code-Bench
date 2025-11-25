@@ -13,7 +13,8 @@
     "context_size_bytes": 15762,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "there is a bug in the TTL field mapper where when a default TTL is configured but no TTL is provided during indexing, the default value is used for expiration but not properly set in the source context",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
 }

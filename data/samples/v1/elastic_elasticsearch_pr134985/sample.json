@@ -13,7 +13,8 @@
     "context_size_bytes": 21239,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "the transform error logs are too noisy in serverless, these 3 error messages make up 88% of all serverless errors making the alert useless, can you decrease the loglevel from ERROR to WARN for these messages",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

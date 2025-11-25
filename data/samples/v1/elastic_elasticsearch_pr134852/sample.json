@@ -13,7 +13,8 @@
     "context_size_bytes": 60673,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Fix mergeExecutorThreadCount in ThreadPoolMergeExecutorServiceDiskSpaceTests since randomIntBetween is inclusive on both ends",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

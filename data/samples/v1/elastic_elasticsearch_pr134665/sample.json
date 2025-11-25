@@ -13,7 +13,8 @@
     "context_size_bytes": 964355,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Fix the flaky TextRollingUpgradeIT test that loses smallestMessage between runs",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }

@@ -65,9 +65,8 @@ def run_with_streaming(
     )
 
     # Collect output while streaming to console
-    # Note: When streaming, we don't accumulate output in memory to avoid memory leaks
-    # with large outputs. The output is streamed to console only.
-    stdout_lines: List[str] = [] if not stream_output else None
+    # Always capture stdout for logging purposes, even when streaming
+    stdout_lines: List[str] = []
     try:
         # Stream output line by line with timeout
         start = time.time()
@@ -85,11 +84,13 @@ def run_with_streaming(
                     break
                 continue
 
-            # Stream to console and optionally collect
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            if stdout_lines is not None:
-                stdout_lines.append(line)
+            # Always collect output for logs
+            stdout_lines.append(line)
+
+            # Stream to console if enabled
+            if stream_output:
+                sys.stdout.write(line)
+                sys.stdout.flush()
 
         # Wait for process to complete
         returncode = process.wait()
@@ -98,7 +99,7 @@ def run_with_streaming(
         process.kill()
         raise
 
-    stdout = "".join(stdout_lines) if stdout_lines is not None else ""
+    stdout = "".join(stdout_lines)
 
     console.print("[dim]" + "=" * 80 + "[/dim]")
 
@@ -133,9 +134,8 @@ def run_with_pty(
         )
 
     master_fd, slave_fd = pty.openpty()
-    # Note: When streaming, we don't accumulate output in memory to avoid memory leaks
-    # with large outputs. The output is streamed to console only.
-    stdout_chunks: List[str] = [] if not stream_output else None
+    # Always capture stdout for logging purposes, even when streaming
+    stdout_chunks: List[str] = []
     start = time.time()
 
     try:
@@ -169,8 +169,9 @@ def run_with_pty(
                     # EOF from child
                     break
                 text = data.decode("utf-8", errors="ignore")
-                if stdout_chunks is not None:
-                    stdout_chunks.append(text)
+                # Always collect output for logs
+                stdout_chunks.append(text)
+                # Stream to console if enabled
                 if stream_output:
                     sys.stdout.write(text)
                     sys.stdout.flush()
@@ -185,8 +186,9 @@ def run_with_pty(
                     if not data:
                         break
                     text = data.decode("utf-8", errors="ignore")
-                    if stdout_chunks is not None:
-                        stdout_chunks.append(text)
+                    # Always collect output for logs
+                    stdout_chunks.append(text)
+                    # Stream to console if enabled
                     if stream_output:
                         sys.stdout.write(text)
                         sys.stdout.flush()
@@ -200,6 +202,6 @@ def run_with_pty(
         except OSError:
             pass
 
-    stdout = "".join(stdout_chunks) if stdout_chunks is not None else ""
+    stdout = "".join(stdout_chunks)
     return returncode, stdout
 

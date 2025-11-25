@@ -13,7 +13,8 @@
     "context_size_bytes": 2843,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "there's a deadlock happening in EsThreadPoolExecutor shutdown method, the monitor lock is held while calling shutdown which waits for mainLock, but terminated method runs under mainLock and tries to get monitor lock",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
 }

@@ -13,7 +13,8 @@
     "context_size_bytes": 7235,
     "truncated": false
   },
-  "synthesized_task_instructions": null,
-  "synthesis_model": null,
-  "synthesis_timestamp": null
+  "synthesized_task_instructions": "Comment out the failing assert in testSliceIndex that expects lastSliceIndex to equal numShards * 3 - 1",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
 }
