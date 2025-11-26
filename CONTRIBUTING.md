@@ -121,6 +121,51 @@ def get_runner_adapter(runner_name: str, **kwargs) -> RunnerAdapter:
 
 4. Update documentation in `README.md`
 
+## Web UI Development
+
+The web dashboard is located in `long_context_bench/web/` and deployed to `output/web/`.
+
+### Key Files
+
+- `index.html` - Main HTML structure and layout
+- `app.js` - Core application logic, leaderboard, PR details
+- `data-loader.js` - Data fetching and caching
+- `styles.css` - Styling
+- `server.js` - Express server for local development
+
+### Development Workflow
+
+1. Make changes to files in `long_context_bench/web/`
+
+2. Deploy and test:
+```bash
+long-context-bench web output
+# Or manually:
+python3 -c "from long_context_bench.stats import deploy_web_app; from pathlib import Path; deploy_web_app(Path('output'))"
+```
+
+3. Refresh browser at http://localhost:3000
+
+### Metrics Display Conventions
+
+- **Win Rate**: Primary ranking metric (percentage of PRs where agent beat human)
+- **Score colors**: Green (≥0.5), Orange (0 to 0.5), Red (<0)
+- **Unsolicited Docs**: Uses **inverted colors** (lower = better, shown in green)
+
+### Regenerating Summaries
+
+After changing how metrics are calculated:
+
+```bash
+# Regenerate all summaries for a judge run
+for edit_run in <edit_run_id_1> <edit_run_id_2> ...; do
+  long-context-bench summary output \
+    --edit-run-id $edit_run \
+    --judge-run-id <judge_run_id> \
+    --output-dir output
+done
+```
+
 ## Adding New Metrics
 
 To add a new evaluation metric:
@@ -138,9 +183,11 @@ class Scores(BaseModel):
 
 2. Update judge logic in `long_context_bench/stages/judge.py`
 
-3. Update aggregate calculation to include new metric
+3. Update web UI to display the new metric in `long_context_bench/web/app.js` and `index.html`
 
-4. Add tests
+4. Regenerate summaries and redeploy web app
+
+5. Add tests
 
 ## Dataset Versioning
 

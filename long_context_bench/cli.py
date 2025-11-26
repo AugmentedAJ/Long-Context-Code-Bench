@@ -148,7 +148,7 @@ def edit(
 @click.option("--edit-run-ids", help="Comma-separated list of edit run IDs to evaluate (for batch mode)")
 @click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
-@click.option("--output-dir", type=click.Path(), default="output/judges", help="Output directory for judgments")
+@click.option("--output-dir", type=click.Path(), default="output", help="Base output directory (judges saved to output/judges/, edits read from output/edits/)")
 @click.option("--samples-dir", type=click.Path(exists=True), help="Samples directory (defaults to data/samples, falls back to output/samples)")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-judge even if judge.json already exists")
@@ -639,6 +639,70 @@ def compare(results_dir: str, test_label: str, output_file: Optional[str], forma
         )
 
     click.echo(f"{format.capitalize()} generation completed")
+
+
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True), default="output")
+@click.option("--port", type=int, default=3000, help="Port to run the web server on")
+@click.option("--no-server", is_flag=True, help="Only deploy web files, don't start server")
+def web(output_dir: str, port: int, no_server: bool) -> None:
+    """Deploy and optionally start the web UI.
+
+    This command:
+    1. Deploys the web app files to OUTPUT_DIR/web/
+    2. Optionally starts a local web server at http://localhost:PORT
+
+    Examples:
+
+        # Deploy and start server on port 3000 (default)
+        long-context-bench web output
+
+        # Deploy only (no server)
+        long-context-bench web output --no-server
+
+        # Start on a different port
+        long-context-bench web output --port 8080
+    """
+    from long_context_bench.stats import deploy_web_app
+    import subprocess
+    import os
+
+    output_path = Path(output_dir)
+    web_dir = output_path / "web"
+
+    # Deploy web app (deploy_web_app prints its own success message)
+    click.echo(f"Deploying web app to {web_dir}...")
+    deploy_web_app(output_path)
+
+    if no_server:
+        click.echo("\nTo start the server manually:")
+        click.echo(f"  cd {web_dir} && npm install && npm start")
+        return
+
+    # Check if npm is installed
+    try:
+        subprocess.run(["npm", "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        click.echo("\n⚠ npm not found. To start the server manually:")
+        click.echo(f"  cd {web_dir} && npm install && npm start")
+        return
+
+    # Install dependencies if needed
+    if not (web_dir / "node_modules").exists():
+        click.echo("Installing dependencies...")
+        subprocess.run(["npm", "install"], cwd=web_dir, check=True)
+
+    # Start the server
+    click.echo(f"\n🚀 Starting web server at http://localhost:{port}")
+    click.echo("   Press Ctrl+C to stop\n")
+
+    env = os.environ.copy()
+    env["PORT"] = str(port)
+
+    try:
+        subprocess.run(["npm", "start"], cwd=web_dir, env=env)
+    except KeyboardInterrupt:
+        click.echo("\n\n✓ Server stopped")
 
 
 if __name__ == "__main__":

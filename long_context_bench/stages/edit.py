@@ -173,18 +173,22 @@ def run_edit_on_sample(
     edit_summary_file = edit_dir / "edit_summary.json"
 
     if edit_summary_file.exists() and not force:
-        console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in this run)[/yellow]")
-        # Load and return existing edit
+        # Load and check status
         with open(edit_summary_file) as f:
             edit_data = json.load(f)
-            # Load patch from separate file
-            patch_file = edit_dir / "edit.patch"
-            if patch_file.exists():
-                with open(patch_file) as pf:
-                    edit_data["patch_unified"] = pf.read()
+            # Only skip if the previous run was successful
+            if edit_data.get("status") != "success":
+                console.print(f"[yellow]⊙ Retrying {pr_id} (previous run had status '{edit_data.get('status')}')[/yellow]")
             else:
-                edit_data["patch_unified"] = ""
-            return Edit(**edit_data)
+                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in this run)[/yellow]")
+                # Load patch from separate file
+                patch_file = edit_dir / "edit.patch"
+                if patch_file.exists():
+                    with open(patch_file) as pf:
+                        edit_data["patch_unified"] = pf.read()
+                else:
+                    edit_data["patch_unified"] = ""
+                return Edit(**edit_data)
 
     # If test_label is provided, check if this PR was already edited in any run with the same test_label
     if test_label and not force:
@@ -204,10 +208,13 @@ def run_edit_on_sample(
                             # Check if this PR was edited in that run
                             other_edit_file = other_run_dir / pr_id / "edit_summary.json"
                             if other_edit_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
-                                # Load and return existing edit
                                 with open(other_edit_file) as f:
                                     edit_data = json.load(f)
+                                    # Only skip if the previous run was successful
+                                    if edit_data.get("status") != "success":
+                                        console.print(f"[yellow]⊙ Retrying {pr_id} (previous run in {other_run_dir.name} had status '{edit_data.get('status')}')[/yellow]")
+                                        continue
+                                    console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                     # Load patch from separate file
                                     patch_file = other_run_dir / pr_id / "edit.patch"
                                     if patch_file.exists():
@@ -233,10 +240,13 @@ def run_edit_on_sample(
                             # Check if this PR was edited in that run
                             other_edit_file = output_dir / runner / model_dir_name / other_run_dir.name / pr_id / "edit_summary.json"
                             if other_edit_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
-                                # Load and return existing edit
                                 with open(other_edit_file) as f:
                                     edit_data = json.load(f)
+                                    # Only skip if the previous run was successful
+                                    if edit_data.get("status") != "success":
+                                        console.print(f"[yellow]⊙ Retrying {pr_id} (previous run in {other_run_dir.name} had status '{edit_data.get('status')}')[/yellow]")
+                                        continue
+                                    console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                     # Load patch from separate file
                                     patch_file = output_dir / runner / model_dir_name / other_run_dir.name / pr_id / "edit.patch"
                                     if patch_file.exists():

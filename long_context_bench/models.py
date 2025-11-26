@@ -133,6 +133,7 @@ class AggregateSummary(BaseModel):
     failed_samples: int
     skipped_samples: int
     success_rate: float
+    win_rate: float = 0.0  # Fraction of PRs where agent beat human (aggregate > 0)
     mean_correctness: float
     mean_completeness: float
     mean_code_reuse: float

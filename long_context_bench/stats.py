@@ -52,7 +52,7 @@ def compute_aggregate_summary(
 
     success_rate = successful_samples / total_samples if total_samples > 0 else 0.0
 
-    # Compute mean scores
+    # Compute mean scores and win rate
     if judges:
         mean_correctness = statistics.mean(j.scores.correctness for j in judges)
         mean_completeness = statistics.mean(j.scores.completeness for j in judges)
@@ -66,6 +66,10 @@ def compute_aggregate_summary(
             std_aggregate = statistics.stdev(j.aggregate for j in judges)
         else:
             std_aggregate = 0.0
+
+        # Win rate: fraction of PRs where agent beat human (aggregate > 0)
+        wins = sum(1 for j in judges if j.aggregate > 0)
+        win_rate = wins / len(judges) if judges else 0.0
     else:
         mean_correctness = 0.0
         mean_completeness = 0.0
@@ -74,6 +78,7 @@ def compute_aggregate_summary(
         mean_unsolicited_docs = 0.0
         mean_aggregate = 0.0
         std_aggregate = 0.0
+        win_rate = 0.0
 
     # Compute latency metrics
     if edits:
@@ -98,6 +103,7 @@ def compute_aggregate_summary(
         failed_samples=failed_samples,
         skipped_samples=skipped_samples,
         success_rate=success_rate,
+        win_rate=win_rate,
         mean_correctness=mean_correctness,
         mean_completeness=mean_completeness,
         mean_code_reuse=mean_code_reuse,
@@ -195,7 +201,12 @@ def generate_summary_for_runs(
 
     # Filter by run IDs
     edits = [e for e in all_edits if not edit_run_ids or e.edit_run_id in edit_run_ids]
-    judges = [j for j in all_judges if not judge_run_id or j.judge_run_id == judge_run_id]
+    # Filter judges by both judge_run_id AND edit_run_id (if specified)
+    judges = [
+        j for j in all_judges
+        if (not judge_run_id or j.judge_run_id == judge_run_id)
+        and (not edit_run_ids or j.edit_run_id in edit_run_ids)
+    ]
 
     # Filter samples to only those referenced by the filtered edits or judges
     sample_keys = set()
@@ -288,6 +299,10 @@ def generate_summary_for_runs(
 
     # Write output files
     if output_dir:
+        # Ensure we write to the summaries subdirectory
+        if "summaries" not in str(output_dir):
+            output_dir = output_dir / "summaries"
+
         # Create a subdirectory for this run if output_dir doesn't already contain the run_id
         # Format: <run_id>_<runner>_<model> or just <run_id> if runner/model not available
         if run_id not in str(output_dir):
@@ -936,6 +951,29 @@ def generate_index_manifest(output_dir: Path) -> None:
                             if pr_dir.is_dir() and (pr_dir / "edit.json").exists():
                                 pr_ids.append(pr_dir.name)
 
+                # Try to get judge_mode and judge_model from judge manifest
+                judge_mode = None
+                judge_model = None
+                judge_run_id = summary.get("judge_run_id")
+                if judge_run_id:
+                    # Look for judge manifest in judges directory
+                    for judge_mode_dir in (output_dir / "judges").glob("*"):
+                        if judge_mode_dir.is_dir():
+                            for judge_model_dir in judge_mode_dir.glob("*"):
+                                if judge_model_dir.is_dir():
+                                    manifest_path = judge_model_dir / judge_run_id / "judge_run_manifest.json"
+                                    if manifest_path.exists():
+                                        try:
+                                            with open(manifest_path) as mf:
+                                                manifest = json.load(mf)
+                                                judge_mode = manifest.get("judge_mode")
+                                                judge_model = manifest.get("judge_model")
+                                        except Exception:
+                                            pass
+                                        break
+                            if judge_mode:
+                                break
+
                 run_info = {
                     "run_id": run_id,
                     "edit_run_id": summary.get("edit_run_id"),
@@ -943,8 +981,8 @@ def generate_index_manifest(output_dir: Path) -> None:
                     "test_label": summary.get("test_label"),
                     "runner": runner,
                     "model": model,
-                    "judge_mode": None,  # Will be populated if we scan judge manifests
-                    "judge_model": None,
+                    "judge_mode": judge_mode,
+                    "judge_model": judge_model,
                     "summary_path": str(summary_file.relative_to(output_dir)),
                     "pr_ids": pr_ids,
                     "total_samples": summary.get("total_samples", 0),

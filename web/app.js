@@ -18,48 +18,6 @@ const LEADERBOARD_INCREMENT = 10;
 const CROSS_AGENT_INCREMENT = 20;
 
 /**
- * Escape HTML special characters to prevent XSS
- */
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * Colorize a unified diff for display with syntax highlighting
- * Lines starting with '+' are additions (green)
- * Lines starting with '-' are deletions (red)
- * Lines starting with '@@' are hunk headers (blue)
- * Lines starting with 'diff', 'index', '---', '+++' are metadata
- */
-function colorizeDiff(diffText) {
-    if (!diffText) return '<em>No diff available</em>';
-
-    const lines = diffText.split('\n');
-    const coloredLines = lines.map(line => {
-        const escaped = escapeHtml(line);
-
-        if (line.startsWith('+++') || line.startsWith('---')) {
-            return `<span class="diff-line-meta">${escaped}</span>`;
-        } else if (line.startsWith('+')) {
-            return `<span class="diff-line-add">${escaped}</span>`;
-        } else if (line.startsWith('-')) {
-            return `<span class="diff-line-del">${escaped}</span>`;
-        } else if (line.startsWith('@@')) {
-            return `<span class="diff-line-hunk">${escaped}</span>`;
-        } else if (line.startsWith('diff ') || line.startsWith('index ')) {
-            return `<span class="diff-line-meta">${escaped}</span>`;
-        } else {
-            return escaped;
-        }
-    });
-
-    return coloredLines.join('\n');
-}
-
-/**
  * Load and display leaderboard (head-to-head only)
  */
 async function loadLeaderboard() {
@@ -509,13 +467,10 @@ async function loadLLMJudgeLeaderboard() {
         // Load summaries to get detailed metrics
         const llmRuns = [];
         for (const run of index.runs) {
-            if (run.total_samples < 40) continue;
+            if (!run.mean_aggregate || run.total_samples < 40) continue;
 
             try {
-                // Use summary_path to load the correct summary for each agent
-                const summary = run.summary_path
-                    ? await loadSummaryByPath(run.summary_path)
-                    : await loadSummary(run.run_id);
+                const summary = await loadSummary(run.run_id);
                 if (summary) {
                     llmRuns.push({
                         runner: run.runner,
@@ -526,7 +481,6 @@ async function loadLLMJudgeLeaderboard() {
                         mean_code_reuse: summary.mean_code_reuse || 0,
                         mean_best_practices: summary.mean_best_practices || 0,
                         mean_unsolicited_docs: summary.mean_unsolicited_docs || 0,
-                        win_rate: summary.win_rate || 0,
                         success_rate: summary.success_rate || 0,
                         total_samples: run.total_samples
                     });
@@ -536,29 +490,20 @@ async function loadLLMJudgeLeaderboard() {
             }
         }
 
-        // Sort by win_rate (primary metric)
-        llmRuns.sort((a, b) => b.win_rate - a.win_rate);
+        llmRuns.sort((a, b) => b.mean_aggregate - a.mean_aggregate);
 
         if (llmRuns.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="loading">No LLM judge results found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">No LLM judge results found</td></tr>';
             return;
         }
 
         tbody.innerHTML = '';
         const medals = ['🥇', '🥈', '🥉'];
 
-        // Helper to format and color-code scores (higher = better)
+        // Helper to format and color-code scores
         const formatScore = (score) => {
             if (score === null || score === undefined) return '<span style="color: #9ca3af;">—</span>';
             const color = score >= 0.5 ? '#10b981' : score >= 0 ? '#f59e0b' : '#ef4444';
-            return `<span style="color: ${color}; font-weight: 600;">${score.toFixed(2)}</span>`;
-        };
-
-        // Helper to format unsolicited docs (higher = worse, inverted colors)
-        const formatUnsolicitedDocs = (score) => {
-            if (score === null || score === undefined) return '<span style="color: #9ca3af;">—</span>';
-            // Invert: lower is better (green), higher is worse (red)
-            const color = score <= 0 ? '#10b981' : score <= 0.5 ? '#f59e0b' : '#ef4444';
             return `<span style="color: ${color}; font-weight: 600;">${score.toFixed(2)}</span>`;
         };
 
@@ -566,18 +511,19 @@ async function loadLLMJudgeLeaderboard() {
             const row = document.createElement('tr');
             const rankDisplay = index < 3 ? `${medals[index]} ${index + 1}` : `${index + 1}`;
 
-            // Use win_rate from summary (fraction of PRs where agent beat human)
-            const winRate = agent.win_rate !== undefined ? agent.win_rate : 0;
+            // For LLM judge fallback, use success_rate as win_rate since there's no head-to-head data
+            const winRate = agent.win_rate !== undefined ? agent.win_rate : agent.success_rate;
 
             row.innerHTML = `
                 <td>${rankDisplay}</td>
                 <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-                <td>${formatPercentage(winRate)}</td>
+                <td>${formatScore(agent.mean_aggregate)}</td>
                 <td>${formatScore(agent.mean_correctness)}</td>
                 <td>${formatScore(agent.mean_completeness)}</td>
                 <td>${formatScore(agent.mean_code_reuse)}</td>
                 <td>${formatScore(agent.mean_best_practices)}</td>
-                <td>${formatUnsolicitedDocs(agent.mean_unsolicited_docs)}</td>
+                <td>${formatScore(agent.mean_unsolicited_docs)}</td>
+                <td>${formatPercentage(winRate)}</td>
             `;
 
             tbody.appendChild(row);
@@ -587,7 +533,7 @@ async function loadLLMJudgeLeaderboard() {
         createMetricsComparisonChart(llmRuns);
     } catch (error) {
         console.error('Error loading LLM judge leaderboard:', error);
-        tbody.innerHTML = '<tr><td colspan="8" class="loading">Error loading LLM judge results</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">Error loading LLM judge results</td></tr>';
     }
 }
 
@@ -1139,7 +1085,7 @@ function displayLLMJudgeAgentResults(agentResults) {
             <td>${formatScore(scores.completeness)}</td>
             <td>${formatScore(scores.code_reuse)}</td>
             <td>${formatScore(scores.best_practices)}</td>
-            <td>${formatScore(scores.unsolicited_docs)}</td>
+            <td>${formatScore(scores.documentation)}</td>
             <td>${elapsedSec}</td>
         `;
 
@@ -1173,8 +1119,8 @@ function createAgentScoresChart(agentResults) {
     const ctx = canvas.getContext('2d');
 
     // Prepare data
-    const metricLabels = ['Correctness', 'Completeness', 'Code Reuse', 'Best Practices', 'Unsol. Docs'];
-    const metricKeys = ['correctness', 'completeness', 'code_reuse', 'best_practices', 'unsolicited_docs'];
+    const metricLabels = ['Correctness', 'Completeness', 'Code Reuse', 'Best Practices', 'Documentation'];
+    const metricKeys = ['correctness', 'completeness', 'code_reuse', 'best_practices', 'documentation'];
 
     // Agent colors (matching landing page style)
     const colors = [

@@ -360,16 +360,19 @@ def judge_edit(
         Judge object
     """
     pr_id = f"{sample.repo_url.split('/')[-2]}_{sample.repo_url.split('/')[-1].replace('.git', '')}_pr{sample.pr_number}"
+    edit_run_id = edit.edit_run_id or "unknown"
 
-    # Create output directory (always use "llm" subdirectory)
-    judge_dir = output_dir / "llm" / judge_model / judge_run_id / pr_id
+    # Create output directory (always use "judges/llm" subdirectory)
+    # Include edit_run_id in path to separate judgments for different agents on the same PR
+    judges_base = output_dir / "judges"
+    judge_dir = judges_base / "llm" / judge_model / judge_run_id / edit_run_id / pr_id
     judge_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if judge already exists (current run)
     judge_file = judge_dir / "judge.json"
 
     if judge_file.exists() and not force:
-        console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in this run)[/yellow]")
+        console.print(f"[yellow]⊙ Skipping {pr_id} for edit_run {edit_run_id} (already judged in this run)[/yellow]")
         # Load and return existing judge
         with open(judge_file) as f:
             judge_data = json.load(f)
@@ -377,8 +380,8 @@ def judge_edit(
 
     # If test_label is provided, check if this PR was already judged in any run with the same test_label
     if test_label and not force:
-        # Check in staged mode (judge_run_manifest.json in llm/model/run_id/)
-        judge_mode_dir = output_dir / "llm" / judge_model
+        # Check in staged mode (judge_run_manifest.json in judges/llm/model/run_id/)
+        judge_mode_dir = judges_base / "llm" / judge_model
         if judge_mode_dir.exists():
             for other_run_dir in judge_mode_dir.iterdir():
                 if not other_run_dir.is_dir() or other_run_dir.name == judge_run_id:
@@ -390,17 +393,17 @@ def judge_edit(
                     with open(manifest_file) as f:
                         manifest = JudgeRunManifest(**json.load(f))
                         if manifest.test_label == test_label:
-                            # Check if this PR was judged in that run
-                            other_judge_file = other_run_dir / pr_id / "judge.json"
+                            # Check if this PR was judged in that run (include edit_run_id in path)
+                            other_judge_file = other_run_dir / edit_run_id / pr_id / "judge.json"
                             if other_judge_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                console.print(f"[yellow]⊙ Skipping {pr_id} for edit_run {edit_run_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                 # Load and return existing judge
                                 with open(other_judge_file) as f:
                                     judge_data = json.load(f)
                                     return Judge(**judge_data)
 
         # Check in pipeline mode (run_manifest.json in summaries/run_id/)
-        summaries_dir = output_dir.parent / "summaries"
+        summaries_dir = output_dir / "summaries"
         if summaries_dir.exists():
             for other_run_dir in summaries_dir.iterdir():
                 if not other_run_dir.is_dir() or other_run_dir.name == judge_run_id:
@@ -412,10 +415,10 @@ def judge_edit(
                     with open(manifest_file) as f:
                         manifest = RunManifest(**json.load(f))
                         if manifest.test_label == test_label:
-                            # Check if this PR was judged in that run
-                            other_judge_file = output_dir / "llm" / judge_model / other_run_dir.name / pr_id / "judge.json"
+                            # Check if this PR was judged in that run (include edit_run_id in path)
+                            other_judge_file = judges_base / "llm" / judge_model / other_run_dir.name / edit_run_id / pr_id / "judge.json"
                             if other_judge_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
+                                console.print(f"[yellow]⊙ Skipping {pr_id} for edit_run {edit_run_id} (already judged in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                 # Load and return existing judge
                                 with open(other_judge_file) as f:
                                     judge_data = json.load(f)
@@ -551,13 +554,16 @@ def run_judge_stage(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Judges always go in output_dir/judges/llm/...
+    judges_base = output_dir / "judges"
+
     # Use provided judge_run_id for resume, or generate new one
     if resume_judge_run_id:
         judge_run_id = resume_judge_run_id
         console.print(f"[bold]Resuming judge run {judge_run_id}[/bold]")
 
         # Load existing manifest to get test_label and edit_run_ids if not provided
-        manifest_file = output_dir / "llm" / judge_model / judge_run_id / "judge_run_manifest.json"
+        manifest_file = judges_base / "llm" / judge_model / judge_run_id / "judge_run_manifest.json"
         if manifest_file.exists():
             with open(manifest_file) as f:
                 manifest_data = json.load(f)
@@ -707,8 +713,8 @@ def run_judge_stage(
         test_label=test_label,
     )
 
-    # Save manifest in the llm/model/run_id directory
-    manifest_dir = output_dir / "llm" / judge_model / judge_run_id
+    # Save manifest in the judges/llm/model/run_id directory
+    manifest_dir = judges_base / "llm" / judge_model / judge_run_id
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest_file = manifest_dir / "judge_run_manifest.json"
     with open(manifest_file, "w") as f:
