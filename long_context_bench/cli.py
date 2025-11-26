@@ -827,6 +827,7 @@ def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
     headers_content = """/*
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=3600
+  X-Robots-Tag: noindex, nofollow
 
 /*.json
   Content-Type: application/json
@@ -837,6 +838,12 @@ def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
   Cache-Control: public, max-age=300
 """
     (dist_path / "_headers").write_text(headers_content)
+
+    # 8. Create robots.txt to prevent indexing
+    robots_content = """User-agent: *
+Disallow: /
+"""
+    (dist_path / "robots.txt").write_text(robots_content)
 
     # Count files
     file_count = sum(1 for _ in dist_path.rglob("*") if _.is_file())
