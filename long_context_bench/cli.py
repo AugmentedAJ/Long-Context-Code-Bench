@@ -705,6 +705,129 @@ def web(output_dir: str, port: int, no_server: bool) -> None:
         click.echo("\n\n✓ Server stopped")
 
 
+@main.command("build-static")
+@click.argument("output_dir", type=click.Path(exists=True), default="output")
+@click.argument("dist_dir", type=click.Path(), default="dist")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress output")
+def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
+    """Build static site for Cloudflare Pages deployment.
+
+    Creates a static build of the web UI that can be deployed to
+    Cloudflare Pages or any static hosting service.
+
+    \b
+    Arguments:
+        OUTPUT_DIR  Source output directory (default: output)
+        DIST_DIR    Destination directory (default: dist)
+
+    \b
+    Examples:
+        # Build static site
+        long-context-bench build-static output dist
+
+        # Deploy to Cloudflare Pages with Wrangler
+        npx wrangler pages deploy dist
+    """
+    from pathlib import Path
+    import shutil
+
+    output_path = Path(output_dir)
+    dist_path = Path(dist_dir)
+
+    # Clean and create dist directory
+    if dist_path.exists():
+        shutil.rmtree(dist_path)
+    dist_path.mkdir(parents=True)
+
+    if not quiet:
+        click.echo(f"Building static site from '{output_dir}' to '{dist_dir}'...")
+
+    def copy_tree_selective(src: Path, dst: Path, patterns: list) -> int:
+        """Copy directory tree, only including files matching patterns."""
+        copied = 0
+        for src_file in src.rglob("*"):
+            if src_file.is_file() and src_file.name in patterns:
+                rel_path = src_file.relative_to(src)
+                dst_file = dst / rel_path
+                dst_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dst_file)
+                copied += 1
+        return copied
+
+    # 1. Copy web static files
+    web_src = output_path / "web"
+    if not web_src.exists():
+        web_src = Path(__file__).parent / "web"
+
+    static_files = ["index.html", "app.js", "data-loader.js", "charts.js", "styles.css"]
+    for fname in static_files:
+        src = web_src / fname
+        if src.exists():
+            shutil.copy2(src, dist_path / fname)
+            if not quiet:
+                click.echo(f"  Copied {fname}")
+
+    # 2. Copy index.json
+    index_file = output_path / "index.json"
+    if index_file.exists():
+        shutil.copy2(index_file, dist_path / "index.json")
+        if not quiet:
+            click.echo(f"  Copied index.json")
+
+    # 3. Copy summaries
+    summaries_src = output_path / "summaries"
+    if summaries_src.exists():
+        n = copy_tree_selective(summaries_src, dist_path / "summaries",
+                               ["summary.json", "run_manifest.json"])
+        if not quiet and n > 0:
+            click.echo(f"  Copied {n} files from summaries/")
+
+    # 4. Copy judges
+    judges_src = output_path / "judges"
+    if judges_src.exists():
+        n = copy_tree_selective(judges_src, dist_path / "judges",
+                               ["judge.json", "judge_run_manifest.json"])
+        if not quiet and n > 0:
+            click.echo(f"  Copied {n} files from judges/")
+
+    # 5. Copy edits
+    edits_src = output_path / "edits"
+    if edits_src.exists():
+        n = copy_tree_selective(edits_src, dist_path / "edits",
+                               ["edit_summary.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"])
+        if not quiet and n > 0:
+            click.echo(f"  Copied {n} files from edits/")
+
+    # 6. Copy samples (from output/samples or data/samples)
+    for samples_src in [output_path / "samples", Path("data/samples")]:
+        if samples_src.exists():
+            n = copy_tree_selective(samples_src, dist_path / "samples", ["sample.json"])
+            if not quiet and n > 0:
+                click.echo(f"  Copied {n} files from {samples_src}/")
+
+    # 7. Create _headers for Cloudflare Pages
+    headers_content = """/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+
+/*.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+
+/*.jsonl
+  Content-Type: application/x-ndjson
+  Cache-Control: public, max-age=300
+"""
+    (dist_path / "_headers").write_text(headers_content)
+
+    # Count files
+    file_count = sum(1 for _ in dist_path.rglob("*") if _.is_file())
+    if not quiet:
+        click.echo(f"\n✓ Static build complete: {file_count} files in '{dist_dir}'")
+        click.echo(f"\nTo deploy to Cloudflare Pages:")
+        click.echo(f"  npx wrangler pages deploy {dist_dir}")
+
+
 if __name__ == "__main__":
     main()
 
