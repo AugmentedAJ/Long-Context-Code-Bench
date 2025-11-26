@@ -742,17 +742,23 @@ def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
     if not quiet:
         click.echo(f"Building static site from '{output_dir}' to '{dist_dir}'...")
 
-    def copy_tree_selective(src: Path, dst: Path, patterns: list) -> int:
+    MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB Cloudflare Pages limit
+
+    def copy_tree_selective(src: Path, dst: Path, patterns: list) -> tuple[int, int]:
         """Copy directory tree, only including files matching patterns."""
         copied = 0
+        skipped = 0
         for src_file in src.rglob("*"):
             if src_file.is_file() and src_file.name in patterns:
+                if src_file.stat().st_size > MAX_FILE_SIZE:
+                    skipped += 1
+                    continue
                 rel_path = src_file.relative_to(src)
                 dst_file = dst / rel_path
                 dst_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src_file, dst_file)
                 copied += 1
-        return copied
+        return copied, skipped
 
     # 1. Copy web static files
     web_src = output_path / "web"
@@ -777,33 +783,45 @@ def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
     # 3. Copy summaries
     summaries_src = output_path / "summaries"
     if summaries_src.exists():
-        n = copy_tree_selective(summaries_src, dist_path / "summaries",
-                               ["summary.json", "run_manifest.json"])
+        n, s = copy_tree_selective(summaries_src, dist_path / "summaries",
+                                   ["summary.json", "run_manifest.json"])
         if not quiet and n > 0:
-            click.echo(f"  Copied {n} files from summaries/")
+            msg = f"  Copied {n} files from summaries/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
 
     # 4. Copy judges
     judges_src = output_path / "judges"
     if judges_src.exists():
-        n = copy_tree_selective(judges_src, dist_path / "judges",
-                               ["judge.json", "judge_run_manifest.json"])
+        n, s = copy_tree_selective(judges_src, dist_path / "judges",
+                                   ["judge.json", "judge_run_manifest.json"])
         if not quiet and n > 0:
-            click.echo(f"  Copied {n} files from judges/")
+            msg = f"  Copied {n} files from judges/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
 
     # 5. Copy edits
     edits_src = output_path / "edits"
     if edits_src.exists():
-        n = copy_tree_selective(edits_src, dist_path / "edits",
-                               ["edit_summary.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"])
+        n, s = copy_tree_selective(edits_src, dist_path / "edits",
+                                   ["edit_summary.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"])
         if not quiet and n > 0:
-            click.echo(f"  Copied {n} files from edits/")
+            msg = f"  Copied {n} files from edits/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
 
     # 6. Copy samples (from output/samples or data/samples)
     for samples_src in [output_path / "samples", Path("data/samples")]:
         if samples_src.exists():
-            n = copy_tree_selective(samples_src, dist_path / "samples", ["sample.json"])
+            n, s = copy_tree_selective(samples_src, dist_path / "samples", ["sample.json"])
             if not quiet and n > 0:
-                click.echo(f"  Copied {n} files from {samples_src}/")
+                msg = f"  Copied {n} files from {samples_src}/"
+                if s > 0:
+                    msg += f" (skipped {s} >25MB)"
+                click.echo(msg)
 
     # 7. Create _headers for Cloudflare Pages
     headers_content = """/*
