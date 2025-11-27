@@ -853,7 +853,7 @@ long-context-bench pipeline \
 - **Recommended:** OAuth via `auggie login` (uses subscription)
 - **Alternative:** Set `AUGMENT_API_TOKEN` environment variable
 
-**Model aliases:** Use `sonnet`, `opus`, `haiku` or full model names
+**Model IDs:** Use `sonnet4.5`, `opus4.5`, `haiku4.5`, `sonnet4`, or other IDs from `auggie model list`
 
 ### Claude Code
 
