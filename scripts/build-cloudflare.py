@@ -55,9 +55,11 @@ def build_static(output_dir: Path, dist_dir: Path, verbose: bool = True) -> None
         print(f"Building static site from '{output_dir}' to '{dist_dir}'...")
     
     # 1. Copy web static files (HTML, JS, CSS)
+    # Priority: output/web > top-level web/ > long_context_bench/web
     web_src = output_dir / "web"
     if not web_src.exists():
-        # Try the source web directory
+        web_src = Path(__file__).parent.parent / "web"
+    if not web_src.exists():
         web_src = Path(__file__).parent.parent / "long_context_bench" / "web"
     
     static_files = ["index.html", "app.js", "data-loader.js", "charts.js", "styles.css"]

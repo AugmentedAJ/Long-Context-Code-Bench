@@ -17,7 +17,8 @@ const PORT = process.env.PORT || 3000;
 // Determine the output directory
 // When running from long_context_bench/web/, output is at ../../output
 // When deployed to output/web/, data is at ../
-const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', 'output');
+// Resolve to absolute path for res.sendFile() compatibility
+const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', 'output'));
 
 console.log('Long-Context-Bench Web Server');
 console.log('==============================');
@@ -65,16 +66,45 @@ app.get('/api/summaries/:runId(*)/summary.json', (req, res) => {
     res.sendFile(summaryPath);
 });
 
-// API endpoint to get edit data
+// API endpoint to get edit data (supports both edit.json and edit_summary.json)
 app.get('/api/edits/:runner/:model/:editRunId/:prId/edit.json', (req, res) => {
     const { runner, model, editRunId, prId } = req.params;
-    const editPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit.json');
 
-    if (!fs.existsSync(editPath)) {
+    // Try edit.json first, then fall back to edit_summary.json
+    const editPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit.json');
+    const editSummaryPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit_summary.json');
+
+    if (fs.existsSync(editPath)) {
+        return res.sendFile(editPath);
+    } else if (fs.existsSync(editSummaryPath)) {
+        return res.sendFile(editSummaryPath);
+    } else {
         return res.status(404).json({ error: `Edit not found` });
     }
+});
 
-    res.sendFile(editPath);
+// API endpoint to get edit summary data
+app.get('/api/edits/:runner/:model/:editRunId/:prId/edit_summary.json', (req, res) => {
+    const { runner, model, editRunId, prId } = req.params;
+    const editSummaryPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit_summary.json');
+
+    if (!fs.existsSync(editSummaryPath)) {
+        return res.status(404).json({ error: `Edit summary not found` });
+    }
+
+    res.sendFile(editSummaryPath);
+});
+
+// API endpoint to get edit patch
+app.get('/api/edits/:runner/:model/:editRunId/:prId/edit.patch', (req, res) => {
+    const { runner, model, editRunId, prId } = req.params;
+    const patchPath = path.join(OUTPUT_DIR, 'edits', runner, model, editRunId, prId, 'edit.patch');
+
+    if (!fs.existsSync(patchPath)) {
+        return res.status(404).json({ error: `Edit patch not found` });
+    }
+
+    res.sendFile(patchPath);
 });
 
 // API endpoint to get logs data
@@ -102,18 +132,34 @@ app.get('/api/judges/:judgeMode/:judgeModel/:judgeRunId/:editRunId/:prId/judge.j
     res.sendFile(judgePath);
 });
 
-// API endpoint to get sample data
+// API endpoint to get sample data (with version)
 app.get('/api/samples/:version/:prId/sample.json', (req, res) => {
     const { version, prId } = req.params;
 
-    // Try output directory first, then fall back to data directory
-    const outputSamplePath = path.join(OUTPUT_DIR, 'samples', version, prId, 'sample.json');
-    const dataSamplePath = path.join(__dirname, '..', '..', 'data', 'samples', version, prId, 'sample.json');
+    // Try various possible locations for sample data
+    const possiblePaths = [
+        path.join(OUTPUT_DIR, 'samples', version, prId, 'sample.json'),  // output/samples/v1/pr_id/sample.json
+        path.join(OUTPUT_DIR, 'samples', prId, 'sample.json'),           // output/samples/pr_id/sample.json (flat structure)
+        path.join(__dirname, '..', '..', 'data', 'samples', version, prId, 'sample.json'),  // data/samples/v1/pr_id/sample.json
+    ];
 
-    if (fs.existsSync(outputSamplePath)) {
-        return res.sendFile(outputSamplePath);
-    } else if (fs.existsSync(dataSamplePath)) {
-        return res.sendFile(dataSamplePath);
+    for (const samplePath of possiblePaths) {
+        if (fs.existsSync(samplePath)) {
+            return res.sendFile(samplePath);
+        }
+    }
+
+    return res.status(404).json({ error: `Sample not found` });
+});
+
+// API endpoint to get sample data (without version - flat structure)
+app.get('/api/samples/:prId/sample.json', (req, res) => {
+    const { prId } = req.params;
+
+    const samplePath = path.join(OUTPUT_DIR, 'samples', prId, 'sample.json');
+
+    if (fs.existsSync(samplePath)) {
+        return res.sendFile(samplePath);
     } else {
         return res.status(404).json({ error: `Sample not found` });
     }

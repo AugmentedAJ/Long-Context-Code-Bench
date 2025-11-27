@@ -44,33 +44,45 @@ async function loadIndex() {
 
 /**
  * Load a summary file
+ * @param {string|object} runIdOrRun - Either a run_id string or a run object with summary_path
  */
-async function loadSummary(runId) {
-    if (dataCache.summaries[runId]) {
-        return dataCache.summaries[runId];
-    }
+async function loadSummary(runIdOrRun) {
+    // Determine the cache key and summary path
+    let cacheKey;
+    let summaryPath;
 
-    try {
-        // First, try to find the summary_path from the index
+    if (typeof runIdOrRun === 'object' && runIdOrRun.summary_path) {
+        // If a run object with summary_path is provided, use it directly
+        cacheKey = runIdOrRun.summary_path;
+        summaryPath = `${API_BASE}/${runIdOrRun.summary_path}`;
+    } else {
+        // Legacy: lookup by run_id
+        const runId = typeof runIdOrRun === 'object' ? runIdOrRun.run_id : runIdOrRun;
+        cacheKey = runId;
+
+        // Try to find the summary_path from the index
         const index = dataCache.index || await loadIndex();
         const run = index.runs.find(r => r.run_id === runId);
 
-        let summaryPath;
         if (run && run.summary_path) {
-            // Use the summary_path from the index
             summaryPath = `${API_BASE}/${run.summary_path}`;
         } else {
-            // Fallback to the old path format
             summaryPath = `${API_BASE}/summaries/${runId}/summary.json`;
         }
+    }
 
+    if (dataCache.summaries[cacheKey]) {
+        return dataCache.summaries[cacheKey];
+    }
+
+    try {
         const response = await fetch(summaryPath);
         if (!response.ok) {
-            throw new Error(`Failed to load summary for ${runId}`);
+            throw new Error(`Failed to load summary from ${summaryPath}`);
         }
 
         const summary = await response.json();
-        dataCache.summaries[runId] = summary;
+        dataCache.summaries[cacheKey] = summary;
         return summary;
     } catch (error) {
         console.error('Error loading summary:', error);

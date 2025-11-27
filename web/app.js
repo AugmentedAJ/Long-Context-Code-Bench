@@ -2,6 +2,48 @@
  * Main application logic for Long-Context-Bench web app
  */
 
+/**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Colorize a unified diff for display with syntax highlighting
+ * Lines starting with '+' are additions (green)
+ * Lines starting with '-' are deletions (red)
+ * Lines starting with '@@' are hunk headers (blue)
+ * Lines starting with 'diff', 'index', '---', '+++' are metadata
+ */
+function colorizeDiff(diffText) {
+    if (!diffText) return '<em>No diff available</em>';
+
+    const lines = diffText.split('\n');
+    const coloredLines = lines.map(line => {
+        const escaped = escapeHtml(line);
+
+        if (line.startsWith('+++') || line.startsWith('---')) {
+            return `<span class="diff-line-meta">${escaped}</span>`;
+        } else if (line.startsWith('+')) {
+            return `<span class="diff-line-add">${escaped}</span>`;
+        } else if (line.startsWith('-')) {
+            return `<span class="diff-line-del">${escaped}</span>`;
+        } else if (line.startsWith('@@')) {
+            return `<span class="diff-line-hunk">${escaped}</span>`;
+        } else if (line.startsWith('diff ') || line.startsWith('index ')) {
+            return `<span class="diff-line-meta">${escaped}</span>`;
+        } else {
+            return escaped;
+        }
+    });
+
+    return coloredLines.join('\n');
+}
+
 // Global state
 let currentSummaries = [];
 let filteredSummaries = [];
@@ -320,7 +362,7 @@ function displayHeadToHeadLeaderboard(leaderboard) {
     if (!tbody) return;
 
     if (!leaderboard || leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">No head-to-head results found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No head-to-head results found</td></tr>';
         return;
     }
 
@@ -342,13 +384,12 @@ function displayHeadToHeadLeaderboard(leaderboard) {
         row.innerHTML = `
             <td>${rankDisplay}</td>
             <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-            <td>${formatScore(agent.mean_aggregate)}</td>
+            <td>${formatPercentage(agent.win_rate)}</td>
             <td>${formatScore(agent.mean_correctness)}</td>
             <td>${formatScore(agent.mean_completeness)}</td>
             <td>${formatScore(agent.mean_code_reuse)}</td>
             <td>${formatScore(agent.mean_best_practices)}</td>
             <td>${formatScore(agent.mean_unsolicited_docs)}</td>
-            <td>${formatPercentage(agent.win_rate)}</td>
         `;
 
         tbody.appendChild(row);
@@ -460,7 +501,7 @@ async function loadLLMJudgeLeaderboard() {
         const index = await loadIndex();
 
         if (!index.runs || index.runs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">No results found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">No results found</td></tr>';
             return;
         }
 
@@ -470,7 +511,8 @@ async function loadLLMJudgeLeaderboard() {
             if (!run.mean_aggregate || run.total_samples < 40) continue;
 
             try {
-                const summary = await loadSummary(run.run_id);
+                // Pass the full run object so loadSummary can use the unique summary_path
+                const summary = await loadSummary(run);
                 if (summary) {
                     llmRuns.push({
                         runner: run.runner,
@@ -481,6 +523,7 @@ async function loadLLMJudgeLeaderboard() {
                         mean_code_reuse: summary.mean_code_reuse || 0,
                         mean_best_practices: summary.mean_best_practices || 0,
                         mean_unsolicited_docs: summary.mean_unsolicited_docs || 0,
+                        win_rate: summary.win_rate,
                         success_rate: summary.success_rate || 0,
                         total_samples: run.total_samples
                     });
@@ -490,10 +533,15 @@ async function loadLLMJudgeLeaderboard() {
             }
         }
 
-        llmRuns.sort((a, b) => b.mean_aggregate - a.mean_aggregate);
+        // Sort by win_rate (descending), falling back to mean_aggregate if win_rate is not available
+        llmRuns.sort((a, b) => {
+            const aWinRate = a.win_rate !== undefined ? a.win_rate : a.success_rate;
+            const bWinRate = b.win_rate !== undefined ? b.win_rate : b.success_rate;
+            return bWinRate - aWinRate;
+        });
 
         if (llmRuns.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">No LLM judge results found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">No LLM judge results found</td></tr>';
             return;
         }
 
@@ -517,13 +565,12 @@ async function loadLLMJudgeLeaderboard() {
             row.innerHTML = `
                 <td>${rankDisplay}</td>
                 <td><strong>${agent.runner || ''}:${agent.model || ''}</strong></td>
-                <td>${formatScore(agent.mean_aggregate)}</td>
+                <td>${formatPercentage(winRate)}</td>
                 <td>${formatScore(agent.mean_correctness)}</td>
                 <td>${formatScore(agent.mean_completeness)}</td>
                 <td>${formatScore(agent.mean_code_reuse)}</td>
                 <td>${formatScore(agent.mean_best_practices)}</td>
                 <td>${formatScore(agent.mean_unsolicited_docs)}</td>
-                <td>${formatPercentage(winRate)}</td>
             `;
 
             tbody.appendChild(row);
@@ -533,7 +580,7 @@ async function loadLLMJudgeLeaderboard() {
         createMetricsComparisonChart(llmRuns);
     } catch (error) {
         console.error('Error loading LLM judge leaderboard:', error);
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">Error loading LLM judge results</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Error loading LLM judge results</td></tr>';
     }
 }
 
@@ -958,16 +1005,27 @@ async function showLLMJudgeDetail(prId) {
             // Path structure: judges/llm/claude-sonnet-4-5/{judge_run_id}/{edit_run_id}/{pr_id}/judge.json
             const judgePath = `/api/judges/llm/claude-sonnet-4-5/${judgeRunId}/${editRunId}/${prId}/judge.json`;
             const editPath = `/api/edits/${run.runner}/${run.model}/${editRunId}/${prId}/edit.json`;
+            const patchPath = `/api/edits/${run.runner}/${run.model}/${editRunId}/${prId}/edit.patch`;
 
             try {
-                const [judgeResponse, editResponse] = await Promise.all([
+                const [judgeResponse, editResponse, patchResponse] = await Promise.all([
                     fetch(judgePath),
-                    fetch(editPath)
+                    fetch(editPath),
+                    fetch(patchPath)
                 ]);
 
                 if (judgeResponse.ok && editResponse.ok) {
                     const judgeData = await judgeResponse.json();
                     const editData = await editResponse.json();
+
+                    // Load patch content if available
+                    let patchContent = '';
+                    if (patchResponse.ok) {
+                        patchContent = await patchResponse.text();
+                    }
+
+                    // Add patch content to edit data
+                    editData.patch_unified = patchContent || editData.patch_unified || editData.diff || '';
 
                     // Get human diff from judge data if available
                     if (judgeData.ground_truth_patch && !humanDiff) {
@@ -1025,7 +1083,8 @@ async function showLLMJudgeDetail(prId) {
                     edit_run_id: ar.edit_run_id,
                     patch_unified: ar.edit.patch_unified || ar.edit.diff || '',
                     elapsed_ms: ar.edit.elapsed_ms || 0,
-                    logs_path: ar.edit.logs_path || '',
+                    // Construct logs_path from actual directory structure
+                    logs_path: `${ar.runner}/${ar.model}/${ar.edit_run_id}/${prId}/logs.jsonl`,
                     llm_summary: ar.judge.rationale || 'No judge rationale available',
                     judge_scores: ar.judge.scores || {}
                 })),
