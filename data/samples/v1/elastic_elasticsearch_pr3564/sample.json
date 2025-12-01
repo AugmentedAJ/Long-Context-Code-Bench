@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "head_commit": "2b03bc83a40e470c977564195f6dcc2c208710d1",
+  "task_instructions": "the shell script is writing pidfile twice, once in shell and once in java bootstrap code, remove the duplicate writing from shell script and clean up the exec return code handling",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 3,
+    "lines_deleted": 5,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 5667,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "the shell script is writing pidfile twice, once in shell and once in java bootstrap code, remove the duplicate writing from shell script and clean up the exec return code handling",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

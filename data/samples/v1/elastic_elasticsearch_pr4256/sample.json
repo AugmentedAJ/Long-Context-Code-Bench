@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4256,
+  "base_commit": "f1bf585089db2b3acb28edf619de4f387e69f923",
+  "head_commit": "811b7d7d7837010a205baf59cc75d8df3b1ad69b",
+  "task_instructions": "Change the package installation scripts so elasticsearch doesn't start automatically after installation and update the documentation to show the manual startup commands",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 44,
+    "lines_deleted": 11,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 7278,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Change the package installation scripts so elasticsearch doesn't start automatically after installation and update the documentation to show the manual startup commands",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4462,
+  "base_commit": "1ede9a5730e7b1a76c37d2623999740352e10fec",
+  "head_commit": "040719f337d8525e2d76bd6851fb64140755ce55",
+  "task_instructions": "Allow GetAliasRequest to retrieve all aliases when no specific alias names are provided, reducing data transfer for the Cat API",
+  "stats": {
+    "files_changed": 6,
+    "lines_added": 125,
+    "lines_deleted": 30,
+    "total_diff_hunks": 24,
+    "context_size_bytes": 112671,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Remove the validation that requires at least one alias to be specified in GetAliasesRequest so it can retrieve all aliases when no alias parameter is provided",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

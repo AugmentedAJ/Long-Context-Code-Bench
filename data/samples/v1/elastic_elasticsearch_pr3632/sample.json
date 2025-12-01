@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3632,
+  "base_commit": "9e7b3963d81afc74907a130533738cb90e6f993b",
+  "head_commit": "6b000d8c6d7f0162b6c3d9771785f2bcba508fbf",
+  "task_instructions": "add support for custom highlight query in elasticsearch highlighting so we can highlight different terms than the search query",
+  "stats": {
+    "files_changed": 12,
+    "lines_added": 213,
+    "lines_deleted": 15,
+    "total_diff_hunks": 58,
+    "context_size_bytes": 210550,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "I need to add support for specifying a custom highlight query that's different from the search query. This would be really useful when using rescore queries since those aren't considered by highlighting by default. I want to be able to highlight terms that aren't in the original search query or sort highlighted snippets based on a different query altogether.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134999,
+  "base_commit": "8272fc895484bdcf635a3828616e03183cac283d",
+  "head_commit": "31bc76628f7cc184ad66a96ba2915c3902eaeae8",
+  "task_instructions": "fix the overall_score parameter type in the ML YAML test",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 2,
+    "lines_deleted": 2,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 26931,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "the overall_score parameter in the ML YAML tests is being passed as a string but it should be a numeric value to match the Elasticsearch specification validation",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

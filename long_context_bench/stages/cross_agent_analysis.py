@@ -1,14 +1,17 @@
-"""Cross-agent analysis: Compare multiple agents' solutions for the same PR."""
+"""Cross-agent analysis: Compare multiple agents' solutions for the same PR.
+
+Uses Claude Code CLI for all analysis operations.
+"""
 
 import json
 import platform
+import subprocess
 import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import litellm
 from rich.console import Console
 
 from long_context_bench import __version__
@@ -193,18 +196,57 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks):
 }}"""
 
     try:
-        console.print(f"[cyan]Generating comparative analysis with {judge_model}...[/cyan]")
-        
-        litellm.drop_params = True
-        response = litellm.completion(
-            model=judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            seed=42,
+        console.print(f"[cyan]Generating comparative analysis with Claude Code CLI (model: {judge_model})...[/cyan]")
+
+        # Use Claude Code CLI for analysis
+        cmd = [
+            "claude",
+            "--output-format", "stream-json",
+            "--verbose",
+            "-p",  # print-and-exit, non-interactive
+        ]
+
+        # Add model if not using alias
+        if judge_model not in ["sonnet", "opus", "haiku"]:
+            cmd.extend(["--model", judge_model])
+
+        # Run Claude CLI (prompt on stdin)
+        result = subprocess.run(
+            cmd,
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
-        
-        content = response.choices[0].message.content.strip()
-        
+
+        if result.returncode != 0:
+            raise Exception(f"Claude CLI failed with code {result.returncode}: {result.stderr}")
+
+        # Parse stream-json output
+        content = None
+        lines = [line for line in result.stdout.split('\n') if line.strip()]
+        for line in lines:
+            try:
+                event = json.loads(line)
+                if event.get('type') == 'assistant' and 'message' in event:
+                    message = event['message']
+                    if 'content' in message and isinstance(message['content'], list):
+                        text_parts = []
+                        for block in message['content']:
+                            if block.get('type') == 'text' and 'text' in block:
+                                text_parts.append(block['text'])
+                        if text_parts:
+                            content = ''.join(text_parts)
+                            break
+                elif event.get('type') == 'result' and 'result' in event:
+                    content = event['result']
+                    break
+            except json.JSONDecodeError:
+                continue
+
+        if not content:
+            content = result.stdout.strip()
+
         # Handle markdown code blocks
         if content.startswith("```"):
             lines = content.split("\n")
@@ -217,20 +259,20 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks):
                 if in_code_block or (not line.strip().startswith("```")):
                     json_lines.append(line)
             content = "\n".join(json_lines).strip()
-        
-        result = json.loads(content)
-        
+
+        parsed = json.loads(content)
+
         analysis = ComparativeAnalysis(
-            summary=result.get("summary", ""),
-            best_agent=result.get("best_agent", ""),
-            best_agent_reasoning=result.get("best_agent_reasoning", ""),
-            approach_differences=result.get("approach_differences", ""),
-            ranking=result.get("ranking", []),
+            summary=parsed.get("summary", ""),
+            best_agent=parsed.get("best_agent", ""),
+            best_agent_reasoning=parsed.get("best_agent_reasoning", ""),
+            approach_differences=parsed.get("approach_differences", ""),
+            ranking=parsed.get("ranking", []),
         )
-        
+
         console.print(f"[green]✓ Comparative analysis completed[/green]")
         return analysis
-        
+
     except Exception as e:
         console.print(f"[yellow]Warning: Comparative analysis failed: {e}[/yellow]")
         return None
@@ -245,12 +287,12 @@ def run_cross_agent_analysis(
     cache_dir: Optional[Path] = None,
     force: bool = False,
 ) -> Optional[str]:
-    """Run cross-agent analysis for a specific PR using LLM.
+    """Run cross-agent analysis for a specific PR using Claude Code CLI.
 
     Args:
         pr_number: PR number to analyze
         output_dir: Output directory (should contain samples/ and edits/)
-        judge_model: Judge model (required)
+        judge_model: Judge model for Claude Code CLI (e.g., claude-sonnet-4-5)
         comparative: If True, generate comparative analysis across agents
         test_label: Optional test label to filter edits
         cache_dir: Optional cache directory for repositories
@@ -300,7 +342,7 @@ def run_cross_agent_analysis(
     for edit, edit_file in edits:
         console.print(f"[cyan]Judging {edit.runner}:{edit.model}...[/cyan]")
 
-        # Compute scores using LLM
+        # Compute scores using Claude Code CLI
         scores, rationale, llm_rating, llm_summary = compute_llm_scores(
             edit.patch_unified,
             ground_truth_diff,

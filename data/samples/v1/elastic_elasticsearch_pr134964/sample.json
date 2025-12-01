@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134964,
+  "base_commit": "2ab71babbc961f70b434f7bd5f8cb935f283fc0e",
+  "head_commit": "bcd9b24aa87f17df49a41e784968bbada2ae1713",
+  "task_instructions": "spotted a typo in the double encoder where it uses Long.BYTES instead of Double.BYTES in the setLength call, both are 8 bytes so it works but should be consistent with the data type being encoded",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 24,
+    "lines_deleted": 132,
+    "total_diff_hunks": 24,
+    "context_size_bytes": 62831,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Fix the typo in the encodeDouble method where Long.BYTES is used instead of Double.BYTES on line 146",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

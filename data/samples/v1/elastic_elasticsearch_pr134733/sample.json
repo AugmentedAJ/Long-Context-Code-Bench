@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134733,
+  "base_commit": "d662314b371d340e211d70e3b61cbe8b0bd42330",
+  "head_commit": "21d04e11bb80b116384ce2bbf4943d1bed47ccc5",
+  "task_instructions": "need to add comment support to transport version file parsing in gradle tasks, currently comments starting with # are causing parsing failures",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 22,
+    "lines_deleted": 2,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 2975,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Transport version files need to support comments for better documentation but gradle tasks fail when parsing them",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

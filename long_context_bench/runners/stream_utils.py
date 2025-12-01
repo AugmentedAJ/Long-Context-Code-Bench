@@ -65,6 +65,7 @@ def run_with_streaming(
     )
 
     # Collect output while streaming to console
+    # Always capture stdout for logging purposes, even when streaming
     stdout_lines: List[str] = []
     try:
         # Stream output line by line with timeout
@@ -83,10 +84,13 @@ def run_with_streaming(
                     break
                 continue
 
-            # Stream to console and collect
-            sys.stdout.write(line)
-            sys.stdout.flush()
+            # Always collect output for logs
             stdout_lines.append(line)
+
+            # Stream to console if enabled
+            if stream_output:
+                sys.stdout.write(line)
+                sys.stdout.flush()
 
         # Wait for process to complete
         returncode = process.wait()
@@ -130,6 +134,7 @@ def run_with_pty(
         )
 
     master_fd, slave_fd = pty.openpty()
+    # Always capture stdout for logging purposes, even when streaming
     stdout_chunks: List[str] = []
     start = time.time()
 
@@ -164,7 +169,9 @@ def run_with_pty(
                     # EOF from child
                     break
                 text = data.decode("utf-8", errors="ignore")
+                # Always collect output for logs
                 stdout_chunks.append(text)
+                # Stream to console if enabled
                 if stream_output:
                     sys.stdout.write(text)
                     sys.stdout.flush()
@@ -179,7 +186,9 @@ def run_with_pty(
                     if not data:
                         break
                     text = data.decode("utf-8", errors="ignore")
+                    # Always collect output for logs
                     stdout_chunks.append(text)
+                    # Stream to console if enabled
                     if stream_output:
                         sys.stdout.write(text)
                         sys.stdout.flush()

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 2558,
+  "base_commit": "2eb09e6b1abceb316c789f173988ac733a55dc8b",
+  "head_commit": "3d80c53192270daa4f4e8b00a2a11c68d13ab8c1",
+  "task_instructions": "make ShardsAllocator configurable through node settings instead of being hardcoded",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 100,
+    "lines_deleted": 1,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 1948,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "need to make ShardsAllocator configurable through node settings instead of being hardcoded. currently it defaults to BalancedShardsAllocator but want to be able to switch between different allocators like EvenShardsCountAllocator via cluster.routing.allocation.type setting",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

@@ -20,8 +20,6 @@ def main() -> None:
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token for API access")
 @click.option("--force", is_flag=True, help="Re-sample even if sample.json already exists")
-@click.option("--synthesize", is_flag=True, help="Generate synthesized task instructions using LLM")
-@click.option("--synthesis-model", default="claude-3-7-sonnet-20250219", help="Model for synthesis (LiteLLM model or auggie/<model>)")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 def sample(
     input_path: str,
@@ -29,8 +27,6 @@ def sample(
     dataset_version: str,
     github_token: Optional[str],
     force: bool,
-    synthesize: bool,
-    synthesis_model: str,
     cache_dir: str,
 ) -> None:
     """Sample stage: Extract PR metadata and create sample.json files.
@@ -38,26 +34,16 @@ def sample(
     INPUT_PATH can be a PR URL, JSON file with PR URLs, or directory of samples.
 
     By default, skips PRs that have already been sampled. Use --force to re-sample.
-
-    Use --synthesize to generate natural task instructions using an LLM.
-
-    Synthesis models:
-    - LiteLLM models (requires API key): claude-3-7-sonnet-20250219, gpt-4o, etc.
-    - Auggie CLI (requires auggie login): auggie/claude-sonnet-4, auggie/gpt-4o, etc.
     """
     from long_context_bench.stages.sample import run_sample_stage
 
     click.echo(f"Running sample stage on {input_path}")
-    if synthesize:
-        click.echo(f"Synthesis enabled with model: {synthesis_model}")
     run_sample_stage(
         input_path=input_path,
         output_dir=Path(output_dir),
         dataset_version=dataset_version,
         github_token=github_token,
         force=force,
-        synthesize=synthesize,
-        synthesis_model=synthesis_model,
         cache_dir=Path(cache_dir),
     )
     click.echo("Sample stage completed")
@@ -74,6 +60,7 @@ def sample(
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
 @click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--mcp-config-path", type=click.Path(exists=True), help="Path to MCP configuration file (JSON)")
 @click.option("--dataset-version", default="v0", help="Dataset version")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
@@ -91,6 +78,7 @@ def edit(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
+    mcp_config_path: Optional[str],
     dataset_version: str,
     test_label: Optional[str],
     cache_dir: str,
@@ -135,6 +123,7 @@ def edit(
         force=force,
         use_synthesized=use_synthesized,
         stream_output=stream_output,
+        mcp_config_path=mcp_config_path,
     )
     click.echo(f"Edit stage completed. Edit run ID: {edit_run_id}")
 
@@ -143,11 +132,14 @@ def edit(
 @click.option("--sample-path", type=click.Path(exists=True), help="Path to sample.json (for single file mode)")
 @click.option("--edit-path", type=click.Path(exists=True), help="Path to edit.json (for single file mode)")
 @click.option("--edit-run-ids", help="Comma-separated list of edit run IDs to evaluate (for batch mode)")
-@click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
+@click.option("--judge-model", required=True, help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5, sonnet)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
-@click.option("--output-dir", type=click.Path(), default="output/judges", help="Output directory for judgments")
+@click.option("--output-dir", type=click.Path(), default="output", help="Base output directory (judges saved to output/judges/, edits read from output/edits/)")
+@click.option("--samples-dir", type=click.Path(exists=True), help="Samples directory (defaults to data/samples, falls back to output/samples)")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
 @click.option("--force", is_flag=True, help="Re-judge even if judge.json already exists")
+@click.option("--concurrency", type=int, default=1, help="Number of concurrent judge tasks (default: 1)")
+@click.option("--resume-judge-run-id", help="Resume an existing judge run by ID (skips already-judged PRs)")
 def judge(
     sample_path: Optional[str],
     edit_path: Optional[str],
@@ -155,10 +147,13 @@ def judge(
     judge_model: str,
     test_label: Optional[str],
     output_dir: str,
+    samples_dir: Optional[str],
     cache_dir: str,
     force: bool,
+    concurrency: int,
+    resume_judge_run_id: Optional[str],
 ) -> None:
-    """Judge stage: Score agent edits against ground truth using LLM.
+    """Judge stage: Score agent edits against ground truth using Claude Code CLI.
 
     Two modes:
     1. Single file mode: Provide --sample-path and --edit-path
@@ -168,6 +163,7 @@ def judge(
     saved under output/judges/llm/<judge_model>/<judge_run_id>/.
 
     By default, skips PRs that have already been judged. Use --force to re-judge.
+    Use --resume-judge-run-id to continue an incomplete judge run.
     """
     from long_context_bench.stages.judge import run_judge_stage
 
@@ -182,6 +178,8 @@ def judge(
         return
 
     click.echo(f"Running judge stage with model={judge_model}")
+    if resume_judge_run_id:
+        click.echo(f"Resuming judge run: {resume_judge_run_id}")
     if edit_run_id_list:
         click.echo(f"Evaluating edit runs: {', '.join(edit_run_id_list)}")
     if test_label:
@@ -194,15 +192,18 @@ def judge(
         output_dir=Path(output_dir),
         edit_run_ids=edit_run_id_list,
         test_label=test_label,
-        cache_dir=Path(cache_dir),
+        cache_dir=Path(cache_dir) if cache_dir else None,
         force=force,
+        samples_dir=Path(samples_dir) if samples_dir else None,
+        concurrency=concurrency,
+        resume_judge_run_id=resume_judge_run_id,
     )
     click.echo(f"Judge stage completed. Judge run ID: {judge_run_id}")
 
 
 @main.command()
 @click.option("--pr-number", required=True, type=int, help="PR number to analyze")
-@click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
+@click.option("--judge-model", required=True, help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5)")
 @click.option("--comparative/--no-comparative", default=True, help="Generate comparative analysis across agents")
 @click.option("--test-label", help="Optional label to filter edits by")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output directory")
@@ -217,18 +218,18 @@ def analyze_pr(
     cache_dir: str,
     force: bool,
 ) -> None:
-    """Cross-agent analysis: Compare multiple agents' solutions for a single PR using LLM.
+    """Cross-agent analysis: Compare multiple agents' solutions for a single PR using Claude Code CLI.
 
     This command finds all agent attempts for the specified PR (optionally filtered
-    by test_label), judges each one using LLM, and optionally generates a comparative
+    by test_label), judges each one using Claude Code CLI, and optionally generates a comparative
     analysis showing:
     - Individual scores for each agent
     - Side-by-side comparison of approaches
-    - LLM-generated ranking and analysis (with --comparative)
+    - Ranking and analysis (with --comparative)
 
     Example:
         long-context-bench analyze-pr --pr-number 114869 --test-label v0 \\
-            --judge-model anthropic/claude-3-5-sonnet-20241022 --comparative
+            --judge-model claude-sonnet-4-5 --comparative
     """
     from long_context_bench.stages.cross_agent_analysis import run_cross_agent_analysis
 
@@ -263,7 +264,7 @@ def analyze_pr(
 @click.option(
     "--judge-model",
     required=True,
-    help="LLM judge model whose scores should be reused for scalar per-agent metrics (e.g., anthropic/claude-3-5-sonnet-20241022)",
+    help="Judge model whose scores should be reused for scalar per-agent metrics (e.g., claude-sonnet-4-5)",
 )
 @click.option(
     "--include-codebase-context/--no-codebase-context",
@@ -299,7 +300,7 @@ def head_to_head_pr(
     """Run head-to-head evaluation for a single PR across all agents.
 
     This command finds all agent edits for the specified PR (optionally
-    filtered by test_label), reuses LLM judge scores from the given JUDGE_MODEL
+    filtered by test_label), reuses judge scores from the given JUDGE_MODEL
     for scalar per-agent metrics when available, and runs pairwise comparisons
     using a single dedicated CLI judge agent (configured via --judge-runner and
     --judge-runner-model). Results are written as a HeadToHeadPRResult artifact
@@ -310,7 +311,7 @@ def head_to_head_pr(
     click.echo(f"Running head-to-head evaluation for PR {pr_number}")
     if test_label:
         click.echo(f"Test label filter: {test_label}")
-    click.echo(f"Scalar LLM judge model for per-agent scores: {judge_model}")
+    click.echo(f"Scalar judge model for per-agent scores: {judge_model}")
     click.echo(f"Pairwise judge runner: {judge_runner} (model={judge_runner_model})")
     if include_codebase_context:
         click.echo("Including codebase context in prompts")
@@ -339,6 +340,7 @@ def head_to_head_pr(
 @main.command()
 @click.option("--runner", required=True, help="Agent runner name")
 @click.option("--model", required=True, help="Model name")
+@click.option("--model-dir", help="Model directory name (defaults to model name, useful when model has special chars like 'custom:glm-4.6')")
 @click.option("--agent-binary", type=click.Path(), help="Path to agent binary")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output root directory")
 @click.option("--dataset-version", default="v0", help="Dataset version")
@@ -352,6 +354,7 @@ def head_to_head_pr(
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
 @click.option("--disable-shell", is_flag=True, help="Disable shell access")
 @click.option("--enable-mcp-codebase-qa", is_flag=True, help="Enable MCP codebase QA")
+@click.option("--mcp-config-path", type=click.Path(exists=True), help="Path to MCP configuration file (JSON)")
 @click.option("--pr-numbers", help="Comma-separated list of PR numbers to run (e.g., '115001,114998')")
 @click.option("--pr-indices", help="Comma-separated list of PR indices to run (0-based, e.g., '0,1,2')")
 @click.option("--cache-dir", type=click.Path(), default=".repo_cache", help="Directory for caching cloned repositories")
@@ -360,6 +363,7 @@ def head_to_head_pr(
 def pipeline(
     runner: str,
     model: str,
+    model_dir: Optional[str],
     agent_binary: Optional[str],
     output_dir: str,
     dataset_version: str,
@@ -373,6 +377,7 @@ def pipeline(
     disable_retrieval: bool,
     disable_shell: bool,
     enable_mcp_codebase_qa: bool,
+    mcp_config_path: Optional[str],
     pr_numbers: Optional[str],
     pr_indices: Optional[str],
     cache_dir: str,
@@ -403,6 +408,7 @@ def pipeline(
     run_pipeline(
         runner=runner,
         model=model,
+        model_dir=model_dir,
         agent_binary=agent_binary,
         output_dir=Path(output_dir),
         dataset_version=dataset_version,
@@ -416,6 +422,7 @@ def pipeline(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        mcp_config_path=mcp_config_path,
         pr_numbers=pr_numbers,
         pr_indices=pr_indices,
         cache_dir=Path(cache_dir),
@@ -433,8 +440,8 @@ def pipeline(
 @click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
 @click.option("--total-shards", type=int, default=1, help="Total number of shards")
 @click.option("--shard-index", type=int, default=0, help="Current shard index (0-based)")
-@click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode")
-@click.option("--judge-model", help="Judge model (for LLM mode)")
+@click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode (llm uses Claude Code CLI)")
+@click.option("--judge-model", help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token")
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")
@@ -618,6 +625,218 @@ def compare(results_dir: str, test_label: str, output_file: Optional[str], forma
         )
 
     click.echo(f"{format.capitalize()} generation completed")
+
+
+@main.command()
+@click.argument("output_dir", type=click.Path(exists=True), default="output")
+@click.option("--port", type=int, default=3000, help="Port to run the web server on")
+@click.option("--no-server", is_flag=True, help="Only deploy web files, don't start server")
+def web(output_dir: str, port: int, no_server: bool) -> None:
+    """Deploy and optionally start the web UI.
+
+    This command:
+    1. Deploys the web app files to OUTPUT_DIR/web/
+    2. Optionally starts a local web server at http://localhost:PORT
+
+    Examples:
+
+        # Deploy and start server on port 3000 (default)
+        long-context-bench web output
+
+        # Deploy only (no server)
+        long-context-bench web output --no-server
+
+        # Start on a different port
+        long-context-bench web output --port 8080
+    """
+    from long_context_bench.stats import deploy_web_app
+    import subprocess
+    import os
+
+    output_path = Path(output_dir)
+    web_dir = output_path / "web"
+
+    # Deploy web app (deploy_web_app prints its own success message)
+    click.echo(f"Deploying web app to {web_dir}...")
+    deploy_web_app(output_path)
+
+    if no_server:
+        click.echo("\nTo start the server manually:")
+        click.echo(f"  cd {web_dir} && npm install && npm start")
+        return
+
+    # Check if npm is installed
+    try:
+        subprocess.run(["npm", "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        click.echo("\n⚠ npm not found. To start the server manually:")
+        click.echo(f"  cd {web_dir} && npm install && npm start")
+        return
+
+    # Install dependencies if needed
+    if not (web_dir / "node_modules").exists():
+        click.echo("Installing dependencies...")
+        subprocess.run(["npm", "install"], cwd=web_dir, check=True)
+
+    # Start the server
+    click.echo(f"\n🚀 Starting web server at http://localhost:{port}")
+    click.echo("   Press Ctrl+C to stop\n")
+
+    env = os.environ.copy()
+    env["PORT"] = str(port)
+
+    try:
+        subprocess.run(["npm", "start"], cwd=web_dir, env=env)
+    except KeyboardInterrupt:
+        click.echo("\n\n✓ Server stopped")
+
+
+@main.command("build-static")
+@click.argument("output_dir", type=click.Path(exists=True), default="output")
+@click.argument("dist_dir", type=click.Path(), default="dist")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress output")
+def build_static(output_dir: str, dist_dir: str, quiet: bool) -> None:
+    """Build static site for Cloudflare Pages deployment.
+
+    Creates a static build of the web UI that can be deployed to
+    Cloudflare Pages or any static hosting service.
+
+    \b
+    Arguments:
+        OUTPUT_DIR  Source output directory (default: output)
+        DIST_DIR    Destination directory (default: dist)
+
+    \b
+    Examples:
+        # Build static site
+        long-context-bench build-static output dist
+
+        # Deploy to Cloudflare Pages with Wrangler
+        npx wrangler pages deploy dist
+    """
+    from pathlib import Path
+    import shutil
+
+    output_path = Path(output_dir)
+    dist_path = Path(dist_dir)
+
+    # Clean and create dist directory
+    if dist_path.exists():
+        shutil.rmtree(dist_path)
+    dist_path.mkdir(parents=True)
+
+    if not quiet:
+        click.echo(f"Building static site from '{output_dir}' to '{dist_dir}'...")
+
+    MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB Cloudflare Pages limit
+
+    def copy_tree_selective(src: Path, dst: Path, patterns: list) -> tuple[int, int]:
+        """Copy directory tree, only including files matching patterns."""
+        copied = 0
+        skipped = 0
+        for src_file in src.rglob("*"):
+            if src_file.is_file() and src_file.name in patterns:
+                if src_file.stat().st_size > MAX_FILE_SIZE:
+                    skipped += 1
+                    continue
+                rel_path = src_file.relative_to(src)
+                dst_file = dst / rel_path
+                dst_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dst_file)
+                copied += 1
+        return copied, skipped
+
+    # 1. Copy web static files
+    web_src = output_path / "web"
+    if not web_src.exists():
+        web_src = Path(__file__).parent / "web"
+
+    static_files = ["index.html", "app.js", "data-loader.js", "charts.js", "styles.css"]
+    for fname in static_files:
+        src = web_src / fname
+        if src.exists():
+            shutil.copy2(src, dist_path / fname)
+            if not quiet:
+                click.echo(f"  Copied {fname}")
+
+    # 2. Copy index.json
+    index_file = output_path / "index.json"
+    if index_file.exists():
+        shutil.copy2(index_file, dist_path / "index.json")
+        if not quiet:
+            click.echo(f"  Copied index.json")
+
+    # 3. Copy summaries
+    summaries_src = output_path / "summaries"
+    if summaries_src.exists():
+        n, s = copy_tree_selective(summaries_src, dist_path / "summaries",
+                                   ["summary.json", "run_manifest.json"])
+        if not quiet and n > 0:
+            msg = f"  Copied {n} files from summaries/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
+
+    # 4. Copy judges
+    judges_src = output_path / "judges"
+    if judges_src.exists():
+        n, s = copy_tree_selective(judges_src, dist_path / "judges",
+                                   ["judge.json", "judge_run_manifest.json"])
+        if not quiet and n > 0:
+            msg = f"  Copied {n} files from judges/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
+
+    # 5. Copy edits
+    edits_src = output_path / "edits"
+    if edits_src.exists():
+        n, s = copy_tree_selective(edits_src, dist_path / "edits",
+                                   ["edit_summary.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"])
+        if not quiet and n > 0:
+            msg = f"  Copied {n} files from edits/"
+            if s > 0:
+                msg += f" (skipped {s} >25MB)"
+            click.echo(msg)
+
+    # 6. Copy samples (from output/samples or data/samples)
+    for samples_src in [output_path / "samples", Path("data/samples")]:
+        if samples_src.exists():
+            n, s = copy_tree_selective(samples_src, dist_path / "samples", ["sample.json"])
+            if not quiet and n > 0:
+                msg = f"  Copied {n} files from {samples_src}/"
+                if s > 0:
+                    msg += f" (skipped {s} >25MB)"
+                click.echo(msg)
+
+    # 7. Create _headers for Cloudflare Pages
+    headers_content = """/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+  X-Robots-Tag: noindex, nofollow
+
+/*.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+
+/*.jsonl
+  Content-Type: application/x-ndjson
+  Cache-Control: public, max-age=300
+"""
+    (dist_path / "_headers").write_text(headers_content)
+
+    # 8. Create robots.txt to prevent indexing
+    robots_content = """User-agent: *
+Disallow: /
+"""
+    (dist_path / "robots.txt").write_text(robots_content)
+
+    # Count files
+    file_count = sum(1 for _ in dist_path.rglob("*") if _.is_file())
+    if not quiet:
+        click.echo(f"\n✓ Static build complete: {file_count} files in '{dist_dir}'")
+        click.echo(f"\nTo deploy to Cloudflare Pages:")
+        click.echo(f"  npx wrangler pages deploy {dist_dir}")
 
 
 if __name__ == "__main__":

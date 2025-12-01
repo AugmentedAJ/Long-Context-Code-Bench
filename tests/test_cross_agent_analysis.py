@@ -107,7 +107,7 @@ def test_cross_agent_judge():
         task_instructions="Fix the bug",
         ground_truth_diff="diff --git...",
         judge_mode="llm",
-        judge_model="anthropic/claude-3-5-sonnet-20241022",
+        judge_model="claude-sonnet-4-5",
         test_label="v0",
         agent_results=[result1, result2],
         comparative_analysis=analysis,

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 1742,
+  "base_commit": "43e45a111cd0405758a30a7cf666cf0466955346",
+  "head_commit": "5c5a2f003dc1f278e08c5563d8dafa2e57225b1d",
+  "task_instructions": "there is a bug in the stemmer token filter factory, when i configure light_swedish or lightSwedish language it returns spanish light stem filter instead of swedish one, this is wrong and needs to be fixed",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 2,
+    "lines_deleted": 1,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 9525,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "there is a bug in the stemmer token filter factory, when i configure light_swedish or lightSwedish language it returns spanish light stem filter instead of swedish one, this is wrong and needs to be fixed",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

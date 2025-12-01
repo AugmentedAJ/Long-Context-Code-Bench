@@ -52,7 +52,7 @@ def compute_aggregate_summary(
 
     success_rate = successful_samples / total_samples if total_samples > 0 else 0.0
 
-    # Compute mean scores
+    # Compute mean scores and win rate
     if judges:
         mean_correctness = statistics.mean(j.scores.correctness for j in judges)
         mean_completeness = statistics.mean(j.scores.completeness for j in judges)
@@ -66,6 +66,10 @@ def compute_aggregate_summary(
             std_aggregate = statistics.stdev(j.aggregate for j in judges)
         else:
             std_aggregate = 0.0
+
+        # Win rate: fraction of PRs where agent beat human (aggregate > 0)
+        wins = sum(1 for j in judges if j.aggregate > 0)
+        win_rate = wins / len(judges) if judges else 0.0
     else:
         mean_correctness = 0.0
         mean_completeness = 0.0
@@ -74,6 +78,7 @@ def compute_aggregate_summary(
         mean_unsolicited_docs = 0.0
         mean_aggregate = 0.0
         std_aggregate = 0.0
+        win_rate = 0.0
 
     # Compute latency metrics
     if edits:
@@ -98,6 +103,7 @@ def compute_aggregate_summary(
         failed_samples=failed_samples,
         skipped_samples=skipped_samples,
         success_rate=success_rate,
+        win_rate=win_rate,
         mean_correctness=mean_correctness,
         mean_completeness=mean_completeness,
         mean_code_reuse=mean_code_reuse,
@@ -175,10 +181,44 @@ def generate_summary_for_runs(
     # Load all results
     all_samples, all_edits, all_judges = load_results_from_dir(results_dir)
 
+    # If only judge_run_id provided, infer edit_run_ids from the judge manifest
+    edit_run_ids: Optional[List[str]] = None
+    if judge_run_id and not edit_run_id:
+        from long_context_bench.models import JudgeRunManifest
+
+        manifest_path = results_dir / "judges"
+        if manifest_path.exists():
+            for manifest_file in manifest_path.rglob("judge_run_manifest.json"):
+                with open(manifest_file) as f:
+                    manifest = JudgeRunManifest(**json.load(f))
+                    if manifest.judge_run_id == judge_run_id:
+                        edit_run_ids = manifest.edit_run_ids
+                        break
+
+    # Normalize edit_run_ids based on provided edit_run_id
+    if edit_run_id:
+        edit_run_ids = [edit_run_id]
+
     # Filter by run IDs
-    samples = all_samples
-    edits = [e for e in all_edits if not edit_run_id or e.edit_run_id == edit_run_id]
-    judges = [j for j in all_judges if not judge_run_id or j.judge_run_id == judge_run_id]
+    edits = [e for e in all_edits if not edit_run_ids or e.edit_run_id in edit_run_ids]
+    # Filter judges by both judge_run_id AND edit_run_id (if specified)
+    judges = [
+        j for j in all_judges
+        if (not judge_run_id or j.judge_run_id == judge_run_id)
+        and (not edit_run_ids or j.edit_run_id in edit_run_ids)
+    ]
+
+    # Filter samples to only those referenced by the filtered edits or judges
+    sample_keys = set()
+    for e in edits:
+        sample_keys.add((e.repo_url, e.pr_number))
+    for j in judges:
+        sample_keys.add((j.repo_url, j.pr_number))
+
+    if sample_keys:
+        samples = [s for s in all_samples if (s.repo_url, s.pr_number) in sample_keys]
+    else:
+        samples = all_samples
 
     console.print(f"  Loaded {len(samples)} samples")
     console.print(f"  Filtered to {len(edits)} edits")
@@ -214,15 +254,22 @@ def generate_summary_for_runs(
                         break
 
     # Compute summary
-    run_id = judge_run_id or edit_run_id or "summary"
+    run_id = judge_run_id or (edit_run_ids[0] if edit_run_ids else edit_run_id) or "summary"
+
+    # Derive runner/model from filtered edits
+    runner = edits[0].runner if edits else None
+    model = edits[0].model if edits else None
+
     summary = compute_aggregate_summary(
         run_id=run_id,
         samples=samples,
         edits=edits,
         judges=judges,
-        edit_run_id=edit_run_id,
+        edit_run_id=edit_run_ids[0] if edit_run_ids else edit_run_id,
         judge_run_id=judge_run_id,
         test_label=test_label,
+        runner=runner,
+        model=model,
     )
 
     # Display table
@@ -252,6 +299,19 @@ def generate_summary_for_runs(
 
     # Write output files
     if output_dir:
+        # Ensure we write to the summaries subdirectory
+        if "summaries" not in str(output_dir):
+            output_dir = output_dir / "summaries"
+
+        # Create a subdirectory for this run if output_dir doesn't already contain the run_id
+        # Format: <run_id>_<runner>_<model> or just <run_id> if runner/model not available
+        if run_id not in str(output_dir):
+            if runner and model:
+                run_subdir = f"{run_id}_{runner}_{model}"
+            else:
+                run_subdir = run_id
+            output_dir = output_dir / run_subdir
+
         output_dir.mkdir(parents=True, exist_ok=True)
 
         summary_file = output_dir / "summary.json"
@@ -887,8 +947,32 @@ def generate_index_manifest(output_dir: Path) -> None:
                     edit_dir = output_dir / "edits" / runner / model / run_id_to_check
                     if edit_dir.exists():
                         for pr_dir in edit_dir.iterdir():
-                            if pr_dir.is_dir():
+                            # Only include PRs that have an edit.json file (not just logs)
+                            if pr_dir.is_dir() and (pr_dir / "edit.json").exists():
                                 pr_ids.append(pr_dir.name)
+
+                # Try to get judge_mode and judge_model from judge manifest
+                judge_mode = None
+                judge_model = None
+                judge_run_id = summary.get("judge_run_id")
+                if judge_run_id:
+                    # Look for judge manifest in judges directory
+                    for judge_mode_dir in (output_dir / "judges").glob("*"):
+                        if judge_mode_dir.is_dir():
+                            for judge_model_dir in judge_mode_dir.glob("*"):
+                                if judge_model_dir.is_dir():
+                                    manifest_path = judge_model_dir / judge_run_id / "judge_run_manifest.json"
+                                    if manifest_path.exists():
+                                        try:
+                                            with open(manifest_path) as mf:
+                                                manifest = json.load(mf)
+                                                judge_mode = manifest.get("judge_mode")
+                                                judge_model = manifest.get("judge_model")
+                                        except Exception:
+                                            pass
+                                        break
+                            if judge_mode:
+                                break
 
                 run_info = {
                     "run_id": run_id,
@@ -897,8 +981,8 @@ def generate_index_manifest(output_dir: Path) -> None:
                     "test_label": summary.get("test_label"),
                     "runner": runner,
                     "model": model,
-                    "judge_mode": None,  # Will be populated if we scan judge manifests
-                    "judge_model": None,
+                    "judge_mode": judge_mode,
+                    "judge_model": judge_model,
                     "summary_path": str(summary_file.relative_to(output_dir)),
                     "pr_ids": pr_ids,
                     "total_samples": summary.get("total_samples", 0),

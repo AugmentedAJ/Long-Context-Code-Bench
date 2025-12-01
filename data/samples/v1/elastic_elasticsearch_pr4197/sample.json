@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4197,
+  "base_commit": "513611bd48e471a6c9594301149c390476a4bc0d",
+  "head_commit": "88b854e2ea5dd2a68b71f44a2fa2cf63b3a79700",
+  "task_instructions": "PutWarmerRequest searchRequest field is nullable but transport action requires it, add validation to check if searchRequest is null and throw appropriate error",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 18,
+    "lines_deleted": 3,
+    "total_diff_hunks": 10,
+    "context_size_bytes": 6907,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "The PutWarmerRequest validation is broken - it allows creating warmers without a search request but the transport action crashes when trying to access the null searchRequest. Need to make the SearchRequest mandatory and add proper validation to prevent NPEs in the transport layer",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

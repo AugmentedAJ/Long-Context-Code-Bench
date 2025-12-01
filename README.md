@@ -11,8 +11,9 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
-- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~40K files per codebase)
-- 🎯 **Pre-synthesized prompts**: LLM-generated natural task instructions (standard for v0 results)
+- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~20K files per codebase)
+- 📊 **New v1 Dataset**: 100 Elasticsearch PRs aligned with the public prompt dataset
+- 🎯 **Pre-synthesized prompts**: LLM-generated natural task instructions (standard for v0 and v1 results)
 - 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, Factory, Codex, Aider, etc.)
 - 📈 Comprehensive metrics: correctness, completeness, code reuse, best practices, and more
 - ⚡ Scalable: supports sharding and concurrency for parallel execution
@@ -96,7 +97,7 @@ export AUGMENT_API_TOKEN=your_augment_token
 # For Claude Code (if not using OAuth)
 export ANTHROPIC_API_KEY=your_key
 
-# For LLM judge (optional)
+# For judge model (optional)
 export OPENAI_API_KEY=your_key
 ```
 
@@ -170,6 +171,105 @@ long-context-bench compare output/ "sonnet-4.5-comparison" \
 
 Both formats support CSV and JSON output.
 
+## v1 Complete Workflow Example
+
+This section shows the complete workflow for running the v1 benchmark (100 Elasticsearch PRs) with multiple agents, from edit to web UI.
+
+### Step 1: Run Edits for Each Agent
+
+Run each agent on the v1 dataset. Each run produces a unique `edit_run_id`:
+
+```bash
+# Run Auggie (uses subscription by default)
+long-context-bench edit data/samples/v1 \
+  --runner auggie \
+  --model sonnet4.5 \
+  --output-dir output
+# Note the edit_run_id from output (e.g., 7ad89f22)
+
+# Run Claude Code
+long-context-bench edit data/samples/v1 \
+  --runner claude-code \
+  --model claude-sonnet-4-5 \
+  --output-dir output
+# Note the edit_run_id (e.g., 8d6f99fc)
+
+# Run Factory (GLM)
+long-context-bench edit data/samples/v1 \
+  --runner factory \
+  --model glm-4.6 \
+  --output-dir output
+# Note the edit_run_id (e.g., 24634b85)
+
+# Run Codex
+long-context-bench edit data/samples/v1 \
+  --runner codex \
+  --model gpt-5.1-codex \
+  --output-dir output
+# Note the edit_run_id (e.g., fd5b3480)
+```
+
+### Step 2: Judge All Edits
+
+Run the judge on all edit runs. Use `--concurrency` for parallel judging:
+
+```bash
+long-context-bench judge \
+  --edit-run-ids 7ad89f22,8d6f99fc,24634b85,fd5b3480 \
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --concurrency 5
+# Note the judge_run_id (e.g., 3e164e1c)
+```
+
+**Resuming interrupted judge runs:**
+```bash
+long-context-bench judge \
+  --edit-run-ids 7ad89f22,8d6f99fc,24634b85,fd5b3480 \
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --concurrency 5 \
+  --resume-judge-run-id 3e164e1c
+```
+
+### Step 3: Generate Summaries
+
+Generate aggregate summaries for each agent:
+
+```bash
+# Generate summary for each edit run
+for edit_run in 7ad89f22 8d6f99fc 24634b85 fd5b3480; do
+  long-context-bench summary output \
+    --edit-run-id $edit_run \
+    --judge-run-id 3e164e1c \
+    --output-dir output
+done
+```
+
+### Step 4: Launch Web UI
+
+Deploy and start the interactive web dashboard:
+
+```bash
+long-context-bench web output
+# Opens http://localhost:3000
+```
+
+The leaderboard shows agents ranked by **Win Rate** (percentage of PRs where the agent beat the human baseline).
+
+### Understanding the Results
+
+| Metric | What It Measures | Interpretation |
+|--------|------------------|----------------|
+| **Win Rate** | % of PRs with aggregate > 0 | Primary ranking metric |
+| **Correctness** | Behavior matches intent | Higher = better |
+| **Completeness** | All changes made | Higher = better |
+| **Code Reuse** | Uses existing code | Higher = better |
+| **Best Practices** | Code style/quality | Higher = better |
+| **Unsol. Docs** | Unwanted docs added | **Lower = better** (penalty) |
+
+**Score scale:** -1 (much worse than human) → 0 (human level) → +1 (better than human)
+
 ## Features
 
 ### Leaderboard Generation
@@ -180,14 +280,14 @@ Rank multiple agents across standardized benchmarks:
 2. **Generate leaderboard**: Use `compare --format leaderboard` to rank all agents by performance
 ### Agents-as-judge head-to-head evaluation
 
-In addition to scalar LLM-judge scores, Long-Context-Bench supports
+In addition to scalar judge scores, Long-Context-Bench supports
 **agents acting as judges over each other**.
 
 The `head-to-head-pr` command:
 - Finds all agent submissions (edits) for a given PR
 - Uses each agent as a judge over every other agent's patch
-- Reuses scalar scores from a prior LLM judge run when available
-- Does **not** make any new LLM-as-judge calls in this stage
+- Reuses scalar scores from a prior judge run when available
+- Does **not** make any new judge API calls in this stage
 
 Example: run head-to-head for a single Elasticsearch PR where Auggie,
 Claude Code, and Factory have all produced edits:
@@ -357,37 +457,80 @@ Run specific PRs using:
 
 ### Resuming Interrupted Runs
 
-**The pipeline automatically resumes interrupted runs.** If a run is stopped mid-way (e.g., due to timeout, crash, or manual interruption), simply re-run the same command and it will:
+**The benchmark automatically resumes interrupted runs.** If a run is stopped mid-way (e.g., due to timeout, crash, rate limits, or manual interruption), simply re-run the same command and it will:
 
-- ✅ **Skip completed PRs** - Checks for existing `sample.json`, `edit_summary.json`, and `judge.json` files
-- ✅ **Continue from where it left off** - Only processes PRs that haven't been completed
-- ✅ **Preserve existing results** - Does not overwrite or re-run completed work
+- ✅ **Skip successful PRs** - Only skips PRs with `status: "success"` in their output files
+- ✅ **Retry failed PRs** - Automatically retries PRs that failed (e.g., due to rate limits)
+- ✅ **Continue from where it left off** - Only processes PRs that haven't been successfully completed
+- ✅ **Preserve existing results** - Does not overwrite successful work
 
-**Example:**
+#### Resuming Edit Runs
+
 ```bash
-# Initial run (interrupted after 10 PRs)
-long-context-bench pipeline \
-  --runner auggie \
-  --model sonnet4.5 \
-  --test-label v0-auggie-sonnet45
+# Initial run (interrupted after 20 PRs due to rate limit)
+long-context-bench edit data/samples/v1 \
+  --runner codex \
+  --model gpt-5.1-codex \
+  --test-label v1-comparison
 
-# Resume run (skips the 10 completed PRs, continues with remaining)
-long-context-bench pipeline \
-  --runner auggie \
-  --model sonnet4.5 \
-  --test-label v0-auggie-sonnet45
+# Resume run - skips 20 successful PRs, retries any that failed
+long-context-bench edit data/samples/v1 \
+  --runner codex \
+  --model gpt-5.1-codex \
+  --test-label v1-comparison
 ```
 
-**Force re-run:** Use `--force` to re-run all stages regardless of existing outputs:
+**Note:** The edit stage only skips PRs with `status: "success"`. PRs with `status: "error"` (e.g., rate limit errors) will be automatically retried.
+
+#### Resuming Judge Runs
+
+For the judge stage, use `--resume-judge-run-id` to continue an interrupted run:
+
 ```bash
-long-context-bench pipeline \
+# Initial run (interrupted after 100 judgments)
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4,b2c3d4e5 \
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --concurrency 10
+# Output: Judge run ID: e5f6g7h8
+
+# Resume the same run
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4,b2c3d4e5 \
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --concurrency 10 \
+  --resume-judge-run-id e5f6g7h8
+```
+
+#### Handling Rate Limits
+
+When hitting API rate limits:
+
+1. **Check the error message** for when limits reset (e.g., "try again at 6:45 PM")
+2. **Schedule a resume** using sleep:
+   ```bash
+   # Wait until rate limit resets, then resume
+   sleep 3600 && long-context-bench edit data/samples/v1 \
+     --runner codex \
+     --model gpt-5.1-codex \
+     --test-label v1-comparison
+   ```
+3. **On macOS**, use `caffeinate` to prevent sleep: `caffeinate -i sleep 3600 && ...`
+
+#### Force Re-run
+
+Use `--force` to re-run all PRs regardless of existing outputs:
+
+```bash
+long-context-bench edit data/samples/v1 \
   --runner auggie \
   --model sonnet4.5 \
-  --test-label v0-auggie-sonnet45 \
   --force
 ```
 
-**Note:** The `--force` flag is also available for individual stages (`sample`, `edit`, `judge`).
+**Note:** The `--force` flag is available for individual stages (`sample`, `edit`, `judge`).
 
 ## Pipeline Stages
 
@@ -468,12 +611,27 @@ Scores agent edits against ground truth. Can evaluate one or more edit runs:
 # Evaluate specific edit run(s)
 long-context-bench judge \
   --edit-run-ids a1b2c3d4,b2c3d4e5 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
-  --output-dir output/judges
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --concurrency 10
 ```
 
-**Output:** `output/judges/llm/<judge_model>/<judge_run_id>/<pr_id>/judge.json`
+**Important:** Use `--output-dir output` (not `output/judges`) so the judge can find edits at `output/edits/`.
+
+**Output:** `output/judges/llm/<judge_model>/<judge_run_id>/<edit_run_id>/<pr_id>/judge.json`
 **Returns:** Judge run ID (e.g., `e5f6g7h8`)
+
+**Note:** Judge results include `<edit_run_id>` in the path to separate scores for different agents on the same PR.
+
+**Resuming interrupted judge runs:**
+```bash
+# Resume a judge run that was interrupted
+long-context-bench judge \
+  --edit-run-ids a1b2c3d4,b2c3d4e5 \
+  --judge-model claude-sonnet-4-5 \
+  --output-dir output \
+  --resume-judge-run-id e5f6g7h8
+```
 
 #### 4. Summary
 
@@ -499,55 +657,68 @@ long-context-bench edit --runner auggie --model gpt-4 output/samples/v0
 # Returns: Edit run ID: bbbb2222
 
 # Evaluate both
-long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model anthropic/claude-3-5-sonnet-20241022
+long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model claude-sonnet-4-5
 ```
 
-**Re-evaluate with Different Judge:**
+**Re-evaluate with Different Judge Model:**
 ```bash
-# Initial evaluation with Claude
-long-context-bench judge --edit-run-ids aaaa1111 --judge-model anthropic/claude-3-5-sonnet-20241022
+# Evaluate with Claude Sonnet 4.5
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model claude-sonnet-4-5
 
-# Re-evaluate with GPT-4
-long-context-bench judge --edit-run-ids aaaa1111 --judge-model gpt-4
+# Evaluate with a different Claude model
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model sonnet
 ```
 
 ## Evaluation Metrics
 
-Each sample is scored on five primary metrics (range: -1.0 to 1.0):
+### Primary Metric: Win Rate
 
-1. **Correctness**: Does the change implement the intended behavior?
-2. **Completeness**: Does it achieve all requested changes?
-3. **Code Reuse**: Preference for leveraging existing code over duplication
-4. **Best Practices**: Style, structure, and idiomatic usage
-5. **Unsolicited Documentation**: Penalizes documentation added when not requested
+**Win Rate** is the primary ranking metric. It represents the percentage of PRs where an agent **scored better than the human baseline** (aggregate > 0).
 
-**Aggregate Score**: Unweighted average of the five metrics
+- **Win Rate = Wins / Total PRs Judged**
+- A "win" occurs when the agent's aggregate score > 0 (better than human)
+- Higher win rate = more consistent performance across diverse tasks
 
-### LLM Judge
+### Score Interpretation
 
-The benchmark uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
+Each metric uses a **-1 to +1 scale relative to the human ground truth**:
+
+| Score | Meaning |
+|-------|---------|
+| **+1** | Much better than the human solution |
+| **0** | Equivalent to the human solution |
+| **-1** | Much worse than the human solution |
+
+### Individual Metrics
+
+Each sample is scored on five metrics:
+
+1. **Correctness** *(higher = better)*: Does the change implement the intended behavior correctly?
+2. **Completeness** *(higher = better)*: Does it achieve all requested changes?
+3. **Code Reuse** *(higher = better)*: Preference for leveraging existing code over duplication
+4. **Best Practices** *(higher = better)*: Style, structure, and idiomatic usage
+5. **Unsolicited Documentation** *(lower = better)*: Penalizes documentation added when not requested
+
+**Note:** Unsolicited Documentation is a **penalty metric** — higher values indicate the agent added unwanted documentation, which is undesirable.
+
+### Judge Model
+
+The benchmark uses Claude Code CLI to evaluate diffs with detailed reasoning:
 - Nuanced evaluation of code quality
 - Provides rationale for scores
-- Supports any model via LiteLLM (OpenAI, Anthropic, etc.)
-- Consistent settings (temperature=0.0, seed=42)
+- Uses Claude Code CLI (`claude` command) for all judging
+- Consistent settings (temperature=0.0, deterministic output)
 
 ```bash
-# Using Claude (via Anthropic)
-export ANTHROPIC_API_KEY=your_key
+# Judge using Claude Code CLI (requires `claude` CLI installed)
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model claude-sonnet-4-5
 
-# Using OpenAI
-export OPENAI_API_KEY=your_key
+# Using model aliases
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-model gpt-4o-mini
-
-# Using any LiteLLM-supported model
-long-context-bench judge \
-  --edit-run-ids a1b2c3d4 \
-  --judge-model bedrock/anthropic.claude-v2
+  --judge-model sonnet
 ```
 
 ### Cross-Agent Analysis
@@ -566,27 +737,19 @@ Compare multiple agents' solutions for the same PR to understand different appro
 
 ```bash
 # Basic cross-agent analysis with comparative analysis
-export ANTHROPIC_API_KEY=your_key
+# Analyze PR with comparative analysis using Claude Code CLI
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --comparative
 
 # Analyze specific PR without comparative analysis
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --no-comparative
-
-# Using OpenAI for comparative analysis
-export OPENAI_API_KEY=your_key
-long-context-bench analyze-pr \
-  --pr-number 114869 \
-  --test-label v0 \
-  --judge-model gpt-4o \
-  --comparative
 ```
 
 #### Options
@@ -637,11 +800,10 @@ Results are saved to `output/cross_agent_analysis/pr{number}_{run_id}.json`:
 
 ```bash
 # Compare all agents on PR 114869 from v0 test run
-export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --comparative
 
 # Output shows:
@@ -675,7 +837,7 @@ long-context-bench pipeline \
 - **Recommended:** OAuth via `auggie login` (uses subscription)
 - **Alternative:** Set `AUGMENT_API_TOKEN` environment variable
 
-**Model aliases:** Use `sonnet`, `opus`, `haiku` or full model names
+**Model IDs:** Use `sonnet4.5`, `opus4.5`, `haiku4.5`, `sonnet4`, or other IDs from `auggie model list`
 
 ### Claude Code
 
@@ -806,37 +968,50 @@ The generic runner passes task instructions via stdin.
 
 ### Judge Options
 
-- `--judge-model`: LLM judge model (optional, skips judge stage if not provided)
+- `--judge-model`: Judge model (optional, skips judge stage if not provided)
 
 ## Viewing Results
 
 ### Web Dashboard (Recommended)
 
-The benchmark automatically generates an interactive web dashboard for visualizing results.
+The benchmark includes an interactive web dashboard for visualizing results.
 
 #### Starting the Web Server
 
-After running any benchmark command, start the web server:
+Use the `web` command to deploy and start the server:
 
+```bash
+# Deploy and start server on port 3000
+long-context-bench web output
+
+# Deploy only (no server)
+long-context-bench web output --no-server
+
+# Start on a different port
+long-context-bench web output --port 8080
+```
+
+Then open http://localhost:3000 in your browser.
+
+**Alternative (manual):**
 ```bash
 cd output/web
 npm install  # First time only
 npm start
 ```
 
-Then open http://localhost:3000 in your browser.
-
 The web app provides:
-- **Leaderboard**: Compare all runs with filtering and sorting
-- **Run Details**: Deep dive into individual run metrics and per-PR results
-- **Agent Comparison**: Side-by-side comparison with interactive charts
-- **Real-time Updates**: Refresh to see latest results
+- **Leaderboard**: Agents ranked by **Win Rate** (primary metric)
+- **Metric Comparison**: Visual chart comparing all metrics across agents
+- **PR Details**: Click any PR to see side-by-side agent comparisons with:
+  - Summary and rationale from the judge
+  - Agent diff vs human diff
+  - Complete agent execution logs
 
-The web app is automatically deployed and updated when you run:
-- `long-context-bench pipeline`
+The web app is automatically deployed when you run:
+- `long-context-bench web`
 - `long-context-bench summary`
 - `long-context-bench stats`
-- `long-context-bench compare`
 
 ### Packaging and Sharing Results
 
@@ -953,7 +1128,7 @@ The v0 dataset evaluates agents on **recreating a PR given its description**:
 
 This tests an agent's ability to:
 1. Understand a developer's intended changes from a natural task description
-2. Navigate and modify a massive codebase (~40K files)
+2. Navigate and modify a massive codebase (~20K files)
 3. Produce changes that match the actual implementation
 
 ### Dataset Curation

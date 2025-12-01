@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134296,
+  "base_commit": "df8cedf9920c8bf710221ca8579bb90f64d4faa0",
+  "head_commit": "5f30c5ee0990fa6e906a188b51cf29de81e65c5a",
+  "task_instructions": "the timestamps in HTTP client stats are not showing human readable format when ?human=true is used",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 74,
+    "lines_deleted": 5,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 29943,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "the timestamps in HTTP client stats are not showing human readable format when using ?human=true parameter, can you add the missing human readable timestamp fields",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

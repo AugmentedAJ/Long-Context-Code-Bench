@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4238,
+  "base_commit": "8e17d636ef441a9be80977d34acfaabc12982eb7",
+  "head_commit": "e3d4d73242d215389280b1d7b9facb7b1bd9bd7d",
+  "task_instructions": "fix throttling allocation bug where relocating primaries are counted as local primary recoveries",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 145,
+    "lines_deleted": 1,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 8692,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "there is a bug in the throttling allocation decider where relocating primary shards are being counted as local primary recoveries which affects the allocation preference logic. local primaries should be preferred to relocating primaries but the current code treats them the same way",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

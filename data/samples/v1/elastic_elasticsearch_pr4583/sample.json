@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4583,
+  "base_commit": "c12427d047b7cf9fd1ac9acc611bc2985ad12c40",
+  "head_commit": "beaa9153a629c0950182e4e8c4f8eedd1c63f49f",
+  "task_instructions": "the _all field toXContent method has some issues with field name typos and logic for detecting when all values are defaults, need to fix the term vector field name and improve the default detection logic",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 161,
+    "lines_deleted": 16,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 52308,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Fix the toXContent method in AllFieldMapper that has incorrect field name for term vectors and improve the term vector handling logic to avoid setting false values unnecessarily",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

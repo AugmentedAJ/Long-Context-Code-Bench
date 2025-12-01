@@ -13,7 +13,7 @@ from typing import Optional, List, Dict, Any
 from rich.console import Console
 
 from long_context_bench import __version__
-from long_context_bench.models import RunManifest
+from long_context_bench.models import RunManifest, EditRunManifest
 from long_context_bench.stages.sample import run_sample_stage, sample_pr
 from long_context_bench.stages.edit import run_edit_on_sample, load_sample
 from long_context_bench.stages.judge import judge_edit
@@ -65,7 +65,7 @@ def get_dataset_path(dataset_version: str) -> Path:
     """Get path to built-in dataset file.
 
     Args:
-        dataset_version: Dataset version (e.g., 'v0')
+        dataset_version: Dataset version (e.g., 'v0', 'v1')
 
     Returns:
         Path to dataset JSON file
@@ -73,7 +73,13 @@ def get_dataset_path(dataset_version: str) -> Path:
     # Get the package directory
     import long_context_bench
     package_dir = Path(long_context_bench.__file__).parent.parent
-    dataset_path = package_dir / "data" / f"elasticsearch_prs_50.json"
+
+    # Map dataset versions to their corresponding files
+    if dataset_version == "v1":
+        dataset_path = package_dir / "data" / "elasticsearch_prs_100_v1.json"
+    else:
+        # Default to v0 dataset
+        dataset_path = package_dir / "data" / "elasticsearch_prs_50.json"
 
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
@@ -149,6 +155,8 @@ def _run_single_agent(
     judge_model: Optional[str],
     dataset_version: str,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
+    model_dir: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run a single agent configuration on all samples.
 
@@ -171,6 +179,7 @@ def _run_single_agent(
         test_label: Test label
         judge_model: Optional judge model
         dataset_version: Dataset version
+        model_dir: Optional model directory name
 
     Returns:
         Dict with agent results including edits, judges, and summary
@@ -182,12 +191,51 @@ def _run_single_agent(
     edits_dir = output_dir / "edits"
     judges_dir = output_dir / "judges"
 
+    # Use provided model_dir or derive from model name
+    # Append -mcp suffix to model directory name if MCP is enabled
+    if model_dir:
+        model_dir_name = f"{model_dir}-mcp" if enable_mcp_codebase_qa else model_dir
+    else:
+        model_dir_name = f"{model}-mcp" if enable_mcp_codebase_qa else model
+
     console.print(f"\n[bold magenta]Running agent: {runner} with model {model}[/bold magenta]")
+    if enable_mcp_codebase_qa:
+        console.print(f"[magenta]  MCP enabled (output dir: {model_dir_name})[/magenta]")
+
+    # Create edit run manifest for this run
+    manifest_dir = edits_dir / runner / model_dir_name / run_id
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_file = manifest_dir / "edit_run_manifest.json"
+    if not manifest_file.exists():
+        manifest = EditRunManifest(
+            dataset_version=dataset_version,
+            harness_version=__version__,
+            runner=runner,
+            runner_version=None,
+            model=model,
+            os=platform.system(),
+            python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            timeout_s=timeout,
+            concurrency=1,
+            total_shards=1,
+            shard_index=0,
+            flags={
+                "disable_retrieval": disable_retrieval,
+                "disable_shell": disable_shell,
+                "enable_mcp_codebase_qa": enable_mcp_codebase_qa,
+            },
+            timestamp=datetime.utcnow().isoformat(),
+            edit_run_id=run_id,
+            test_label=test_label,
+        )
+        with open(manifest_file, "w") as f:
+            f.write(manifest.model_dump_json(indent=2))
+        console.print(f"[green]Created manifest: {manifest_file}[/green]")
 
     for sample in samples:
         try:
             # Edit stage
-            console.print(f"\n[bold cyan]═══ Edit Stage ({runner}/{model}) ═══[/bold cyan]")
+            console.print(f"\n[bold cyan]═══ Edit Stage ({runner}/{model_dir_name}) ═══[/bold cyan]")
             edit = run_edit_on_sample(
                 sample=sample,
                 runner=runner,
@@ -203,6 +251,8 @@ def _run_single_agent(
                 force=force,
                 test_label=test_label,
                 stream_output=stream_output,
+                mcp_config_path=mcp_config_path,
+                model_dir=model_dir_name,
             )
             edits.append(edit)
 
@@ -225,7 +275,7 @@ def _run_single_agent(
 
         except Exception as e:
             import traceback
-            console.print(f"[red]✗ Pipeline failed for {sample.pr_url} ({runner}/{model}): {e}[/red]")
+            console.print(f"[red]✗ Pipeline failed for PR #{sample.pr_number} ({runner}/{model}): {e}[/red]")
             console.print(f"[red]{traceback.format_exc()}[/red]")
 
     return {
@@ -257,7 +307,9 @@ def run_pipeline(
     cache_dir: Path,
     force: bool = False,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
     agent_configs: Optional[List[Dict[str, Any]]] = None,
+    model_dir: Optional[str] = None,
 ) -> None:
     """Run complete pipeline: sample → edit → judge.
 
@@ -281,9 +333,11 @@ def run_pipeline(
         pr_indices: Comma-separated PR indices to run
         cache_dir: Directory for caching cloned repositories
         force: If True, re-run all stages even if outputs already exist
+        mcp_config_path: Optional path to MCP configuration file
         agent_configs: Optional list of agent configurations for parallel execution.
             Each config is a dict with keys: runner, model, agent_binary (optional).
             If provided, runner/model/agent_binary args are ignored.
+        model_dir: Optional model directory name (defaults to model name)
     """
     run_id = str(uuid.uuid4())[:8]
 
@@ -402,6 +456,8 @@ def run_pipeline(
             judge_model=judge_model,
             dataset_version=dataset_version,
             stream_output=stream_output,
+            mcp_config_path=mcp_config_path,
+            model_dir=model_dir,
         )
         all_agent_results.append(result)
     else:
@@ -429,6 +485,8 @@ def run_pipeline(
                     judge_model=judge_model,
                     dataset_version=dataset_version,
                     stream_output=stream_output,
+                    mcp_config_path=mcp_config_path,
+                    model_dir=cfg.get("model_dir", model_dir),
                 )
                 futures[future] = f"{cfg['runner']}/{cfg['model']}"
 

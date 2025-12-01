@@ -69,6 +69,7 @@ class Judge(BaseModel):
     rationale: Optional[str] = None
     edit_run_id: Optional[str] = None  # ID of the edit run being evaluated
     judge_run_id: Optional[str] = None  # ID of the judge run that produced this
+    ground_truth_patch: Optional[str] = None  # Ground truth unified diff
 
 
 class EditRunManifest(BaseModel):
@@ -132,6 +133,7 @@ class AggregateSummary(BaseModel):
     failed_samples: int
     skipped_samples: int
     success_rate: float
+    win_rate: float = 0.0  # Fraction of PRs where agent beat human (aggregate > 0)
     mean_correctness: float
     mean_completeness: float
     mean_code_reuse: float
@@ -159,8 +161,8 @@ class AgentResult(BaseModel):
     scores: Scores
     aggregate: float = Field(ge=-1.0, le=1.0)
     rationale: Optional[str] = None
-    llm_rating: Optional[float] = Field(None, ge=0.0, le=1.0)  # LLM judge rating 0.00-1.00
-    llm_summary: Optional[str] = None  # One-line summary from LLM judge
+    llm_rating: Optional[float] = Field(None, ge=0.0, le=1.0)  # Judge rating 0.00-1.00
+    llm_summary: Optional[str] = None  # One-line summary from judge
     errors: List[str] = []
     logs_path: Optional[str] = None  # Relative path to logs.jsonl file
 

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134304,
+  "base_commit": "016ca188aa79c8e5cc0f453513376fe61115940a",
+  "head_commit": "3792d70821c50353d7e0d12ad81748759921ff9a",
+  "task_instructions": "IgnoreNullMetricsTests tests need capability gates for metrics command",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 6,
+    "lines_deleted": 3,
+    "total_diff_hunks": 14,
+    "context_size_bytes": 10896,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "The IgnoreNullMetricsTests are failing when the metrics command capability is disabled. Need to add capability gates to the test methods that use TS command syntax",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

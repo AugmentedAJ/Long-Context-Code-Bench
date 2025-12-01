@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3974,
+  "base_commit": "0e9c049da1231968a56a9abbd5178f07bc49b320",
+  "head_commit": "e79f714b4b066f9238ff6313aad9a854c37a8c3d",
+  "task_instructions": "refactor duplicate REST response handling for acknowledged responses across warmer actions",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 105,
+    "lines_deleted": 62,
+    "total_diff_hunks": 12,
+    "context_size_bytes": 7470,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "All Rest handlers that use AcknowledgedResponse look identical and have duplicate response handling code, can you abstract this logic away since we gonna have more of them in the future",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

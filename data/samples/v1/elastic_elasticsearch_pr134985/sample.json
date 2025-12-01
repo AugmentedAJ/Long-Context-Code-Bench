@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134985,
+  "base_commit": "4a2d8fd40328763780fbefc32366456e1419b48b",
+  "head_commit": "72ff6378adb9f7c324886609a94d425ba9e2edab",
+  "task_instructions": "the transform error logs are too noisy in serverless, they're making up most of our error alerts and drowning out real issues. can you change the log level from error to warn for the transform persistence failures? specifically the ones in AuthorizationStatePersistenceUtils and TransformIndex that are flooding our monitoring",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 3,
+    "lines_deleted": 3,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 21239,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "the transform error logs are too noisy in serverless, these 3 error messages make up 88% of all serverless errors making the alert useless, can you decrease the loglevel from ERROR to WARN for these messages",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

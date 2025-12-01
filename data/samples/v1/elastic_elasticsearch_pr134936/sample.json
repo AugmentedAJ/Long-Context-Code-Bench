@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134936,
+  "base_commit": "0d0c0ad2354f522d2dbd3ecd2db295f3cf085ba0",
+  "head_commit": "e75974063e20ef78b33d4b25344493d87a09fe1a",
+  "task_instructions": "ConditionalProcessor has a security issue where Sets in IngestDocument data can be modified from within conditional scripts, but Maps and Lists are properly protected with unmodifiable wrappers",
+  "stats": {
+    "files_changed": 3,
+    "lines_added": 120,
+    "lines_deleted": 17,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 25966,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "ConditionalProcessor has a security issue where Sets in IngestDocument data can be modified from within conditional scripts, but Maps and Lists are properly protected with unmodifiable wrappers",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

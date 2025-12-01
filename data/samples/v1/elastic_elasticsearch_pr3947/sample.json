@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3947,
+  "base_commit": "e79f714b4b066f9238ff6313aad9a854c37a8c3d",
+  "head_commit": "f9154de04f576077d879a777a5587661cf1e094d",
+  "task_instructions": "completion field mapper is silently converting float weights to integers which is confusing behavior, should reject floats instead",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 25,
+    "lines_deleted": 1,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 62486,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "completion field mapper is silently converting float weights to integers which is confusing behavior, should reject floats instead",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

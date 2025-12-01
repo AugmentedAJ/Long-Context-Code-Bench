@@ -48,6 +48,7 @@ htmlcov/
 
 # Output directories (runtime artifacts only)
 output/
+output-*/
 output_backup_*/
 output_backups/
 backups/
@@ -80,3 +81,6 @@ v0-LCB-public/
 
 # Temporary scripts
 scripts/add_logs_path.py
+
+# Prompt dataset
+prompt_dataset/

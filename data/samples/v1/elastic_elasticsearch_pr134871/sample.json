@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134871,
+  "base_commit": "1923634bf7b0aa66d701b756aa3ded92370ffeb4",
+  "head_commit": "00a7ffe9940e83e3123c50df9c5777a2c140e089",
+  "task_instructions": "Remove the SizeValue utility class since it's unused for formatting large numbers in API responses or accepting user input, and replace its few usages with Long instead",
+  "stats": {
+    "files_changed": 10,
+    "lines_added": 15,
+    "lines_deleted": 307,
+    "total_diff_hunks": 42,
+    "context_size_bytes": 157542,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Remove the unused `SizeValue` utility class and replace its few usages with `Long` instead",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

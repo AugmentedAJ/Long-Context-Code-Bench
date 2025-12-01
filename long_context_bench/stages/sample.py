@@ -5,19 +5,12 @@ import re
 import tempfile
 from pathlib import Path
 from typing import Optional, List
-from urllib.parse import urlparse
 
 import git
 import requests
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from long_context_bench.models import Sample, SampleStats
-from long_context_bench.synthesis import (
-    synthesize_task_instructions,
-    synthesize_with_auggie,
-    get_synthesis_timestamp,
-)
 
 console = Console()
 
@@ -77,10 +70,7 @@ def fetch_pr_metadata(
 
 
 def create_task_instructions(pr_metadata: dict) -> str:
-    """Create task instructions from PR metadata.
-
-    Per R-3.4: Use PR title followed by PR body, truncated to 10,000 characters.
-    Enhanced with context to clarify this is a code editing task.
+    """Create task instructions from PR metadata using template-based approach.
 
     Args:
         pr_metadata: PR metadata from GitHub API
@@ -227,8 +217,6 @@ def sample_pr(
     github_token: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
-    synthesize: bool = False,
-    synthesis_model: str = "claude-3-7-sonnet-20250219",
 ) -> Optional[Sample]:
     """Sample a single PR and create sample.json.
 
@@ -239,8 +227,6 @@ def sample_pr(
         github_token: Optional GitHub token
         cache_dir: Optional cache directory for repositories
         force: If True, re-sample even if sample.json already exists
-        synthesize: If True, generate synthesized task instructions using LLM
-        synthesis_model: LiteLLM model identifier for synthesis
 
     Returns:
         Sample object if successful, None if failed
@@ -283,41 +269,8 @@ def sample_pr(
         )
         context_size_bytes, truncated = compute_context_size(git_repo, base_sha, head_sha)
 
-        # Create task instructions (template-based)
+        # Create task instructions using template-based approach
         task_instructions = create_task_instructions(pr_metadata)
-
-        # Optionally synthesize task instructions using LLM
-        synthesized_instructions = None
-        synthesis_model_used = None
-        synthesis_ts = None
-
-        if synthesize:
-            console.print(f"  Synthesizing task instructions...")
-            # Get PR diff for synthesis
-            pr_diff = git_repo.git.diff(base_sha, head_sha)
-
-            # Choose synthesis method based on model
-            if synthesis_model.startswith("auggie/"):
-                # Use Auggie CLI for synthesis
-                auggie_model = synthesis_model.replace("auggie/", "")
-                synthesized_instructions = synthesize_with_auggie(
-                    pr_title=pr_metadata.get("title", ""),
-                    pr_body=pr_metadata.get("body") or "",
-                    pr_diff=pr_diff,
-                    model=auggie_model,
-                )
-            else:
-                # Use LiteLLM for synthesis
-                synthesized_instructions = synthesize_task_instructions(
-                    pr_title=pr_metadata.get("title", ""),
-                    pr_body=pr_metadata.get("body") or "",
-                    pr_diff=pr_diff,
-                    model=synthesis_model,
-                )
-
-            if synthesized_instructions:
-                synthesis_model_used = synthesis_model
-                synthesis_ts = get_synthesis_timestamp()
 
         # Create sample
         stats = SampleStats(
@@ -337,9 +290,6 @@ def sample_pr(
             head_commit=head_sha,
             task_instructions=task_instructions,
             stats=stats,
-            synthesized_task_instructions=synthesized_instructions,
-            synthesis_model=synthesis_model_used,
-            synthesis_timestamp=synthesis_ts,
         )
 
         # Write sample.json
@@ -352,7 +302,7 @@ def sample_pr(
 
         console.print(f"[green]✓ Sampled {pr_id}[/green]")
         return sample
-            
+
     except Exception as e:
         console.print(f"[red]✗ Failed to sample {pr_url}: {e}[/red]")
         return None
@@ -364,8 +314,6 @@ def run_sample_stage(
     dataset_version: str,
     github_token: Optional[str] = None,
     force: bool = False,
-    synthesize: bool = False,
-    synthesis_model: str = "claude-3-7-sonnet-20250219",
     cache_dir: Optional[Path] = None,
 ) -> None:
     """Run the sample stage.
@@ -376,15 +324,13 @@ def run_sample_stage(
         dataset_version: Dataset version
         github_token: Optional GitHub token
         force: If True, re-sample even if sample.json already exists
-        synthesize: If True, generate synthesized task instructions using LLM
-        synthesis_model: LiteLLM model identifier for synthesis
         cache_dir: Optional cache directory for repositories
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Determine input type
     pr_urls: List[str] = []
-    
+
     if input_path.startswith("http"):
         # Single PR URL
         pr_urls = [input_path]
@@ -395,12 +341,11 @@ def run_sample_stage(
     else:
         console.print(f"[red]Invalid input: {input_path}[/red]")
         return
-    
+
     console.print(f"[bold]Sampling {len(pr_urls)} PRs...[/bold]")
 
     successful = 0
     failed = 0
-    skipped = 0
 
     for pr_url in pr_urls:
         result = sample_pr(
@@ -410,16 +355,8 @@ def run_sample_stage(
             github_token,
             cache_dir=cache_dir,
             force=force,
-            synthesize=synthesize,
-            synthesis_model=synthesis_model,
         )
         if result:
-            # Check if it was skipped (file existed before)
-            owner, repo, pr_number = parse_pr_url(pr_url)
-            pr_id = get_pr_id(owner, repo, pr_number)
-            sample_file = output_dir / dataset_version / pr_id / "sample.json"
-            # If force=False and file existed, it was loaded (not re-sampled)
-            # We can't easily distinguish, so just count as successful
             successful += 1
         else:
             failed += 1

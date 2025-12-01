@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134896,
+  "base_commit": "f6967fec35dafe147432f1259d7a2b7cf29b1d68",
+  "head_commit": "fe2f3bd137d51a2cf97a1f14df6c07886cebbf2c",
+  "task_instructions": "Remove implementation of set compatible versions task - this task will go away with the new transport version system but for now just remove the implementation so the task still exists for release automation",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 0,
+    "lines_deleted": 88,
+    "total_diff_hunks": 6,
+    "context_size_bytes": 5739,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Remove implementation of set compatible versions task",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134887,
+  "base_commit": "987e7af02b69cd4bb25755aa47e91a6a4bbebf1d",
+  "head_commit": "295ee4a7e4d81780a5159b9f7918e9f6337e1980",
+  "task_instructions": "fix memory leak in SourceConfirmedTextQuery where lambda captures SearchExecutionContext reference causing queries to hold onto short-lived objects longer than needed",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 7,
+    "lines_deleted": 2,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 30099,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "fix the memory leak issue in SourceConfirmedTextQuery where it's capturing references to SearchExecutionContext in lambda functions that can persist beyond single search requests",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134945,
+  "base_commit": "6b20d65a53e13e7b0b6060caba0da8c96e52ca30",
+  "head_commit": "324d3b674e8a28dbd6946604989f87b8eab881f2",
+  "task_instructions": "optimize the SenderService.infer method to avoid unnecessary conversion between String and ChunkInferenceInput types when processing input data",
+  "stats": {
+    "files_changed": 4,
+    "lines_added": 17,
+    "lines_deleted": 20,
+    "total_diff_hunks": 14,
+    "context_size_bytes": 35150,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Optimize the SenderService.infer() method to avoid unnecessary conversion between String and ChunkInferenceInput types",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

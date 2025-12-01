@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134745,
+  "base_commit": "a682ed8af9242e283c1855c7be96169f8a5432bc",
+  "head_commit": "d2274a3a28db2c09abc16ac8fde6370ff7f96e14",
+  "task_instructions": "the release tests are failing because we added a new ESQL function but forgot to update the expected function count in the telemetry test",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 1,
+    "lines_deleted": 1,
+    "total_diff_hunks": 2,
+    "context_size_bytes": 10399,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "The release tests are failing because the expected function count in the ESQL telemetry test is incorrect. We added a new function but forgot to update the count from 150 to 151 in the non-snapshot version test.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}

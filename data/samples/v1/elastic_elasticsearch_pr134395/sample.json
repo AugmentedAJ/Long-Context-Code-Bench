@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "head_commit": "f1f4bbab46a6f06890d09c8c354f3a4926b6ae2b",
+  "task_instructions": "Remove the functionName member variable from Function class and compute it on the fly to save memory when there are thousands of function instances in ESQL plans",
+  "stats": {
+    "files_changed": 1,
+    "lines_added": 1,
+    "lines_deleted": 4,
+    "total_diff_hunks": 4,
+    "context_size_bytes": 2178,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Remove the functionName member variable from Function class and compute it on the fly to save memory when there are thousands of function instances in ESQL plans",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

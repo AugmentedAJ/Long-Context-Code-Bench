@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3966,
+  "base_commit": "c9dab6991eff5c01c7b0c36aecaf0f061267e030",
+  "head_commit": "ec0880df4520366f2d81e9e1153c38d9726c5e5d",
+  "task_instructions": "Make prebuilt analyzers version-aware so they use the correct analyzer version based on when the index was created",
+  "stats": {
+    "files_changed": 12,
+    "lines_added": 841,
+    "lines_deleted": 114,
+    "total_diff_hunks": 46,
+    "context_size_bytes": 126267,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "We need to make prebuilt analyzers version-aware so they use the correct Lucene analyzer version based on when the index was created. Currently all prebuilt analyzers always use the current version which breaks backward compatibility when we upgrade Lucene versions. If an index was created with version 0.90.4, the prebuilt analyzers should behave exactly like they did in 0.90.4, not use the current version's behavior. This is important for maintaining consistent analysis behavior across upgrades and allowing users to change prebuilt analyzers like the standard one between releases.",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 3
+}

@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134369,
+  "base_commit": "20d6049c7f1068af75dd34270f7b74cf1f76991c",
+  "head_commit": "9e4a37bd47e7c4300d36a401aab9b2f326f8715f",
+  "task_instructions": "Change RestoreSnapshotStateTask updater to accept ProjectMetadata instead of Metadata",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 11,
+    "lines_deleted": 12,
+    "total_diff_hunks": 16,
+    "context_size_bytes": 122603,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Change RestoreSnapshotStateTask updater parameter to accept ProjectMetadata.Builder instead of Metadata.Builder",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

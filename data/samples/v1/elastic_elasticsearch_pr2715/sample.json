@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 2715,
+  "base_commit": "b03f3fcd6c504bfc8a5054a3e81c88930f38b5cd",
+  "head_commit": "3c1f2918011c22a1bb2b1a8117ed17e903a2771f",
+  "task_instructions": "fix the id field validation to throw an error when it's an array or object instead of a value",
+  "stats": {
+    "files_changed": 2,
+    "lines_added": 32,
+    "lines_deleted": 0,
+    "total_diff_hunks": 8,
+    "context_size_bytes": 41833,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Add validation to prevent id field from being an array or object during metadata parsing and throw proper exception",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 2
+}

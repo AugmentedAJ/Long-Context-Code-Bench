@@ -133,13 +133,15 @@ def run_edit_on_sample(
     test_label: Optional[str] = None,
     use_synthesized: bool = False,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
+    model_dir: Optional[str] = None,
 ) -> Edit:
     """Run edit stage on a single sample.
 
     Args:
         sample: Sample object
         runner: Runner name
-        model: Model name
+        model: Model name (used for adapter)
         agent_binary: Optional agent binary path
         output_dir: Output directory
         timeout: Timeout in seconds
@@ -152,37 +154,46 @@ def run_edit_on_sample(
         test_label: Optional test label for grouping runs
         use_synthesized: If True, use synthesized task instructions instead of template-based
         stream_output: If True, stream agent output to console in real-time
+        mcp_config_path: Optional path to MCP configuration file
+        model_dir: Optional model directory name (defaults to model if not provided)
 
     Returns:
         Edit object
     """
+    # Use model_dir for directory structure, fallback to model if not provided
+    model_dir_name = model_dir if model_dir is not None else model
+
     pr_id = f"{sample.repo_url.split('/')[-2]}_{sample.repo_url.split('/')[-1].replace('.git', '')}_pr{sample.pr_number}"
 
     # Create output directory
-    edit_dir = output_dir / runner / model / run_id / pr_id
+    edit_dir = output_dir / runner / model_dir_name / run_id / pr_id
     edit_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if edit already exists (current run)
     edit_summary_file = edit_dir / "edit_summary.json"
 
     if edit_summary_file.exists() and not force:
-        console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in this run)[/yellow]")
-        # Load and return existing edit
+        # Load and check status
         with open(edit_summary_file) as f:
             edit_data = json.load(f)
-            # Load patch from separate file
-            patch_file = edit_dir / "edit.patch"
-            if patch_file.exists():
-                with open(patch_file) as pf:
-                    edit_data["patch_unified"] = pf.read()
+            # Only skip if the previous run was successful
+            if edit_data.get("status") != "success":
+                console.print(f"[yellow]⊙ Retrying {pr_id} (previous run had status '{edit_data.get('status')}')[/yellow]")
             else:
-                edit_data["patch_unified"] = ""
-            return Edit(**edit_data)
+                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in this run)[/yellow]")
+                # Load patch from separate file
+                patch_file = edit_dir / "edit.patch"
+                if patch_file.exists():
+                    with open(patch_file) as pf:
+                        edit_data["patch_unified"] = pf.read()
+                else:
+                    edit_data["patch_unified"] = ""
+                return Edit(**edit_data)
 
     # If test_label is provided, check if this PR was already edited in any run with the same test_label
     if test_label and not force:
-        # Check in staged mode (edit_run_manifest.json in runner/model/run_id/)
-        runner_model_dir = output_dir / runner / model
+        # Check in staged mode (edit_run_manifest.json in runner/model_dir_name/run_id/)
+        runner_model_dir = output_dir / runner / model_dir_name
         if runner_model_dir.exists():
             for other_run_dir in runner_model_dir.iterdir():
                 if not other_run_dir.is_dir() or other_run_dir.name == run_id:
@@ -197,10 +208,13 @@ def run_edit_on_sample(
                             # Check if this PR was edited in that run
                             other_edit_file = other_run_dir / pr_id / "edit_summary.json"
                             if other_edit_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
-                                # Load and return existing edit
                                 with open(other_edit_file) as f:
                                     edit_data = json.load(f)
+                                    # Only skip if the previous run was successful
+                                    if edit_data.get("status") != "success":
+                                        console.print(f"[yellow]⊙ Retrying {pr_id} (previous run in {other_run_dir.name} had status '{edit_data.get('status')}')[/yellow]")
+                                        continue
+                                    console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                     # Load patch from separate file
                                     patch_file = other_run_dir / pr_id / "edit.patch"
                                     if patch_file.exists():
@@ -224,14 +238,17 @@ def run_edit_on_sample(
                         manifest = RunManifest(**json.load(f))
                         if manifest.test_label == test_label and manifest.runner == runner and manifest.model == model:
                             # Check if this PR was edited in that run
-                            other_edit_file = output_dir / runner / model / other_run_dir.name / pr_id / "edit_summary.json"
+                            other_edit_file = output_dir / runner / model_dir_name / other_run_dir.name / pr_id / "edit_summary.json"
                             if other_edit_file.exists():
-                                console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
-                                # Load and return existing edit
                                 with open(other_edit_file) as f:
                                     edit_data = json.load(f)
+                                    # Only skip if the previous run was successful
+                                    if edit_data.get("status") != "success":
+                                        console.print(f"[yellow]⊙ Retrying {pr_id} (previous run in {other_run_dir.name} had status '{edit_data.get('status')}')[/yellow]")
+                                        continue
+                                    console.print(f"[yellow]⊙ Skipping {pr_id} (already edited in run {other_run_dir.name} with test label '{test_label}')[/yellow]")
                                     # Load patch from separate file
-                                    patch_file = output_dir / runner / model / other_run_dir.name / pr_id / "edit.patch"
+                                    patch_file = output_dir / runner / model_dir_name / other_run_dir.name / pr_id / "edit.patch"
                                     if patch_file.exists():
                                         with open(patch_file) as pf:
                                             edit_data["patch_unified"] = pf.read()
@@ -252,6 +269,7 @@ def run_edit_on_sample(
         disable_retrieval=disable_retrieval,
         disable_shell=disable_shell,
         enable_mcp_codebase_qa=enable_mcp_codebase_qa,
+        mcp_config_path=mcp_config_path,
         stream_output=stream_output,
     )
     
@@ -403,6 +421,7 @@ def run_edit_stage(
     force: bool = False,
     use_synthesized: bool = False,
     stream_output: bool = False,
+    mcp_config_path: Optional[str] = None,
 ) -> str:
     """Run the edit stage.
 
@@ -423,6 +442,7 @@ def run_edit_stage(
         force: If True, re-run even if edit_summary.json already exists
         use_synthesized: If True, use synthesized task instructions instead of template-based
         stream_output: If True, stream agent output to console in real-time
+        mcp_config_path: Optional path to MCP configuration file
 
     Returns:
         Edit run ID
@@ -432,9 +452,14 @@ def run_edit_stage(
     output_dir.mkdir(parents=True, exist_ok=True)
     edit_run_id = str(uuid.uuid4())[:8]
 
+    # Append -mcp suffix to model name if MCP is enabled to create separate directories
+    model_dir_name = f"{model}-mcp" if enable_mcp_codebase_qa else model
+
     console.print(f"[bold]Starting edit run {edit_run_id}[/bold]")
     console.print(f"  Runner: {runner}")
     console.print(f"  Model: {model}")
+    if enable_mcp_codebase_qa:
+        console.print(f"  MCP: enabled (output dir: {model_dir_name})")
     if test_label:
         console.print(f"  Test label: {test_label}")
 
@@ -471,8 +496,8 @@ def run_edit_stage(
         test_label=test_label,
     )
 
-    # Save manifest in the runner/model/run_id directory
-    manifest_dir = output_dir / runner / model / edit_run_id
+    # Save manifest in the runner/model_dir_name/run_id directory
+    manifest_dir = output_dir / runner / model_dir_name / edit_run_id
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest_file = manifest_dir / "edit_run_manifest.json"
     with open(manifest_file, "w") as f:
@@ -483,7 +508,7 @@ def run_edit_stage(
         run_edit_on_sample(
             sample=sample,
             runner=runner,
-            model=model,
+            model=model,  # Original model name for adapter
             agent_binary=agent_binary,
             output_dir=output_dir,
             timeout=timeout,
@@ -496,6 +521,8 @@ def run_edit_stage(
             test_label=test_label,
             use_synthesized=use_synthesized,
             stream_output=stream_output,
+            mcp_config_path=mcp_config_path,
+            model_dir=model_dir_name,  # Use model_dir_name for directory structure
         )
 
     console.print(f"\n[bold green]Edit run {edit_run_id} complete![/bold green]")

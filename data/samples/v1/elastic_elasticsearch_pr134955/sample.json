@@ -1,0 +1,20 @@
+{
+  "dataset_version": "v1",
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134955,
+  "base_commit": "8272fc895484bdcf635a3828616e03183cac283d",
+  "head_commit": "aa70015f22c9d6f8b2a977f7e93e5b3d5fa5ad95",
+  "task_instructions": "Transform is queuing too many PIT close requests and not waiting for them to complete before finishing the checkpoint, causing performance issues",
+  "stats": {
+    "files_changed": 5,
+    "lines_added": 63,
+    "lines_deleted": 21,
+    "total_diff_hunks": 28,
+    "context_size_bytes": 156595,
+    "truncated": false
+  },
+  "synthesized_task_instructions": "Transform is queuing too many PIT close requests instead of waiting for them to finish before completing checkpoints, causing resource issues",
+  "synthesis_model": "auggie/claude-sonnet-4",
+  "synthesis_timestamp": null,
+  "synthesis_rollout": 4
+}
