@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134402,
+  "base_commit": "7427efd0bd64c809f924119a47792267b9cf2193",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 73382,
+  "patch_unified": "diff --git a/.buildkite/pipelines/java-ea-check-new-build.yml b/.buildkite/pipelines/java-ea-check-new-build.yml\nindex 025b2850..fb8523c2 100644\n--- a/.buildkite/pipelines/java-ea-check-new-build.yml\n+++ b/.buildkite/pipelines/java-ea-check-new-build.yml\n@@ -3,5 +3,5 @@ steps:\n     env:\n       RECENT_TIME_WINDOW: \"24\" # time window to consider a build as new in hours\n     agents:\n-      image: \"docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.5\"\n+      image: \"docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.15\"\n       memory: \"4G\"\ndiff --git a/.buildkite/pipelines/pull-request/pr-upgrade.yml b/.buildkite/pipelines/pull-request/pr-upgrade.yml\nindex 429a75a3..3b171872 100644\n--- a/.buildkite/pipelines/pull-request/pr-upgrade.yml\n+++ b/.buildkite/pipelines/pull-request/pr-upgrade.yml\n@@ -2,5 +2,5 @@ steps:\n   - label: pr-upgrade\n     command: \".buildkite/scripts/run-pr-upgrade-tests.sh\"\n     agents:\n-      image: \"docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.5\"\n+      image: \"docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.15\"\n       memory: \"4G\"",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134402/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

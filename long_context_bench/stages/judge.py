@@ -1,10 +1,7 @@
-"""Judge stage: Score agent edits against ground truth.
+"""Judge stage: Score agent edits against ground truth using Claude Code CLI.
 
-NOTE: This is the **legacy Long-Context-Bench v0 judge** implementation.
-Canonical v1 Elasticsearch benchmark runs use the agent-eval `JudgeTask`
-pipeline (pairwise preference judge via Auggie + Claude Sonnet 4.5) and
-**not** this scalar judge. You can still use this module for historical
-v0-style experiments, but it should not be treated as the v1 judge.
+This module uses Claude Code CLI exclusively for judging agent outputs.
+All judge operations run through the `claude` command-line tool.
 """
 
 import json
@@ -20,7 +17,6 @@ from typing import Optional, List
 
 import git
 from rich.console import Console
-import litellm
 
 from long_context_bench import __version__
 from long_context_bench.models import Sample, Edit, Judge, Scores, JudgeRunManifest, RunManifest
@@ -96,9 +92,9 @@ def compute_llm_scores(
     task_instructions: str,
     judge_model: str,
 ) -> tuple[Scores, str, float, str]:
-    """Compute scores using LLM judge.
+    """Compute scores using judge model.
 
-    Per R-3.12: LLM-based judge with temperature 0.0, fixed prompt and seed.
+    Per R-3.12: Judge model with temperature 0.0, fixed prompt and seed.
 
     Args:
         agent_diff: Agent-produced diff
@@ -113,6 +109,15 @@ def compute_llm_scores(
         - rating: Overall rating from 0.00 to 1.00
         - summary: One-line summary
     """
+    def _truncate(text: str, limit: int, label: str) -> str:
+        if len(text) <= limit:
+            return text
+        return text[:limit] + f"\n... [TRUNCATED {label}: clipped {len(text) - limit} chars]"
+
+    # Cap very large diffs to avoid Claude CLI prompt-length errors
+    ground_truth_diff = _truncate(ground_truth_diff, 12000, "ground truth diff")
+    agent_diff = _truncate(agent_diff, 12000, "agent diff")
+
     # Construct the judge prompt (keep output schema the same, strengthen guidance)
     prompt = f"""You are an expert code reviewer evaluating an AI coding agent's output against ground truth.
 
@@ -191,82 +196,67 @@ Score interpretation: -1 = much worse than human, 0 = human level (ground truth)
 }}"""
 
     try:
-        # Determine if we should use Claude CLI or litellm
-        use_claude_cli = judge_model in ["claude-sonnet-4-5", "sonnet", "claude-sonnet-4"]
+        # Always use Claude Code CLI for judging
+        console.print(f"  [dim]Using Claude Code CLI for judging (model: {judge_model})...[/dim]")
 
-        if use_claude_cli:
-            # Use Claude CLI for subscription-based auth
-            console.print(f"  [dim]Using Claude CLI for judging...[/dim]")
+        # Call Claude CLI, piping prompt via stdin to avoid argv length limits
+        cmd = [
+            "claude",
+            "--output-format", "stream-json",
+            "--verbose",
+            "-p",  # print-and-exit, non-interactive
+        ]
 
-            # Call Claude CLI with the prompt
-            cmd = [
-                "claude",
-                "-p",  # Print mode (non-interactive)
-                prompt,
-                "--output-format", "stream-json",
-                "--verbose",
-            ]
+        # Add model if not using alias
+        if judge_model not in ["sonnet", "opus", "haiku"]:
+            cmd.extend(["--model", judge_model])
 
-            # Add model if not using alias
-            if judge_model not in ["sonnet", "opus", "haiku"]:
-                cmd.extend(["--model", judge_model])
+        # Run Claude CLI (prompt on stdin)
+        result = subprocess.run(
+            cmd,
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=600,  # allow longer for large prompts
+        )
 
-            # Run Claude CLI
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=120,  # 2 minute timeout for judge
-            )
+        if result.returncode != 0:
+            error_msg = f"Claude CLI failed with code {result.returncode}"
+            if result.stderr:
+                error_msg += f"\nstderr: {result.stderr}"
+            if result.stdout:
+                error_msg += f"\nstdout: {result.stdout}"
+            raise Exception(error_msg)
 
-            if result.returncode != 0:
-                error_msg = f"Claude CLI failed with code {result.returncode}"
-                if result.stderr:
-                    error_msg += f"\nstderr: {result.stderr}"
-                if result.stdout:
-                    error_msg += f"\nstdout: {result.stdout}"
-                raise Exception(error_msg)
+        # Parse stream-json output
+        # Claude CLI outputs JSONL with events, we want the assistant message content
+        content = None
+        lines = [line for line in result.stdout.split('\n') if line.strip()]
+        for line in lines:
+            try:
+                event = json.loads(line)
+                # Look for assistant message with content
+                if event.get('type') == 'assistant' and 'message' in event:
+                    message = event['message']
+                    if 'content' in message and isinstance(message['content'], list):
+                        # Extract text from content blocks
+                        text_parts = []
+                        for block in message['content']:
+                            if block.get('type') == 'text' and 'text' in block:
+                                text_parts.append(block['text'])
+                        if text_parts:
+                            content = ''.join(text_parts)
+                            break
+                # Also check for result type with result field
+                elif event.get('type') == 'result' and 'result' in event:
+                    content = event['result']
+                    break
+            except json.JSONDecodeError:
+                continue
 
-            # Parse stream-json output
-            # Claude CLI outputs JSONL with events, we want the assistant message content
-            content = None
-            lines = [line for line in result.stdout.split('\n') if line.strip()]
-            for line in lines:
-                try:
-                    event = json.loads(line)
-                    # Look for assistant message with content
-                    if event.get('type') == 'assistant' and 'message' in event:
-                        message = event['message']
-                        if 'content' in message and isinstance(message['content'], list):
-                            # Extract text from content blocks
-                            text_parts = []
-                            for block in message['content']:
-                                if block.get('type') == 'text' and 'text' in block:
-                                    text_parts.append(block['text'])
-                            if text_parts:
-                                content = ''.join(text_parts)
-                                break
-                    # Also check for result type with result field
-                    elif event.get('type') == 'result' and 'result' in event:
-                        content = event['result']
-                        break
-                except json.JSONDecodeError:
-                    continue
-
-            # If we couldn't parse stream-json, use raw stdout as fallback
-            if not content:
-                content = result.stdout.strip()
-        else:
-            # Use litellm for other models
-            console.print(f"  [dim]Using litellm for judging...[/dim]")
-            litellm.drop_params = True  # Drop unsupported params instead of erroring
-            response = litellm.completion(
-                model=judge_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
-                seed=42,  # Fixed seed for reproducibility (dropped if unsupported)
-            )
-            content = response.choices[0].message.content.strip()
+        # If we couldn't parse stream-json, use raw stdout as fallback
+        if not content:
+            content = result.stdout.strip()
 
         # Try to parse JSON from response
         # Handle cases where LLM wraps JSON in markdown code blocks
@@ -299,11 +289,11 @@ Score interpretation: -1 = much worse than human, 0 = human level (ground truth)
         rating = max(0.0, min(1.0, float(result.get("rating", 0.5))))
         summary = result.get("summary", "No summary provided")
 
-        console.print(f"[green]✓ LLM judge completed[/green]")
+        console.print(f"[green]✓ Judge completed[/green]")
         return scores, rationale, rating, summary
 
     except json.JSONDecodeError as e:
-        console.print(f"[yellow]Warning: Failed to parse LLM response as JSON: {e}[/yellow]")
+        console.print(f"[yellow]Warning: Failed to parse judge response as JSON: {e}[/yellow]")
         console.print(f"[yellow]Response content: {content[:200]}...[/yellow]")
         # Return zero scores on failure
         scores = Scores(
@@ -313,13 +303,13 @@ Score interpretation: -1 = much worse than human, 0 = human level (ground truth)
             best_practices=0.0,
             unsolicited_docs=0.0,
         )
-        rationale = f"LLM judge failed (JSON parse error): {str(e)}"
+        rationale = f"Judge failed (JSON parse error): {str(e)}"
         rating = 0.0
-        summary = "LLM judge failed"
+        summary = "Judge failed"
         return scores, rationale, rating, summary
 
     except Exception as e:
-        console.print(f"[yellow]Warning: LLM judge failed: {e}[/yellow]")
+        console.print(f"[yellow]Warning: Judge failed: {e}[/yellow]")
         # Return zero scores on failure
         scores = Scores(
             correctness=0.0,
@@ -328,9 +318,9 @@ Score interpretation: -1 = much worse than human, 0 = human level (ground truth)
             best_practices=0.0,
             unsolicited_docs=0.0,
         )
-        rationale = f"LLM judge failed: {str(e)}"
+        rationale = f"Judge failed: {str(e)}"
         rating = 0.0
-        summary = "LLM judge failed"
+        summary = "Judge failed"
         return scores, rationale, rating, summary
 
 
@@ -344,12 +334,12 @@ def judge_edit(
     force: bool = False,
     test_label: Optional[str] = None,
 ) -> Judge:
-    """Judge a single edit using LLM.
+    """Judge a single edit using Claude Code CLI.
 
     Args:
         sample: Sample object
         edit: Edit object
-        judge_model: Judge model (required)
+        judge_model: Judge model for Claude Code CLI
         output_dir: Output directory
         judge_run_id: Judge run ID
         cache_dir: Optional cache directory for repositories
@@ -431,7 +421,7 @@ def judge_edit(
         console.print(f"  Fetching ground truth diff...")
         ground_truth_diff = get_ground_truth_diff(sample, cache_dir)
 
-        # Compute scores using LLM
+        # Compute scores using Claude Code CLI
         console.print(f"  Computing scores with {judge_model}...")
         scores, rationale, _, _ = compute_llm_scores(
             edit.patch_unified,
@@ -532,12 +522,12 @@ def run_judge_stage(
     concurrency: int = 1,
     resume_judge_run_id: Optional[str] = None,
 ) -> str:
-    """Run the judge stage using LLM.
+    """Run the judge stage using Claude Code CLI.
 
     Args:
         sample_path: Path to sample.json or directory of samples (optional if edit_run_ids provided)
         edit_path: Path to edit.json or directory of edits (optional if edit_run_ids provided)
-        judge_model: Judge model (required)
+        judge_model: Judge model for Claude Code CLI
         output_dir: Output directory
         edit_run_ids: Optional list of edit run IDs to evaluate (for batch mode)
         test_label: Optional label for grouping runs for comparison

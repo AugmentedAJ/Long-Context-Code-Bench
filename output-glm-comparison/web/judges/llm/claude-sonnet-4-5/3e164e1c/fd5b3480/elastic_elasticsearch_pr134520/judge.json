@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134520,
+  "base_commit": "63b6d96a44939b8720a20b5809b28318dc2a75fd",
+  "head_commit": "5bf27d59e00e64e243253f3b9b3b85137745e316",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.5,
+    "completeness": -0.5,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.0,
+  "rationale": "The agent only modified one of two required locations in DefaultBuiltInExecutorBuilders.java. Ground truth changes both WRITE_COORDINATION (line 48) and SYSTEM_WRITE_COORDINATION (line 213), but the agent's diff only shows changes to WRITE_COORDINATION. Additionally, the agent added `.trackMaxQueueLatency()` which is not present in ground truth, though this is a minor deviation. The formatting difference (multi-line vs single-line) is cosmetic and acceptable. The critical issue is the missing second change to SYSTEM_WRITE_COORDINATION, making the implementation incomplete.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\nindex 4ebcae1cc2a..23728fe68bb 100644\n--- a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n+++ b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n@@ -45,7 +45,7 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {\n                 ThreadPool.Names.WRITE_COORDINATION,\n                 allocatedProcessors,\n                 10000,\n-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK\n+                EsExecutors.TaskTrackingConfig.builder().trackOngoingTasks().trackExecutionTime(indexAutoscalingEWMA).build()\n             )\n         );\n         result.put(\n@@ -210,7 +210,7 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {\n                 ThreadPool.Names.SYSTEM_WRITE_COORDINATION,\n                 halfProcMaxAt5,\n                 1000,\n-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK,\n+                EsExecutors.TaskTrackingConfig.builder().trackOngoingTasks().trackExecutionTime(indexAutoscalingEWMA).build(),\n                 true\n             )\n         );"
+}

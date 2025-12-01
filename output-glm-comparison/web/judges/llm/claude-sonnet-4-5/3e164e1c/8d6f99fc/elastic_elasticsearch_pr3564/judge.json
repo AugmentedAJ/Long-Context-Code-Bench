@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "head_commit": "2b03bc83a40e470c977564195f6dcc2c208710d1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.3,
+    "completeness": -0.2,
+    "code_reuse": 0.0,
+    "best_practices": -0.1,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": -0.12,
+  "rationale": "The agent correctly removed the duplicate pidfile writing (`[ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"`) and removed `execval=$?` assignments. However, it has two significant issues: (1) In the else branch (background mode), it removed `return $execval` entirely instead of replacing it with `return $?` as ground truth does, which loses the exit status propagation for background execution. (2) At the end of the script, it removed the `exit $?` statement, which was not part of the requested changes and may affect error propagation to the calling process. The foreground branch correctly lacks return code handling (since exec replaces the process), but the agent added a different comment than ground truth and didn't include the explanatory comment about exec never returning. The change is mostly correct but has a functional gap in the background execution path.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 5db2355add0..de071cca389 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -126,16 +126,14 @@ launch_service()\n         es_parms=\"$es_parms -Des.foreground=yes\"\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                 org.elasticsearch.bootstrap.ElasticSearch\n-        execval=$?\n+        # exec without running it in the background, makes it replace this shell, we'll never get here...\n+        # no need to return something\n     else\n         # Startup ElasticSearch, background it, and write the pid.\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                     org.elasticsearch.bootstrap.ElasticSearch <&- &\n-        execval=$?\n-        [ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"\n+        return $?\n     fi\n-\n-    return $execval\n }\n \n # Parse any command line options."
+}

@@ -1,0 +1,94 @@
+diff --git a/x-pack/plugin/esql/qa/server/single-node/src/javaRestTest/java/org/elasticsearch/xpack/esql/qa/single_node/RestEsqlIT.java b/x-pack/plugin/esql/qa/server/single-node/src/javaRestTest/java/org/elasticsearch/xpack/esql/qa/single_node/RestEsqlIT.java
+index 458fffaa..7bbd980f 100644
+--- a/x-pack/plugin/esql/qa/server/single-node/src/javaRestTest/java/org/elasticsearch/xpack/esql/qa/single_node/RestEsqlIT.java
++++ b/x-pack/plugin/esql/qa/server/single-node/src/javaRestTest/java/org/elasticsearch/xpack/esql/qa/single_node/RestEsqlIT.java
+@@ -27,6 +27,7 @@ import org.elasticsearch.test.cluster.LogType;
+ import org.elasticsearch.xcontent.XContentBuilder;
+ import org.elasticsearch.xcontent.XContentType;
+ import org.elasticsearch.xcontent.json.JsonXContent;
++import org.elasticsearch.xpack.esql.action.EsqlCapabilities;
+ import org.elasticsearch.xpack.esql.core.plugin.EsqlCorePlugin;
+ import org.elasticsearch.xpack.esql.core.type.DataType;
+ import org.elasticsearch.xpack.esql.qa.rest.RestEsqlTestCase;
+@@ -466,7 +467,7 @@ public class RestEsqlIT extends RestEsqlTestCase {
+ 
+     @AwaitsFix(bugUrl = "disabled until JOIN infrastructrure properly lands")
+     public void testInlineStatsProfile() throws IOException {
+-        assumeTrue("INLINESTATS only available on snapshots", Build.current().isSnapshot());
++        assumeTrue("INLINESTATS required", EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled());
+         indexTimestampData(1);
+ 
+         RequestObjectBuilder builder = requestObjectBuilder().query(fromIndex() + " | INLINESTATS AVG(value) | SORT value ASC");
+diff --git a/x-pack/plugin/esql/qa/server/src/main/java/org/elasticsearch/xpack/esql/qa/rest/RestEsqlTestCase.java b/x-pack/plugin/esql/qa/server/src/main/java/org/elasticsearch/xpack/esql/qa/rest/RestEsqlTestCase.java
+index 8c3c243d..10392e42 100644
+--- a/x-pack/plugin/esql/qa/server/src/main/java/org/elasticsearch/xpack/esql/qa/rest/RestEsqlTestCase.java
++++ b/x-pack/plugin/esql/qa/server/src/main/java/org/elasticsearch/xpack/esql/qa/rest/RestEsqlTestCase.java
+@@ -1221,7 +1221,7 @@ public abstract class RestEsqlTestCase extends ESRestTestCase {
+      * </p>
+      */
+     public void testInlineStatsNow() throws IOException {
+-        assumeTrue("INLINESTATS only available on snapshots", Build.current().isSnapshot());
++        assumeTrue("INLINESTATS required", EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled());
+         indexTimestampData(1);
+ 
+         RequestObjectBuilder builder = requestObjectBuilder().query(
+diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/analysis/VerifierTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/analysis/VerifierTests.java
+index 285add57..0d396618 100644
+--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/analysis/VerifierTests.java
++++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/analysis/VerifierTests.java
+@@ -179,7 +179,7 @@ public class VerifierTests extends ESTestCase {
+                 + " [ip] in [test1, test2, test3] and [2] other indices, [keyword] in [test6]",
+             error("from test* | stats count(1) by multi_typed", analyzer)
+         );
+-        if (EsqlCapabilities.Cap.INLINESTATS.isEnabled()) {
++        if (EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled()) {
+             assertEquals(
+                 "1:38: Cannot use field [unsupported] with unsupported type [flattened]",
+                 error("from test* | inlinestats count(1) by unsupported", analyzer)
+@@ -200,7 +200,7 @@ public class VerifierTests extends ESTestCase {
+                 + " [ip] in [test1, test2, test3] and [2] other indices, [keyword] in [test6]",
+             error("from test* | stats values(multi_typed)", analyzer)
+         );
+-        if (EsqlCapabilities.Cap.INLINESTATS.isEnabled()) {
++        if (EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled()) {
+             assertEquals(
+                 "1:33: Cannot use field [unsupported] with unsupported type [flattened]",
+                 error("from test* | inlinestats values(unsupported)", analyzer)
+diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/parser/StatementParserTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/parser/StatementParserTests.java
+index d909ef88..ba89d631 100644
+--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/parser/StatementParserTests.java
++++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/parser/StatementParserTests.java
+@@ -396,15 +396,8 @@ public class StatementParserTests extends AbstractStatementParserTests {
+     }
+ 
+     public void testInlineStatsWithGroups() {
++        assumeTrue("INLINESTATS required", EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled());
+         var query = "inlinestats b = min(a) by c, d.e";
+-        if (Build.current().isSnapshot() == false) {
+-            expectThrows(
+-                ParsingException.class,
+-                containsString("line 1:13: mismatched input 'inlinestats' expecting {"),
+-                () -> processingCommand(query)
+-            );
+-            return;
+-        }
+         assertEquals(
+             new InlineStats(
+                 EMPTY,
+@@ -424,15 +417,8 @@ public class StatementParserTests extends AbstractStatementParserTests {
+     }
+ 
+     public void testInlineStatsWithoutGroups() {
++        assumeTrue("INLINESTATS required", EsqlCapabilities.Cap.INLINESTATS_V11.isEnabled());
+         var query = "inlinestats min(a), c = 1";
+-        if (Build.current().isSnapshot() == false) {
+-            expectThrows(
+-                ParsingException.class,
+-                containsString("line 1:13: mismatched input 'inlinestats' expecting {"),
+-                () -> processingCommand(query)
+-            );
+-            return;
+-        }
+         assertEquals(
+             new InlineStats(
+                 EMPTY,

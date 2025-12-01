@@ -1,0 +1,123 @@
+diff --git a/src/main/java/org/apache/lucene/search/suggest/analyzing/XAnalyzingSuggester.java b/src/main/java/org/apache/lucene/search/suggest/analyzing/XAnalyzingSuggester.java
+index f107d17..b577a26 100644
+--- a/src/main/java/org/apache/lucene/search/suggest/analyzing/XAnalyzingSuggester.java
++++ b/src/main/java/org/apache/lucene/search/suggest/analyzing/XAnalyzingSuggester.java
+@@ -123,6 +123,8 @@ public class XAnalyzingSuggester extends Lookup {
+    */
+   private final boolean preserveSep;
+ 
++  private static final int MAX_DEDUP_BYTES = 5;
++
+   /** Include this flag in the options parameter to {@link
+    *  #XAnalyzingSuggester(Analyzer,Analyzer,int,int,int,FST,boolean,int)} to always
+    *  return the exact match first, regardless of score.  This
+@@ -212,12 +214,8 @@ public class XAnalyzingSuggester extends Lookup {
+     this.exactFirst = (options & EXACT_FIRST) != 0;
+     this.preserveSep = (options & PRESERVE_SEP) != 0;
+ 
+-    // NOTE: this is just an implementation limitation; if
+-    // somehow this is a problem we could fix it by using
+-    // more than one byte to disambiguate ... but 256 seems
+-    // like it should be way more then enough.
+-    if (maxSurfaceFormsPerAnalyzedForm <= 0 || maxSurfaceFormsPerAnalyzedForm > 256) {
+-      throw new IllegalArgumentException("maxSurfaceFormsPerAnalyzedForm must be > 0 and < 256 (got: " + maxSurfaceFormsPerAnalyzedForm + ")");
++    if (maxSurfaceFormsPerAnalyzedForm <= 0) {
++      throw new IllegalArgumentException("maxSurfaceFormsPerAnalyzedForm must be > 0 (got: " + maxSurfaceFormsPerAnalyzedForm + ")");
+     }
+     this.maxSurfaceFormsPerAnalyzedForm = maxSurfaceFormsPerAnalyzedForm;
+ 
+@@ -331,6 +329,22 @@ public class XAnalyzingSuggester extends Lookup {
+     return tsta;
+   }
+   
++  private static int appendDedup(BytesRef analyzed, int dedup) {
++    final int startLength = analyzed.length;
++    analyzed.grow(startLength + 1 + MAX_DEDUP_BYTES);
++    int pos = analyzed.offset + startLength;
++    analyzed.bytes[pos++] = (byte) END_BYTE;
++    int value = dedup;
++    while ((value & ~0x7F) != 0) {
++      analyzed.bytes[pos++] = (byte) ((value & 0x7F) | 0x80);
++      value >>>= 7;
++    }
++    analyzed.bytes[pos++] = (byte) value;
++    int appended = pos - (analyzed.offset + startLength);
++    analyzed.length = startLength + appended;
++    return appended;
++  }
++  
+   private static class AnalyzingComparator implements Comparator<BytesRef> {
+ 
+     private final boolean hasPayloads;
+@@ -537,7 +551,7 @@ public class XAnalyzingSuggester extends Lookup {
+           seenSurfaceForms.add(BytesRef.deepCopyOf(surface));
+         }
+ 
+-        // TODO: I think we can avoid the extra 2 bytes when
++        // TODO: I think we can avoid the extra bytes when
+         // there is no dup (dedup==0), but we'd have to fix
+         // the exactFirst logic ... which would be sort of
+         // hairy because we'd need to special case the two
+@@ -545,9 +559,7 @@ public class XAnalyzingSuggester extends Lookup {
+ 
+         // NOTE: must be byte 0 so we sort before whatever
+         // is next
+-        analyzed.bytes[analyzed.offset+analyzed.length] = 0;
+-        analyzed.bytes[analyzed.offset+analyzed.length+1] = (byte) dedup;
+-        analyzed.length += 2;
++        appendDedup(analyzed, dedup);
+ 
+         Util.toIntsRef(analyzed, scratchInts);
+         //System.out.println("ADD: " + scratchInts + " -> " + cost + ": " + surface.utf8ToString());
+@@ -999,15 +1011,16 @@ public class XAnalyzingSuggester extends Lookup {
+         public void finishTerm(long defaultWeight) throws IOException {
+             ArrayUtil.timSort(surfaceFormsAndPayload, 0, count);
+             int deduplicator = 0;
+-            analyzed.bytes[analyzed.offset + analyzed.length] = 0;
+-            analyzed.length += 2;
++            final int analyzedLength = analyzed.length;
+             for (int i = 0; i < count; i++) {
+-                analyzed.bytes[analyzed.offset + analyzed.length - 1 ] = (byte) deduplicator++;
++                analyzed.length = analyzedLength;
++                appendDedup(analyzed, deduplicator++);
+                 Util.toIntsRef(analyzed, scratchInts);
+                 SurfaceFormAndPayload candiate = surfaceFormsAndPayload[i];
+                 long cost = candiate.weight == -1 ? encodeWeight(Math.min(Integer.MAX_VALUE, defaultWeight)) : candiate.weight;
+                 builder.add(scratchInts, outputs.newPair(cost, candiate.payload));
+             }
++            analyzed.length = analyzedLength;
+             seenSurfaceForms.clear();
+             count = 0;
+         }
+diff --git a/src/main/java/org/elasticsearch/search/suggest/completion/Completion090PostingsFormat.java b/src/main/java/org/elasticsearch/search/suggest/completion/Completion090PostingsFormat.java
+index 646d1b5..2a63bca 100644
+--- a/src/main/java/org/elasticsearch/search/suggest/completion/Completion090PostingsFormat.java
++++ b/src/main/java/org/elasticsearch/search/suggest/completion/Completion090PostingsFormat.java
+@@ -54,7 +54,8 @@ import java.util.Map;
+ public class Completion090PostingsFormat extends PostingsFormat {
+ 
+     public static final String CODEC_NAME = "completion090";
+-    public static final int SUGGEST_CODEC_VERSION = 1;
++    public static final int SUGGEST_CODEC_VERSION_START = 1;
++    public static final int SUGGEST_CODEC_VERSION_CURRENT = 2;
+     public static final String EXTENSION = "cmp";
+ 
+     private final static ESLogger logger = Loggers.getLogger(Completion090PostingsFormat.class);
+@@ -111,7 +112,7 @@ public class Completion090PostingsFormat extends PostingsFormat {
+             boolean success = false;
+             try {
+                 output = state.directory.createOutput(suggestFSTFile, state.context);
+-                CodecUtil.writeHeader(output, CODEC_NAME, SUGGEST_CODEC_VERSION);
++                CodecUtil.writeHeader(output, CODEC_NAME, SUGGEST_CODEC_VERSION_CURRENT);
+                 /*
+                  * we write the delegate postings format name so we can load it
+                  * without getting an instance in the ctor
+@@ -211,7 +212,7 @@ public class Completion090PostingsFormat extends PostingsFormat {
+         public CompletionFieldsProducer(SegmentReadState state) throws IOException {
+             String suggestFSTFile = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, EXTENSION);
+             IndexInput input = state.directory.openInput(suggestFSTFile, state.context);
+-            CodecUtil.checkHeader(input, CODEC_NAME, SUGGEST_CODEC_VERSION, SUGGEST_CODEC_VERSION);
++            CodecUtil.checkHeader(input, CODEC_NAME, SUGGEST_CODEC_VERSION_START, SUGGEST_CODEC_VERSION_CURRENT);
+             boolean success = false;
+             try {
+                 PostingsFormat delegatePostingsFormat = PostingsFormat.forName(input.readString());

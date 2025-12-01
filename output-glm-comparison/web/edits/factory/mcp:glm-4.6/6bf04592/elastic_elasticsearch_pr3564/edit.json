@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "runner": "factory",
+  "model": "mcp:glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 144688,
+  "patch_unified": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 5db2355..96b7d27 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -124,15 +124,14 @@ launch_service()\n     # The es-foreground option will tell ElasticSearch not to close stdout/stderr, but it's up to us not to background.\n     if [ \"x$foreground\" != \"x\" ]; then\n         es_parms=\"$es_parms -Des.foreground=yes\"\n-        exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n+        \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                 org.elasticsearch.bootstrap.ElasticSearch\n         execval=$?\n     else\n         # Startup ElasticSearch, background it, and write the pid.\n-        exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n+        \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                     org.elasticsearch.bootstrap.ElasticSearch <&- &\n         execval=$?\n-        [ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"\n     fi\n \n     return $execval\n@@ -145,7 +144,7 @@ eval set -- \"$args\"\n while true; do\n     case $1 in\n         -v)\n-            \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n+            \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $properties \\\n                     org.elasticsearch.Version\n             exit 0\n         ;;",
+  "logs_path": "factory/mcp:glm-4.6/6bf04592/elastic_elasticsearch_pr3564/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "6bf04592",
+  "test_label": "v1-mcp"
+}

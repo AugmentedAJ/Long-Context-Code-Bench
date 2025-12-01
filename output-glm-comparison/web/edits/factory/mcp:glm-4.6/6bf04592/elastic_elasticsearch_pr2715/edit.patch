@@ -1,0 +1,118 @@
+diff --git a/pom.xml b/pom.xml
+index 88d8402..5e6fe17 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -319,10 +319,10 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+-                <version>2.3.2</version>
++                <version>3.8.1</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                 </configuration>
+             </plugin>
+             <plugin>
+diff --git a/src/main/java/org/elasticsearch/index/mapper/internal/IdFieldMapper.java b/src/main/java/org/elasticsearch/index/mapper/internal/IdFieldMapper.java
+index 3391561..ea45a93 100644
+--- a/src/main/java/org/elasticsearch/index/mapper/internal/IdFieldMapper.java
++++ b/src/main/java/org/elasticsearch/index/mapper/internal/IdFieldMapper.java
+@@ -295,24 +295,33 @@ public class IdFieldMapper extends AbstractFieldMapper<String> implements Intern
+     @Override
+     protected Field parseCreateField(ParseContext context) throws IOException {
+         XContentParser parser = context.parser();
+-        if (parser.currentName() != null && parser.currentName().equals(Defaults.NAME) && parser.currentToken().isValue()) {
+-            // we are in the parse Phase
+-            String id = parser.text();
+-            if (context.id() != null && !context.id().equals(id)) {
+-                throw new MapperParsingException("Provided id [" + context.id() + "] does not match the content one [" + id + "]");
++        if (parser.currentName() != null && parser.currentName().equals(Defaults.NAME)) {
++            if (parser.currentToken() == XContentParser.Token.START_ARRAY) {
++                throw new MapperParsingException("Id field cannot be an array");
+             }
+-            context.id(id);
+-            if (!fieldType.indexed() && !fieldType.stored()) {
+-                return null;
++            if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
++                throw new MapperParsingException("Id field cannot be an object");
+             }
+-            return new Field(names.indexName(), context.id(), fieldType);
+-        } else {
+-            // we are in the pre/post parse phase
+-            if (!fieldType.indexed() && !fieldType.stored()) {
+-                return null;
++            
++            if (parser.currentToken().isValue()) {
++                // we are in the parse Phase
++                String id = parser.text();
++                if (context.id() != null && !context.id().equals(id)) {
++                    throw new MapperParsingException("Provided id [" + context.id() + "] does not match the content one [" + id + "]");
++                }
++                context.id(id);
++                if (!fieldType.indexed() && !fieldType.stored()) {
++                    return null;
++                }
++                return new Field(names.indexName(), context.id(), fieldType);
+             }
+-            return new Field(names.indexName(), context.id(), fieldType);
+         }
++        
++        // we are in the pre/post parse phase
++        if (!fieldType.indexed() && !fieldType.stored()) {
++            return null;
++        }
++        return new Field(names.indexName(), context.id(), fieldType);
+     }
+ 
+     @Override
+diff --git a/src/test/java/org/elasticsearch/test/unit/index/mapper/id/IdMappingTests.java b/src/test/java/org/elasticsearch/test/unit/index/mapper/id/IdMappingTests.java
+index 34e1846..84ea20c 100644
+--- a/src/test/java/org/elasticsearch/test/unit/index/mapper/id/IdMappingTests.java
++++ b/src/test/java/org/elasticsearch/test/unit/index/mapper/id/IdMappingTests.java
+@@ -115,4 +115,43 @@ public class IdMappingTests {
+ 
+         assertThat(serialized_id_mapping, equalTo(expected_id_mapping));
+     }
++
++    @Test
++    public void testIdAsArrayThrowsException() throws Exception {
++        String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
++                .endObject().endObject().string();
++        DocumentMapper docMapper = MapperTests.newParser().parse(mapping);
++
++        try {
++            docMapper.parse("type", null, XContentFactory.jsonBuilder()
++                    .startObject()
++                    .field("_id", new String[]{"1", "2"})
++                    .endObject()
++                    .bytes());
++            assert false : "Expected MapperParsingException for array ID";
++        } catch (MapperParsingException e) {
++            assertThat(e.getMessage(), containsString("Id field cannot be an array"));
++        }
++    }
++
++    @Test
++    public void testIdAsObjectThrowsException() throws Exception {
++        String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
++                .endObject().endObject().string();
++        DocumentMapper docMapper = MapperTests.newParser().parse(mapping);
++
++        try {
++            docMapper.parse("type", null, XContentFactory.jsonBuilder()
++                    .startObject()
++                    .startObject("_id")
++                    .field("field1", "value1")
++                    .field("field2", "value2")
++                    .endObject()
++                    .endObject()
++                    .bytes());
++            assert false : "Expected MapperParsingException for object ID";
++        } catch (MapperParsingException e) {
++            assertThat(e.getMessage(), containsString("Id field cannot be an object"));
++        }
++    }
+ }

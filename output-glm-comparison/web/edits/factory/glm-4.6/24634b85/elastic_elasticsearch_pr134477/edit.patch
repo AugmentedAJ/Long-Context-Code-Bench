@@ -1,0 +1,135 @@
+diff --git a/server/src/main/java/org/elasticsearch/search/SearchService.java b/server/src/main/java/org/elasticsearch/search/SearchService.java
+index 9a101d83..b0e65b07 100644
+--- a/server/src/main/java/org/elasticsearch/search/SearchService.java
++++ b/server/src/main/java/org/elasticsearch/search/SearchService.java
+@@ -597,6 +597,35 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+         ShardId shardId,
+         long taskId,
+         ThreadPool threadPool
++    ) {
++        return wrapListenerForErrorHandling(listener, version, nodeId, shardId, taskId, threadPool, null);
++    }
++
++    /**
++     * Wraps the listener to ensure errors are logged and to avoid sending
++     * StackTraces back to the coordinating node if the `error_trace` header is
++     * set to {@code false}. Upon reading, we default to {@code true} to maintain
++     * the same behavior as before the change, due to older nodes not being able
++     * to specify whether they need stack traces.
++     *
++     * @param <T>            the type of the response
++     * @param listener       the action listener to be wrapped
++     * @param version        channel version of the request
++     * @param nodeId         id of the current node
++     * @param shardId        id of the shard being searched
++     * @param taskId         id of the task being executed
++     * @param threadPool     with context where to write the new header
++     * @param searchService   the search service to check lifecycle state (optional)
++     * @return the wrapped action listener
++     */
++    static <T> ActionListener<T> wrapListenerForErrorHandling(
++        ActionListener<T> listener,
++        TransportVersion version,
++        String nodeId,
++        ShardId shardId,
++        long taskId,
++        ThreadPool threadPool,
++        SearchService searchService
+     ) {
+         final boolean header;
+         if (version.onOrAfter(ERROR_TRACE_IN_TRANSPORT_HEADER) && threadPool.getThreadContext() != null) {
+@@ -615,7 +644,12 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             if (ExceptionsHelper.status(e).getStatus() < 500 || ExceptionsHelper.isNodeOrShardUnavailableTypeException(e)) {
+                 logger.debug(messageSupplier, e);
+             } else {
+-                logger.warn(messageSupplier, e);
++                // Check if the SearchService is stopped or closed to avoid unnecessary warnings during shutdown
++                if (searchService != null && searchService.lifecycle.stoppedOrClosed()) {
++                    logger.debug(messageSupplier + " (service is stopped/closed)", e);
++                } else {
++                    logger.warn(messageSupplier, e);
++                }
+             }
+ 
+             if (header == false) {
+@@ -643,7 +677,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             request.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            this
+         );
+         final IndexShard shard = getShard(request);
+         rewriteAndFetchShardRequest(shard, request, listener.delegateFailure((l, rewritten) -> {
+@@ -705,7 +740,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+                 clusterService.localNode().getId(),
+                 request.shardId(),
+                 task.getId(),
+-                threadPool
++                threadPool,
++                this
+             ).delegateFailure((l, orig) -> {
+                 // check if we can shortcut the query phase entirely.
+                 if (orig.canReturnNullResponseIfMatchNoDocs()) {
+@@ -953,7 +989,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             shardSearchRequest.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            this
+         );
+         final Releasable markAsUsed = readerContext.markAsUsed(getKeepAlive(shardSearchRequest));
+         runAsync(getExecutor(readerContext.indexShard()), () -> {
+@@ -1010,7 +1047,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             readerContext.indexShard().shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            this
+         );
+         final Releasable markAsUsed;
+         try {
+@@ -1072,7 +1110,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             shardSearchRequest.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            this
+         );
+         final Releasable markAsUsed = readerContext.markAsUsed(getKeepAlive(shardSearchRequest));
+         rewriteAndFetchShardRequest(readerContext.indexShard(), shardSearchRequest, listener.delegateFailure((l, rewritten) -> {
+diff --git a/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java b/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
+index 29380a05..4270e882 100644
+--- a/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
++++ b/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
+@@ -160,7 +160,7 @@ public class SearchServiceTests extends IndexShardTestCase {
+         e.fillInStackTrace();
+         assertThat(e.getStackTrace().length, is(not(0)));
+         listener.onFailure(e);
+-        listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), "node", shardId, 123L, threadPool);
++        listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), "node", shardId, 123L, threadPool, null);
+         isWrapped.set(true);
+         listener.onFailure(e);
+     }
+@@ -198,7 +198,7 @@ public class SearchServiceTests extends IndexShardTestCase {
+                 }
+             };
+             IllegalArgumentException e = new IllegalArgumentException(exceptionMessage); // 400-level exception
+-            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool);
++            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool, null);
+             listener.onFailure(e);
+         }
+     }
+@@ -235,7 +235,7 @@ public class SearchServiceTests extends IndexShardTestCase {
+                 }
+             };
+             IllegalStateException e = new IllegalStateException(exceptionMessage); // 500-level exception
+-            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool);
++            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool, null);
+             listener.onFailure(e);
+         }
+     }

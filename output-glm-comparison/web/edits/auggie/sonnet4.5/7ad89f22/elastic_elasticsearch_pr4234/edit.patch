@@ -1,0 +1,105 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java b/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
+index 3b5376a..845d68a 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
+@@ -219,7 +219,11 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
+                 return indexShard.onlyNodeActiveInitializingShardsIt(localNodeId);
+             }
+             if (preference.startsWith("_only_node:")) {
+-                return indexShard.onlyNodeActiveInitializingShardsIt(preference.substring("_only_node:".length()));
++                String nodeId = preference.substring("_only_node:".length());
++                if (!nodes.nodeExists(nodeId)) {
++                    throw new ElasticSearchIllegalArgumentException("no node with id[" + nodeId + "] found for _only_node preference");
++                }
++                return indexShard.onlyNodeActiveInitializingShardsIt(nodeId);
+             }
+         }
+         // if not, then use it as the index
+diff --git a/src/test/java/org/elasticsearch/cluster/structure/RoutingIteratorTests.java b/src/test/java/org/elasticsearch/cluster/structure/RoutingIteratorTests.java
+index a0721e4..4c29058 100644
+--- a/src/test/java/org/elasticsearch/cluster/structure/RoutingIteratorTests.java
++++ b/src/test/java/org/elasticsearch/cluster/structure/RoutingIteratorTests.java
+@@ -21,6 +21,7 @@ package org.elasticsearch.cluster.structure;
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.cluster.ClusterState;
+ import org.elasticsearch.cluster.metadata.IndexMetaData;
+ import org.elasticsearch.cluster.metadata.MetaData;
+@@ -358,4 +359,41 @@ public class RoutingIteratorTests extends ElasticsearchTestCase {
+         assertThat(shardIterators.iterator().next().shardId().id(), equalTo(0));
+         assertThat(shardIterators.iterator().next().nextOrNull().currentNodeId(), equalTo("node1"));
+     }
++
++    @Test
++    public void testOnlyNodePreferenceWithNonExistingNode() {
++        AllocationService strategy = new AllocationService(settingsBuilder()
++                .put("cluster.routing.allocation.concurrent_recoveries", 10)
++                .build());
++
++        MetaData metaData = MetaData.builder()
++                .put(IndexMetaData.builder("test").numberOfShards(1).numberOfReplicas(1))
++                .build();
++
++        RoutingTable routingTable = RoutingTable.builder()
++                .addAsNew(metaData.index("test"))
++                .build();
++
++        ClusterState clusterState = ClusterState.builder().metaData(metaData).routingTable(routingTable).build();
++
++        clusterState = ClusterState.builder(clusterState).nodes(DiscoveryNodes.builder()
++                .put(newNode("node1"))
++                .put(newNode("node2"))
++                .localNodeId("node1")
++        ).build();
++        routingTable = strategy.reroute(clusterState).routingTable();
++        clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
++
++        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
++        clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
++
++        PlainOperationRouting operationRouting = new PlainOperationRouting(ImmutableSettings.Builder.EMPTY_SETTINGS, new DjbHashFunction(), new AwarenessAllocationDecider());
++
++        try {
++            operationRouting.searchShards(clusterState, new String[]{"test"}, new String[]{"test"}, null, "_only_node:non_existing_node");
++            fail("Expected ElasticSearchIllegalArgumentException");
++        } catch (ElasticSearchIllegalArgumentException e) {
++            assertThat(e.getMessage(), containsString("no node with id[non_existing_node] found"));
++        }
++    }
+ }
+\ No newline at end of file
+diff --git a/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java b/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
+index 870303d..0dd222b 100644
+--- a/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
++++ b/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
+@@ -19,6 +19,7 @@
+ 
+ package org.elasticsearch.search.preference;
+ 
++import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
+ import org.elasticsearch.action.search.SearchResponse;
+ import org.elasticsearch.action.search.SearchType;
+@@ -96,4 +97,20 @@ public class SearchPreferenceTests extends ElasticsearchIntegrationTest {
+         searchResponse = client().prepareSearch().setQuery(matchAllQuery()).setPreference("1234").execute().actionGet();
+         assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
+     }
++
++    @Test
++    public void testOnlyNodePreferenceWithNonExistingNode() throws Exception {
++        createIndex("test");
++        client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
++
++        client().prepareIndex("test", "type1").setSource("field1", "value1").execute().actionGet();
++        client().admin().indices().prepareRefresh().execute().actionGet();
++
++        try {
++            client().prepareSearch().setQuery(matchAllQuery()).setPreference("_only_node:non_existing_node").execute().actionGet();
++            fail("Expected ElasticSearchIllegalArgumentException");
++        } catch (ElasticSearchIllegalArgumentException e) {
++            assertThat(e.getMessage(), containsString("no node with id[non_existing_node] found"));
++        }
++    }
+ }

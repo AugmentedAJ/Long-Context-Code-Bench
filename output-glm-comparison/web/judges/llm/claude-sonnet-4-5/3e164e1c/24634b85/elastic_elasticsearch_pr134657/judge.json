@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134657,
+  "base_commit": "4c9da78b6b42c7baed8eccd0a8a69b9a225ee925",
+  "head_commit": "1e7d991bc00ac01f0dd596b8b79fa78c0c84fadc",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.2,
+  "rationale": "The agent's diff is identical to the ground truth diff. Both diffs modernize two switch statements in DocIdsWriter.java by replacing the traditional case-break syntax with arrow syntax (->). The first switch statement is in the write method (lines 103-112) and the second is in the read method (lines 261-270). All five case labels plus the default case are converted identically in both diffs. There are no differences in correctness, completeness, code reuse, or best practices - the agent achieved exactly what was requested at human level quality. No unsolicited documentation was added, earning full marks on that metric.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/server/src/main/java/org/elasticsearch/index/codec/vectors/diskbbq/DocIdsWriter.java b/server/src/main/java/org/elasticsearch/index/codec/vectors/diskbbq/DocIdsWriter.java\nindex accfb0dcdbe..0c28d9ef0ba 100644\n--- a/server/src/main/java/org/elasticsearch/index/codec/vectors/diskbbq/DocIdsWriter.java\n+++ b/server/src/main/java/org/elasticsearch/index/codec/vectors/diskbbq/DocIdsWriter.java\n@@ -103,23 +103,12 @@ final class DocIdsWriter {\n             min = Math.min(min, current);\n         }\n         switch (encoding) {\n-            case CONTINUOUS_IDS:\n-                writeContinuousIds(docIds, count, out);\n-                break;\n-            case DELTA_BPV_16:\n-                writeDelta16(docIds, count, min, out);\n-                break;\n-            case BPV_21:\n-                write21(docIds, count, min, out);\n-                break;\n-            case BPV_24:\n-                write24(docIds, count, min, out);\n-                break;\n-            case BPV_32:\n-                write32(docIds, count, min, out);\n-                break;\n-            default:\n-                throw new IOException(\"Unsupported number of bits per value: \" + encoding);\n+            case CONTINUOUS_IDS -> writeContinuousIds(docIds, count, out);\n+            case DELTA_BPV_16 -> writeDelta16(docIds, count, min, out);\n+            case BPV_21 -> write21(docIds, count, min, out);\n+            case BPV_24 -> write24(docIds, count, min, out);\n+            case BPV_32 -> write32(docIds, count, min, out);\n+            default -> throw new IOException(\"Unsupported number of bits per value: \" + encoding);\n         }\n     }\n \n@@ -272,23 +261,12 @@ final class DocIdsWriter {\n             scratch = new int[count];\n         }\n         switch (encoding) {\n-            case CONTINUOUS_IDS:\n-                readContinuousIds(in, count, docIDs);\n-                break;\n-            case DELTA_BPV_16:\n-                readDelta16(in, count, docIDs);\n-                break;\n-            case BPV_21:\n-                readInts21(in, count, docIDs);\n-                break;\n-            case BPV_24:\n-                readInts24(in, count, docIDs);\n-                break;\n-            case BPV_32:\n-                readInts32(in, count, docIDs);\n-                break;\n-            default:\n-                throw new IOException(\"Unsupported number of bits per value: \" + encoding);\n+            case CONTINUOUS_IDS -> readContinuousIds(in, count, docIDs);\n+            case DELTA_BPV_16 -> readDelta16(in, count, docIDs);\n+            case BPV_21 -> readInts21(in, count, docIDs);\n+            case BPV_24 -> readInts24(in, count, docIDs);\n+            case BPV_32 -> readInts32(in, count, docIDs);\n+            default -> throw new IOException(\"Unsupported number of bits per value: \" + encoding);\n         }\n     }\n "
+}

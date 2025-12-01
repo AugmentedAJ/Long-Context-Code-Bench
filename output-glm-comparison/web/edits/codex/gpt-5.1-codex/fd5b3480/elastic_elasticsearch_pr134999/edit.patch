@@ -1,0 +1,22 @@
+diff --git a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml
+index aa0ef16a..52f70efc 100644
+--- a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml
++++ b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml
+@@ -602,7 +602,7 @@ setup:
+       ml.get_overall_buckets:
+         job_id: "jobs-get-result-overall-buckets-*"
+         bucket_span: "2h"
+-        overall_score: "41.0"
++        overall_score: 41.0
+ 
+   - match: { count: 1 }
+   - match: { overall_buckets.0.timestamp: 1464746400000 }
+@@ -624,7 +624,7 @@ setup:
+       ml.get_overall_buckets:
+         job_id: "jobs-that-do-not-exist-*"
+         bucket_span: "2h"
+-        overall_score: "41.0"
++        overall_score: 41.0
+         allow_no_match: true
+ 
+   - match: { count: 0 }

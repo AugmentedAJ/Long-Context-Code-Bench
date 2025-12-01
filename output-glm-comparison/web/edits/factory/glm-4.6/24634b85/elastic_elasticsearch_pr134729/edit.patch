@@ -1,0 +1,19 @@
+diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java
+index f6b5a876..22e96fe7 100644
+--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java
++++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java
+@@ -85,12 +85,10 @@ public class InferenceFeatures implements FeatureSpecification {
+                 SEMANTIC_TEXT_SPARSE_VECTOR_INDEX_OPTIONS,
+                 SEMANTIC_TEXT_FIELDS_CHUNKS_FORMAT,
+                 SemanticQueryBuilder.SEMANTIC_QUERY_MULTIPLE_INFERENCE_IDS,
+-                SemanticQueryBuilder.SEMANTIC_QUERY_FILTER_FIELD_CAPS_FIX
++                SemanticQueryBuilder.SEMANTIC_QUERY_FILTER_FIELD_CAPS_FIX,
++                TEXT_SIMILARITY_RERANKER_SNIPPETS
+             )
+         );
+-        if (RERANK_SNIPPETS.isEnabled()) {
+-            testFeatures.add(TEXT_SIMILARITY_RERANKER_SNIPPETS);
+-        }
+         return testFeatures;
+     }
+ }

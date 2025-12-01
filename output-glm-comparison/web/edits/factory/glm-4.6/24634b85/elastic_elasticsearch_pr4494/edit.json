@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4494,
+  "base_commit": "40ec7116d8bf5341f00dcc561d57788eb66e48ca",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 38576,
+  "patch_unified": "diff --git a/docs/community/clients.asciidoc b/docs/community/clients.asciidoc\nindex af37153..840b2e2 100644\n--- a/docs/community/clients.asciidoc\n+++ b/docs/community/clients.asciidoc\n@@ -71,6 +71,8 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/ruby-api/curr\n [[community-javascript]]\n === Javascript\n \n+See the <<javascript-index.asciidoc,official Elasticsearch JavaScript client>>.\n+\n * https://github.com/fullscale/elastic.js[Elastic.js]:\n   A JavaScript implementation of the ElasticSearch Query DSL and Core API.\n ",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr4494/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

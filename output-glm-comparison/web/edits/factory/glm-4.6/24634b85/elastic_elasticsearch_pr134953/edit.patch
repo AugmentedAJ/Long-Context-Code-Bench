@@ -1,0 +1,22 @@
+diff --git a/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java b/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java
+index 15306f65..e755b62c 100644
+--- a/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java
++++ b/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java
+@@ -10,6 +10,9 @@ package org.elasticsearch.xpack.migrate.rest;
+ import org.elasticsearch.client.internal.node.NodeClient;
+ import org.elasticsearch.rest.BaseRestHandler;
+ import org.elasticsearch.rest.RestRequest;
++import org.elasticsearch.rest.RestHandler;
++import org.elasticsearch.rest.ServerlessScope;
++import org.elasticsearch.rest.Scope;
+ import org.elasticsearch.rest.action.RestToXContentListener;
+ import org.elasticsearch.xpack.migrate.action.CreateIndexFromSourceAction;
+ 
+@@ -19,6 +22,7 @@ import java.util.List;
+ import static org.elasticsearch.rest.RestRequest.Method.POST;
+ import static org.elasticsearch.rest.RestRequest.Method.PUT;
+ 
++@ServerlessScope(Scope.PUBLIC)
+ public class RestCreateIndexFromSourceAction extends BaseRestHandler {
+ 
+     @Override

@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3192,
+  "base_commit": "a30d58aae2db60b2ed3c2f1450ddaef87119e06e",
+  "head_commit": "27a8083b7d84ba3872213fa37948b645b02c1518",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.3,
+    "completeness": 0.8,
+    "code_reuse": -0.3,
+    "best_practices": -0.4,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.27999999999999997,
+  "rationale": "The agent's implementation exposes the timeout parameter in the REST interface as requested, but with several issues. **Correctness**: The agent uses `null` as the default value instead of `nodesInfoRequest.timeout()`, which means if no timeout is provided, it will override the existing default with null rather than preserving the current behavior (0.3 penalty). **Completeness**: The agent added timeout support to the main handler AND all 9 specialized handlers (RestSettingsHandler, RestOsHandler, etc.), while the ground truth only modified the main handler. This is actually more complete coverage, though arguably over-engineered for the stated task (0.8 - slight positive). **Code Reuse**: The agent duplicated the timeout setting logic across 10 handlers instead of relying on a single point of configuration, creating significant code duplication (-0.3). **Best Practices**: The use of `null` as default is problematic as it doesn't preserve existing behavior; the ground truth's approach of using `nodesInfoRequest.timeout()` maintains the current default. Additionally, there's an unnecessary indentation change in RestSettingsHandler (-0.4). **Unsolicited Docs**: No documentation added (1.0). Base score: (0.3 + 0.8 - 0.3 - 0.4 + 1.0 + 5) / 10 = 0.64. Penalty for incorrect default value pattern (-0.15 for potential behavior change). Final: 0.64 - 0.15 = 0.49.",
+  "edit_run_id": "6bf04592",
+  "judge_run_id": "609ef74e",
+  "ground_truth_patch": "diff --git a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java\nindex 20057d11d33d..7389805a4456 100644\n--- a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java\n+++ b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java\n@@ -101,6 +101,7 @@ public class RestNodesInfoAction extends BaseRestHandler {\n         nodesInfoRequest.transport(request.paramAsBoolean(\"transport\", nodesInfoRequest.transport()));\n         nodesInfoRequest.http(request.paramAsBoolean(\"http\", nodesInfoRequest.http()));\n         nodesInfoRequest.plugin(request.paramAsBoolean(\"plugin\", nodesInfoRequest.plugin()));\n+        nodesInfoRequest.timeout( request.paramAsTime(\"timeout\", nodesInfoRequest.timeout()));\n \n         executeNodeRequest(request, channel, nodesInfoRequest);\n     }"
+}

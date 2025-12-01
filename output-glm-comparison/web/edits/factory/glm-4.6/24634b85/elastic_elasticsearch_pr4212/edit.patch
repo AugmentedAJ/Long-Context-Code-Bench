@@ -1,0 +1,45 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+index 0f9d59d..451f886 100644
+--- a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
++++ b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+@@ -57,6 +57,8 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+ 
+     private final ClusterService clusterService;
+ 
++    private final RepositoryUsageValidator usageValidator;
++
+     private volatile ImmutableMap<String, RepositoryHolder> repositories = ImmutableMap.of();
+ 
+     @Inject
+@@ -65,6 +67,7 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         this.typesRegistry = typesRegistry;
+         this.injector = injector;
+         this.clusterService = clusterService;
++        this.usageValidator = new RepositoryUsageValidator(settings, clusterService);
+         // Doesn't make sense to maintain repositories on non-master and non-data nodes
+         // Nothing happens there anyway
+         if (DiscoveryNode.dataNode(settings) || DiscoveryNode.masterNode(settings)) {
+@@ -82,6 +85,13 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+      * @param listener register repository listener
+      */
+     public void registerRepository(final RegisterRepositoryRequest request, final ActionListener<RegisterRepositoryResponse> listener) {
++        // Check if repository is being updated and is currently in use
++        RepositoriesMetaData repositories = clusterService.state().getMetaData().custom(RepositoriesMetaData.TYPE);
++        if (repositories != null && repositories.repository(request.name) != null) {
++            // Repository exists and is being updated - check if it's in use
++            usageValidator.validateRepositoryModification(request.name);
++        }
++        
+         final RepositoryMetaData newRepositoryMetaData = new RepositoryMetaData(request.name, request.type, request.settings);
+ 
+         clusterService.submitStateUpdateTask(request.cause, new AckedClusterStateUpdateTask() {
+@@ -169,6 +179,9 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+      * @param listener unregister repository listener
+      */
+     public void unregisterRepository(final UnregisterRepositoryRequest request, final ActionListener<UnregisterRepositoryResponse> listener) {
++        // Check if repository is currently in use before attempting to delete
++        usageValidator.validateRepositoryModification(request.name);
++        
+         clusterService.submitStateUpdateTask(request.cause, new AckedClusterStateUpdateTask() {
+             @Override
+             public ClusterState execute(ClusterState currentState) {

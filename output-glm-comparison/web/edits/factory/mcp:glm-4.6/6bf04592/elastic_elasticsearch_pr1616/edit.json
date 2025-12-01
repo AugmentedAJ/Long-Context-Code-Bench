@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 1616,
+  "base_commit": "56a9c66df183ea4e9e2cfb8861877283d4048304",
+  "runner": "factory",
+  "model": "mcp:glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 328762,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/index/mapper/internal/TTLFieldMapper.java b/src/main/java/org/elasticsearch/index/mapper/internal/TTLFieldMapper.java\nindex aa179f1..8677385 100644\n--- a/src/main/java/org/elasticsearch/index/mapper/internal/TTLFieldMapper.java\n+++ b/src/main/java/org/elasticsearch/index/mapper/internal/TTLFieldMapper.java\n@@ -182,6 +182,8 @@ public class TTLFieldMapper extends LongFieldMapper implements InternalMapper, R\n             long ttl = context.sourceToParse().ttl();\n             if (ttl <= 0 && defaultTTL > 0) { // no ttl provided so we use the default value\n                 ttl = defaultTTL;\n+                // Update the SourceToParse object with the default TTL value\n+                context.sourceToParse().ttl(ttl);\n             }\n             if (ttl > 0) { // a ttl has been provided either externally or in the _source\n                 long timestamp = context.sourceToParse().timestamp();",
+  "logs_path": "factory/mcp:glm-4.6/6bf04592/elastic_elasticsearch_pr1616/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "6bf04592",
+  "test_label": "v1-mcp"
+}

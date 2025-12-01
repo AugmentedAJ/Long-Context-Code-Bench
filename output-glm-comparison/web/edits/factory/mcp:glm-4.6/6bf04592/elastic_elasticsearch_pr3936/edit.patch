@@ -1,0 +1,100 @@
+diff --git a/docs/reference/query-dsl/queries/flt-field-query.asciidoc b/docs/reference/query-dsl/queries/flt-field-query.asciidoc
+index 734983c..d45e56a 100644
+--- a/docs/reference/query-dsl/queries/flt-field-query.asciidoc
++++ b/docs/reference/query-dsl/queries/flt-field-query.asciidoc
+@@ -36,7 +36,7 @@ included in any generated query. Defaults to `25`.
+ |`min_similarity` |The minimum similarity of the term variants. Defaults
+ to `0.5`.
+ 
+-|`prefix_length` |Length of required common prefix on variant terms.
++|`prefix_len` |Length of required common prefix on variant terms.
+ Defaults to `0`.
+ 
+ |`boost` |Sets the boost value of the query. Defaults to `1.0`.
+diff --git a/docs/reference/query-dsl/queries/flt-query.asciidoc b/docs/reference/query-dsl/queries/flt-query.asciidoc
+index beb49ea..0a248f4 100644
+--- a/docs/reference/query-dsl/queries/flt-query.asciidoc
++++ b/docs/reference/query-dsl/queries/flt-query.asciidoc
+@@ -35,7 +35,7 @@ included in any generated query. Defaults to `25`.
+ |`min_similarity` |The minimum similarity of the term variants. Defaults
+ to `0.5`.
+ 
+-|`prefix_length` |Length of required common prefix on variant terms.
++|`prefix_len` |Length of required common prefix on variant terms.
+ Defaults to `0`.
+ 
+ |`boost` |Sets the boost value of the query. Defaults to `1.0`.
+diff --git a/docs/reference/query-dsl/queries/fuzzy-query.asciidoc b/docs/reference/query-dsl/queries/fuzzy-query.asciidoc
+index 86a1062..9a26c00 100644
+--- a/docs/reference/query-dsl/queries/fuzzy-query.asciidoc
++++ b/docs/reference/query-dsl/queries/fuzzy-query.asciidoc
+@@ -4,7 +4,7 @@
+ A fuzzy query that uses similarity based on Levenshtein (edit
+ distance) algorithm. This maps to Lucene's `FuzzyQuery`.
+ 
+-Warning: this query is not very scalable with its default prefix length
++Warning: this query is not very scalable with its default prefix_len
+ of 0 - in this case, *every* term will be enumerated and cause an edit
+ score calculation or `max_expansions` is not set.
+ 
+@@ -28,7 +28,7 @@ values):
+                 "value" : "ki",
+                 "boost" : 1.0,
+                 "min_similarity" : 0.5,
+-                "prefix_length" : 0
++                "prefix_len" : 0
+             }
+         }
+     }
+diff --git a/docs/reference/query-dsl/queries/match-query.asciidoc b/docs/reference/query-dsl/queries/match-query.asciidoc
+index 5460cbf..8fa9bb6 100644
+--- a/docs/reference/query-dsl/queries/match-query.asciidoc
++++ b/docs/reference/query-dsl/queries/match-query.asciidoc
+@@ -36,7 +36,7 @@ definition, or the default search analyzer.
+ 
+ `fuzziness` can be set to a value (depending on the relevant type, for
+ string types it should be a value between `0.0` and `1.0`) to constructs
+-fuzzy queries for each term analyzed. The `prefix_length` and
++fuzzy queries for each term analyzed. The `prefix_len` and
+ `max_expansions` can be set in this case to control the fuzzy process.
+ If the fuzzy option is set the query will use `constant_score_rewrite`
+ as its <<query-dsl-multi-term-rewrite,rewrite
+diff --git a/docs/reference/query-dsl/queries/query-string-query.asciidoc b/docs/reference/query-dsl/queries/query-string-query.asciidoc
+index dd81228..58ae219 100644
+--- a/docs/reference/query-dsl/queries/query-string-query.asciidoc
++++ b/docs/reference/query-dsl/queries/query-string-query.asciidoc
+@@ -49,7 +49,7 @@ expand to. Defaults to `50`
+ |`fuzzy_min_sim` |Set the minimum similarity for fuzzy queries. Defaults
+ to `0.5`
+ 
+-|`fuzzy_prefix_length` |Set the prefix length for fuzzy queries. Default
++|`fuzzy_prefix_len` |Set the prefix length for fuzzy queries. Default
+ is `0`.
+ 
+ |`phrase_slop` |Sets the default slop for phrases. If zero, then exact
+diff --git a/docs/reference/search/suggesters/completion-suggest.asciidoc b/docs/reference/search/suggesters/completion-suggest.asciidoc
+index 74a4aa8..d58459c 100644
+--- a/docs/reference/search/suggesters/completion-suggest.asciidoc
++++ b/docs/reference/search/suggesters/completion-suggest.asciidoc
+@@ -214,7 +214,7 @@ The following parameters are supported:
+     Minimum length of the input before fuzzy
+     suggestions are returned, defaults `3`
+ 
+-`prefix_length`::
++`prefix_len`::
+     Minimum length of the input, which is not
+     checked for fuzzy alternatives, defaults to `1`
+ 
+diff --git a/docs/reference/search/suggesters/phrase-suggest.asciidoc b/docs/reference/search/suggesters/phrase-suggest.asciidoc
+index 64b46a5..80ee28a 100644
+--- a/docs/reference/search/suggesters/phrase-suggest.asciidoc
++++ b/docs/reference/search/suggesters/phrase-suggest.asciidoc
+@@ -226,7 +226,7 @@ The direct generators support the following parameters:
+     and 2. Any other value result in an bad request error being thrown.
+     Defaults to 2.
+ 
+-`prefix_length`::
++`prefix_len`::
+     The number of minimal prefix characters that must
+     match in order be a candidate suggestions. Defaults to 1. Increasing
+     this number improves spellcheck performance. Usually misspellings don't

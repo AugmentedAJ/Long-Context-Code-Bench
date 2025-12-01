@@ -1,0 +1,32 @@
+diff --git a/docs/reference/cluster/health.asciidoc b/docs/reference/cluster/health.asciidoc
+index 52685de..ef86f85 100644
+--- a/docs/reference/cluster/health.asciidoc
++++ b/docs/reference/cluster/health.asciidoc
+@@ -37,10 +37,10 @@ index level status is controlled by the worst shard status. The cluster
+ status is controlled by the worst index status.
+ 
+ One of the main benefits of the API is the ability to wait until the
+-cluster reaches a certain high water-mark health level. For example, the
+-following will wait till the cluster reaches the `yellow` level for 50
+-seconds (if it reaches the `green` or `yellow` status beforehand, it
+-will return):
++cluster reaches a certain health level. For example, the
++following will wait up to 50 seconds for the cluster to reach the `yellow` 
++status level (if it reaches `yellow` or even better, `green`, 
++status before the timeout, it will return immediately):
+ 
+ [source,js]
+ --------------------------------------------------
+@@ -74,8 +74,10 @@ The cluster health API accepts the following request parameters:
+     `lt(N)` notation.
+ 
+ `timeout`::
+-    A time based parameter controlling how long to wait if one of
+-    the wait_for_XXX are provided. Defaults to `30s`.
++    A time based parameter controlling how long to wait if any of
++    the wait_for_XXX parameters are provided. If the timeout is reached
++    before the desired condition is met, the API returns with the current
++    cluster status and timed_out set to true. Defaults to `30s`.
+ 
+ 
+ The following is an example of getting the cluster health at the

@@ -1,0 +1,65 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+index 0f9d59d..577451b 100644
+--- a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
++++ b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+@@ -27,6 +27,8 @@ import org.elasticsearch.cluster.ack.ClusterStateUpdateResponse;
+ import org.elasticsearch.cluster.metadata.MetaData;
+ import org.elasticsearch.cluster.metadata.RepositoriesMetaData;
+ import org.elasticsearch.cluster.metadata.RepositoryMetaData;
++import org.elasticsearch.cluster.metadata.RestoreMetaData;
++import org.elasticsearch.cluster.metadata.SnapshotMetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNode;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.component.AbstractComponent;
+@@ -38,6 +40,7 @@ import org.elasticsearch.common.regex.Regex;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.unit.TimeValue;
+ import org.elasticsearch.index.snapshots.IndexShardRepository;
++import org.elasticsearch.snapshots.ConcurrentSnapshotExecutionException;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -87,6 +90,7 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         clusterService.submitStateUpdateTask(request.cause, new AckedClusterStateUpdateTask() {
+             @Override
+             public ClusterState execute(ClusterState currentState) {
++                ensureRepositoryNotInUse(currentState, request.name, "create or modify");
+                 // Trying to create the new repository on master to make sure it works
+                 if (!registerRepository(newRepositoryMetaData)) {
+                     // The new repository has the same settings as the old one - ignore
+@@ -180,6 +184,7 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+                     boolean changed = false;
+                     for (RepositoryMetaData repositoryMetaData : repositories.repositories()) {
+                         if (Regex.simpleMatch(request.name, repositoryMetaData.name())) {
++                            ensureRepositoryNotInUse(currentState, repositoryMetaData.name(), "delete");
+                             logger.info("delete repository [{}]", repositoryMetaData.name());
+                             changed = true;
+                         } else {
+@@ -232,6 +237,27 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         });
+     }
+ 
++    private void ensureRepositoryNotInUse(ClusterState currentState, String repository, String action) {
++        SnapshotMetaData snapshots = currentState.metaData().custom(SnapshotMetaData.TYPE);
++        if (snapshots != null) {
++            for (SnapshotMetaData.Entry snapshot : snapshots.entries()) {
++                if (repository.equals(snapshot.snapshotId().getRepository())) {
++                    throw new ConcurrentSnapshotExecutionException(snapshot.snapshotId(),
++                            "cannot " + action + " repository [" + repository + "] because a snapshot is currently running");
++                }
++            }
++        }
++        RestoreMetaData restores = currentState.metaData().custom(RestoreMetaData.TYPE);
++        if (restores != null) {
++            for (RestoreMetaData.Entry entry : restores.entries()) {
++                if (repository.equals(entry.snapshotId().getRepository())) {
++                    throw new ConcurrentSnapshotExecutionException(entry.snapshotId(),
++                            "cannot " + action + " repository [" + repository + "] because a restore is currently running");
++                }
++            }
++        }
++    }
++
+     /**
+      * Checks if new repositories appeared in or disappeared from cluster metadata and updates current list of
+      * repositories accordingly.

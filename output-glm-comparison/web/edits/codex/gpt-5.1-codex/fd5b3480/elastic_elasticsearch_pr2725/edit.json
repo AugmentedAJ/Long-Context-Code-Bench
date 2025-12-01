@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 2725,
+  "base_commit": "a1b24343398babc34e5c5bb372f8d041a3257c94",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 26148,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\nindex f9255ab..23800c4 100644\n--- a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n+++ b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n@@ -83,8 +83,8 @@ public class FieldDataStats implements Streamable, ToXContent {\n     @Override\n     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {\n         builder.startObject(Fields.FIELD_DATA);\n-        builder.field(Fields.MEMORY_SIZE, memorySize);\n-        builder.field(Fields.MEMORY_SIZE_IN_BYTES, getMemorySize().toString());\n+        builder.field(Fields.MEMORY_SIZE, getMemorySize());\n+        builder.field(Fields.MEMORY_SIZE_IN_BYTES, getMemorySizeInBytes());\n         builder.field(Fields.EVICTIONS, getEvictions());\n         builder.endObject();\n         return builder;",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr2725/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

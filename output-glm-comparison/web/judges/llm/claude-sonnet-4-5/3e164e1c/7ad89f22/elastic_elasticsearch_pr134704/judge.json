@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134704,
+  "base_commit": "1bbc0dbb7f5a79f16a878e495b19287bf1e226b3",
+  "head_commit": "23a59109acf5c0ea8abf254823762ec705736ea1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": 0.0,
+  "rationale": "The agent's diff is functionally identical to the ground truth. Both add the same public getter method `getClusterInfoService()` that returns the `clusterInfoService` field at the exact same location in AllocationService.java (after line 138, following the `getShardRoutingRoleStrategy()` method). The method signature, return type, implementation, and placement are all correct and match the ground truth exactly. There are no additional changes, no missing functionality, no style deviations, and no unsolicited documentation. The minor difference in the diff metadata (index hash) is irrelevant to the actual code changes.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\nindex 263c2362c9e..ee0e3c0dd4c 100644\n--- a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n+++ b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n@@ -138,6 +138,10 @@ public class AllocationService {\n         return shardRoutingRoleStrategy;\n     }\n \n+    public ClusterInfoService getClusterInfoService() {\n+        return clusterInfoService;\n+    }\n+\n     /**\n      * Applies the started shards. Note, only initializing ShardRouting instances that exist in the routing table should be\n      * provided as parameter and no duplicates should be contained."
+}

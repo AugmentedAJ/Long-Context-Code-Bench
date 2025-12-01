@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134745,
+  "base_commit": "a682ed8af9242e283c1855c7be96169f8a5432bc",
+  "head_commit": "d2274a3a28db2c09abc16ac8fde6370ff7f96e14",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 1.0,
+    "completeness": 1.0,
+    "code_reuse": 1.0,
+    "best_practices": 1.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 1.0,
+  "rationale": "The agent's diff is identical to the ground truth diff. Both change line 229 in x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml from '- length: {esql.functions: 150}' to '- length: {esql.functions: 151}', correctly updating the expected function count to reflect the new ESQL function. The comment remains intact, no additional changes were made, and the fix directly addresses the failing telemetry test as requested. Perfect execution.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml\nindex af00d922dd2..a9e94c3b124 100644\n--- a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml\n+++ b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml\n@@ -226,7 +226,7 @@ setup:\n   - gt: {esql.functions.to_long: $functions_to_long}\n   - match: {esql.functions.coalesce: $functions_coalesce}\n   - gt: {esql.functions.categorize: $functions_categorize}\n-  - length: {esql.functions: 150} # check the \"sister\" test above for a likely update to the same esql.functions length check\n+  - length: {esql.functions: 151} # check the \"sister\" test above for a likely update to the same esql.functions length check\n \n ---\n took:"
+}

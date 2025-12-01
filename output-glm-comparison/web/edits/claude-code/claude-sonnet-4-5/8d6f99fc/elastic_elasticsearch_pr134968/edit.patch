@@ -1,0 +1,18 @@
+diff --git a/.buildkite/scripts/update-transport-versions.sh b/.buildkite/scripts/update-transport-versions.sh
+index c3ae067f..51115c75 100755
+--- a/.buildkite/scripts/update-transport-versions.sh
++++ b/.buildkite/scripts/update-transport-versions.sh
+@@ -40,7 +40,12 @@ git config --global user.name elasticsearchmachine
+ git config --global user.email 'infra-root+elasticsearchmachine@elastic.co'
+ 
+ gh pr checkout "${BUILDKITE_PULL_REQUEST}"
+-git add -A .
++
++# Only add transport-related changes
++git add server/src/main/java/org/elasticsearch/TransportVersion.java
++git add server/src/main/java/org/elasticsearch/TransportVersions.java
++git add server/src/main/resources/transport/
++
+ git commit -m "$NEW_COMMIT_MESSAGE"
+ git push
+ 

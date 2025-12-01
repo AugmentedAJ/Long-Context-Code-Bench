@@ -1,0 +1,75 @@
+diff --git a/pom.xml b/pom.xml
+index 4652146..c8b1efe 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -321,8 +321,8 @@
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <version>3.1</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                     <fork>true</fork>
+                 </configuration>
+             </plugin>
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java b/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
+index 3b5376a..989e032 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/operation/plain/PlainOperationRouting.java
+@@ -20,6 +20,7 @@
+ package org.elasticsearch.cluster.routing.operation.plain;
+ 
+ import org.elasticsearch.ElasticSearchIllegalArgumentException;
++import org.elasticsearch.action.NoSuchNodeException;
+ import org.elasticsearch.cluster.ClusterState;
+ import org.elasticsearch.cluster.metadata.IndexMetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNodes;
+@@ -219,7 +220,12 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
+                 return indexShard.onlyNodeActiveInitializingShardsIt(localNodeId);
+             }
+             if (preference.startsWith("_only_node:")) {
+-                return indexShard.onlyNodeActiveInitializingShardsIt(preference.substring("_only_node:".length()));
++                String nodeId = preference.substring("_only_node:".length());
++                // Check if the node exists in the cluster
++                if (nodes.get(nodeId) == null) {
++                    throw new NoSuchNodeException(nodeId);
++                }
++                return indexShard.onlyNodeActiveInitializingShardsIt(nodeId);
+             }
+         }
+         // if not, then use it as the index
+diff --git a/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java b/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
+index 870303d..5ce81bb 100644
+--- a/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
++++ b/src/test/java/org/elasticsearch/search/preference/SearchPreferenceTests.java
+@@ -19,6 +19,7 @@
+ 
+ package org.elasticsearch.search.preference;
+ 
++import org.elasticsearch.action.NoSuchNodeException;
+ import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
+ import org.elasticsearch.action.search.SearchResponse;
+ import org.elasticsearch.action.search.SearchType;
+@@ -96,4 +97,21 @@ public class SearchPreferenceTests extends ElasticsearchIntegrationTest {
+         searchResponse = client().prepareSearch().setQuery(matchAllQuery()).setPreference("1234").execute().actionGet();
+         assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
+     }
++
++    @Test
++    public void testOnlyNodeWithNonExistingNode() throws Exception {
++        createIndex("test");
++        ensureGreen();
++
++        client().prepareIndex("test", "type1").setSource("field1", "value1").execute().actionGet();
++        client().admin().indices().prepareRefresh().execute().actionGet();
++
++        try {
++            client().prepareSearch("test").setQuery(matchAllQuery()).setPreference("_only_node:non_existing_node_id").execute().actionGet();
++            fail("Expected NoSuchNodeException when using _only_node with a non-existing node");
++        } catch (Exception e) {
++            assertThat(e.getCause(), instanceOf(NoSuchNodeException.class));
++            assertThat(e.getCause().getMessage(), containsString("non_existing_node_id"));
++        }
++    }
+ }

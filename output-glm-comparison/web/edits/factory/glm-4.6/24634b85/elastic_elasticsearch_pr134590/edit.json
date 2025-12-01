@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134590,
+  "base_commit": "2f49a5ebad3a0123b6b97d537a25ddabfdd47d55",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 130870,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/TransportVersion.java b/server/src/main/java/org/elasticsearch/TransportVersion.java\nindex 83189159..726d31fb 100644\n--- a/server/src/main/java/org/elasticsearch/TransportVersion.java\n+++ b/server/src/main/java/org/elasticsearch/TransportVersion.java\n@@ -253,9 +253,9 @@ public record TransportVersion(String name, int id, TransportVersion nextPatchVe\n             message.append(\"].\");\n             if (scoredNames.isEmpty() == false) {\n                 List<String> names = scoredNames.stream().map(Tuple::v2).toList();\n-                message.append(\" Did you mean \");\n-                message.append(names);\n-                message.append(\"?\");\n+                message.append(\" Did you mean [\");\n+                message.append(String.join(\", \", names));\n+                message.append(\"]? \");\n             }\n             message.append(\" If this is a new transport version, run './gradle generateTransportVersion'.\");\n             throw new IllegalStateException(message.toString());",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134590/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4494,
+  "base_commit": "40ec7116d8bf5341f00dcc561d57788eb66e48ca",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 88467,
+  "patch_unified": "diff --git a/docs/community/clients.asciidoc b/docs/community/clients.asciidoc\nindex af37153..f3fdaf5 100644\n--- a/docs/community/clients.asciidoc\n+++ b/docs/community/clients.asciidoc\n@@ -71,6 +71,8 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/ruby-api/curr\n [[community-javascript]]\n === Javascript\n \n+See the http://www.elasticsearch.org/guide/en/elasticsearch/client/javascript-api/current/index.html[official Elasticsearch JavaScript client].\n+\n * https://github.com/fullscale/elastic.js[Elastic.js]:\n   A JavaScript implementation of the ElasticSearch Query DSL and Core API.\n \n@@ -179,4 +181,3 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/ruby-api/curr\n \n * https://github.com/jasonfill/ColdFusion-ElasticSearch-Client[ColdFusion-ElasticSearch-Client]\n   Cold Fusion client for Elasticsearch\n-",
+  "logs_path": "codex/gpt-5.1-codex/fd5b3480/elastic_elasticsearch_pr4494/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

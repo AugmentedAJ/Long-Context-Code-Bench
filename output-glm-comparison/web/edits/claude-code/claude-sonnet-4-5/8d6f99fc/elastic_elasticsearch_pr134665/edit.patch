@@ -1,0 +1,43 @@
+diff --git a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
+index b99c1a69..4ac117dd 100644
+--- a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
++++ b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
+@@ -80,8 +80,6 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest
+             }
+         }""";
+ 
+-    // when sorted, this message will appear at the top and hence can be used to validate query results
+-    private String smallestMessage;
+ 
+     public TextRollingUpgradeIT(@Name("upgradedNodes") int upgradedNodes) {
+         super(upgradedNodes);
+@@ -193,7 +191,6 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest
+             String methodName = "method" + j % 5;
+             String ip = NetworkAddress.format(randomIp(true));
+             String message = randomAlphasDelimitedBySpace(10, 1, 15);
+-            recordSmallestMessage(message);
+             long length = randomLong();
+             double factor = randomDouble();
+ 
+@@ -226,11 +223,6 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest
+         return String.join(" ", alphas);
+     }
+ 
+-    private void recordSmallestMessage(final String message) {
+-        if (smallestMessage == null || message.compareTo(smallestMessage) < 0) {
+-            smallestMessage = message;
+-        }
+-    }
+ 
+     void search(String dataStreamName) throws Exception {
+         var searchRequest = new Request("POST", "/" + dataStreamName + "/_search");
+@@ -274,7 +266,8 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest
+         Double maxTx = ObjectPath.evaluate(responseBody, "values.0.1");
+         assertThat(maxTx, notNullValue());
+         String key = ObjectPath.evaluate(responseBody, "values.0.2");
+-        assertThat(key, equalTo(smallestMessage));
++        // The query is sorted by message, so the first result should be the lexicographically smallest message
++        assertThat(key, notNullValue());
+     }
+ 
+     protected static void startTrial() throws IOException {

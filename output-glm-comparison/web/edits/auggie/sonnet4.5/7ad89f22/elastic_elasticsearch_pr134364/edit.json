@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134364,
+  "base_commit": "3d2d765a1d6e99deda88603b6024bdc2f36599c2",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 176344,
+  "patch_unified": "diff --git a/server/src/test/java/org/elasticsearch/common/TimeBasedUUIDGeneratorTests.java b/server/src/test/java/org/elasticsearch/common/TimeBasedUUIDGeneratorTests.java\nindex fa51f89d..57a6c4ba 100644\n--- a/server/src/test/java/org/elasticsearch/common/TimeBasedUUIDGeneratorTests.java\n+++ b/server/src/test/java/org/elasticsearch/common/TimeBasedUUIDGeneratorTests.java\n@@ -47,12 +47,14 @@ public class TimeBasedUUIDGeneratorTests extends ESTestCase {\n \n     public void testTimeBasedUUIDClockReset() {\n         // Simulate a clock that resets itself after reaching a threshold.\n+        // Use a safe starting time that's at least 1 day after epoch to avoid issues with small timestamps\n+        Instant startTime = Instant.ofEpochMilli(Math.max(Instant.now().toEpochMilli(), ChronoUnit.DAYS.getDuration().toMillis()));\n         final Supplier<Long> unreliableClock = new TestClockResetTimestampSupplier(\n-            Instant.now(),\n+            startTime,\n             1,\n             50,\n             ChronoUnit.MILLIS,\n-            Instant.now().plus(100, ChronoUnit.MILLIS)\n+            startTime.plus(100, ChronoUnit.MILLIS)\n         );\n         final UUIDGenerator generator = createGenerator(unreliableClock, () -> 0, new TestRandomMacAddressSupplier());\n \n@@ -101,8 +103,12 @@ public class TimeBasedUUIDGeneratorTests extends ESTestCase {\n     }\n \n     public void testUUIDEncodingDecodingWithRandomValues() {\n+        // Use a reasonable timestamp range that avoids very small timestamps (< 1 day after epoch)\n+        // to prevent issues with the UUID generator's lastTimestamp initialization to 0\n+        Instant minInstant = Instant.ofEpochMilli(Math.max(Instant.now().toEpochMilli() - ChronoUnit.DAYS.getDuration().toMillis(), ChronoUnit.DAYS.getDuration().toMillis()));\n+        Instant maxInstant = Instant.now();\n         testUUIDEncodingDecodingHelper(\n-            randomInstantBetween(Instant.now().minus(1, ChronoUnit.DAYS), Instant.now()).toEpochMilli(),\n+            randomInstantBetween(minInstant, maxInstant).toEpochMilli(),\n             randomIntBetween(0, 0x00FF_FFFF),\n             new TestRandomMacAddressSupplier().get()\n         );",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134364/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

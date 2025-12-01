@@ -1,0 +1,94 @@
+diff --git a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
+index 20057d1..4acc5cd 100644
+--- a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
+@@ -26,6 +26,7 @@ import org.elasticsearch.client.Client;
+ import org.elasticsearch.common.inject.Inject;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.settings.SettingsFilter;
++import org.elasticsearch.common.unit.TimeValue;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.rest.*;
+ import org.elasticsearch.rest.action.support.RestActions;
+@@ -101,6 +102,9 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         nodesInfoRequest.transport(request.paramAsBoolean("transport", nodesInfoRequest.transport()));
+         nodesInfoRequest.http(request.paramAsBoolean("http", nodesInfoRequest.http()));
+         nodesInfoRequest.plugin(request.paramAsBoolean("plugin", nodesInfoRequest.plugin()));
++        
++        // Add timeout parameter support
++        nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+ 
+         executeNodeRequest(request, channel, nodesInfoRequest);
+     }
+@@ -139,6 +143,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().settings(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -148,6 +153,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().os(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -157,6 +163,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().process(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -166,6 +173,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().jvm(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -175,6 +183,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().threadPool(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -184,6 +193,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().network(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -193,6 +203,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().transport(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -202,6 +213,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().http(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -211,6 +223,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().plugin(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", nodesInfoRequest.timeout()));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }

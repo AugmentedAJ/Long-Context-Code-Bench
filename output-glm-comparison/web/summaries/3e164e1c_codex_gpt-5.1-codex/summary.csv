@@ -1,0 +1,2 @@
+run_id,total_samples,successful_samples,failed_samples,skipped_samples,success_rate,win_rate,mean_correctness,mean_completeness,mean_code_reuse,mean_best_practices,mean_unsolicited_docs,mean_aggregate,std_aggregate,mean_elapsed_ms,tasks_per_hour,edit_run_id,judge_run_id,test_label,runner,model
+3e164e1c,100,100,0,0,1.0,0.4,-0.229,-0.2975,-0.049499999999999995,-0.1045,0.695,0.0028999999999999976,0.36210466425991794,158093.75,22.771298675627595,fd5b3480,3e164e1c,v1-agent-comparison,codex,gpt-5.1-codex

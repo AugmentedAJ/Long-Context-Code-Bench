@@ -26,6 +26,7 @@ The output directory structure:
     ├── edits/
     │   └── {runner}/{model}/{edit_run_id}/{pr_id}/
     │       ├── edit_summary.json
+    │       ├── edit.json
     │       ├── edit.patch
     │       └── logs.jsonl
     └── samples/
@@ -89,12 +90,12 @@ def build_static(output_dir: Path, dist_dir: Path, verbose: bool = True) -> None
         judges_dst = dist_dir / "judges"
         copy_tree_selective(judges_src, judges_dst, ["judge.json", "judge_run_manifest.json"], verbose)
     
-    # 5. Copy edits (summary, patch, logs)
+    # 5. Copy edits (summary, patch, logs, edit.json)
     edits_src = output_dir / "edits"
     if edits_src.exists():
         edits_dst = dist_dir / "edits"
-        copy_tree_selective(edits_src, edits_dst, 
-                           ["edit_summary.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"], 
+        copy_tree_selective(edits_src, edits_dst,
+                           ["edit_summary.json", "edit.json", "edit.patch", "logs.jsonl", "edit_run_manifest.json"],
                            verbose)
     
     # 6. Copy samples

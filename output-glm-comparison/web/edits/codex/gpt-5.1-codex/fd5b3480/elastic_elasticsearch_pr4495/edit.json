@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4495,
+  "base_commit": "393ec2373446e50ea8430aeebab7cc5db709e2bb",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 148398,
+  "patch_unified": "diff --git a/docs/community/clients.asciidoc b/docs/community/clients.asciidoc\nindex 46e0754..d1caad1 100644\n--- a/docs/community/clients.asciidoc\n+++ b/docs/community/clients.asciidoc\n@@ -69,6 +69,8 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/python-api/cu\n [[community-javascript]]\n === Javascript\n \n+See the <<javascript-client,official Elasticsearch JavaScript client>>.\n+\n * https://github.com/fullscale/elastic.js[Elastic.js]:\n   A JavaScript implementation of the ElasticSearch Query DSL and Core API.\n ",
+  "logs_path": "codex/gpt-5.1-codex/fd5b3480/elastic_elasticsearch_pr4495/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

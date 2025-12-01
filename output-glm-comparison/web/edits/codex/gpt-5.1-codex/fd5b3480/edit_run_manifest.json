@@ -1,0 +1,21 @@
+{
+  "dataset_version": "v0",
+  "harness_version": "0.1.0",
+  "runner": "codex",
+  "runner_version": null,
+  "model": "gpt-5.1-codex",
+  "os": "Darwin",
+  "python_version": "3.14.0",
+  "timeout_s": 10800,
+  "concurrency": 1,
+  "total_shards": 1,
+  "shard_index": 0,
+  "flags": {
+    "disable_retrieval": false,
+    "disable_shell": false,
+    "enable_mcp_codebase_qa": false
+  },
+  "timestamp": "2025-11-25T19:50:29.496434",
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

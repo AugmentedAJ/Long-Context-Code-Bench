@@ -1,0 +1,485 @@
+diff --git a/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java b/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
+index 7698020..426e976 100644
+--- a/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
++++ b/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
+@@ -22,6 +22,8 @@ package org.elasticsearch.index.analysis;
+ import com.google.common.collect.ImmutableMap;
+ import org.apache.lucene.analysis.Analyzer;
+ import org.elasticsearch.ElasticSearchIllegalArgumentException;
++import org.elasticsearch.Version;
++import org.elasticsearch.cluster.metadata.IndexMetaData;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.Strings;
+ import org.elasticsearch.common.component.CloseableComponent;
+@@ -64,6 +66,8 @@ public class AnalysisService extends AbstractIndexComponent implements Closeable
+                            @Nullable Map<String, TokenFilterFactoryFactory> tokenFilterFactoryFactories) {
+         super(index, indexSettings);
+ 
++        final Version indexCreatedVersion = indexSettings.getAsVersion(IndexMetaData.SETTING_VERSION_CREATED, Version.CURRENT);
++
+         Map<String, TokenizerFactory> tokenizers = newHashMap();
+         if (tokenizerFactoryFactories != null) {
+             Map<String, Settings> tokenizersSettings = indexSettings.getGroups("index.analysis.tokenizer");
+@@ -177,24 +181,23 @@ public class AnalysisService extends AbstractIndexComponent implements Closeable
+                 AnalyzerProviderFactory analyzerFactoryFactory = entry.getValue();
+ 
+                 Settings analyzerSettings = analyzersSettings.get(analyzerName);
+-                if (analyzerSettings == null) {
+-                    analyzerSettings = ImmutableSettings.Builder.EMPTY_SETTINGS;
+-                }
++                analyzerSettings = analyzerSettingsWithVersion(analyzerSettings, indexCreatedVersion);
+ 
+                 AnalyzerProvider analyzerFactory = analyzerFactoryFactory.create(analyzerName, analyzerSettings);
+                 analyzerProviders.put(analyzerName, analyzerFactory);
+             }
+         }
+         if (indicesAnalysisService != null) {
++            final Settings defaultAnalyzerSettings = analyzerSettingsWithVersion(ImmutableSettings.Builder.EMPTY_SETTINGS, indexCreatedVersion);
+             for (Map.Entry<String, PreBuiltAnalyzerProviderFactory> entry : indicesAnalysisService.analyzerProviderFactories().entrySet()) {
+                 String name = entry.getKey();
+                 if (!analyzerProviders.containsKey(name)) {
+-                    analyzerProviders.put(name, entry.getValue().create(name, ImmutableSettings.Builder.EMPTY_SETTINGS));
++                    analyzerProviders.put(name, entry.getValue().create(name, defaultAnalyzerSettings));
+                 }
+                 name = Strings.toCamelCase(entry.getKey());
+                 if (!name.equals(entry.getKey())) {
+                     if (!analyzerProviders.containsKey(name)) {
+-                        analyzerProviders.put(name, entry.getValue().create(name, ImmutableSettings.Builder.EMPTY_SETTINGS));
++                        analyzerProviders.put(name, entry.getValue().create(name, defaultAnalyzerSettings));
+                     }
+                 }
+             }
+@@ -300,4 +303,14 @@ public class AnalysisService extends AbstractIndexComponent implements Closeable
+     public TokenFilterFactory tokenFilter(String name) {
+         return tokenFilters.get(name);
+     }
++
++    private Settings analyzerSettingsWithVersion(Settings analyzerSettings, Version indexCreatedVersion) {
++        if (analyzerSettings == null) {
++            analyzerSettings = ImmutableSettings.Builder.EMPTY_SETTINGS;
++        }
++        if (analyzerSettings.get(IndexMetaData.SETTING_VERSION_CREATED) != null) {
++            return analyzerSettings;
++        }
++        return ImmutableSettings.settingsBuilder().put(analyzerSettings).put(IndexMetaData.SETTING_VERSION_CREATED, indexCreatedVersion).build();
++    }
+ }
+diff --git a/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java b/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
+index 1cf698d..874df7c 100644
+--- a/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
++++ b/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
+@@ -20,13 +20,27 @@
+ package org.elasticsearch.index.analysis;
+ 
+ import org.apache.lucene.analysis.Analyzer;
++import org.apache.lucene.util.Version;
++import org.elasticsearch.cluster.metadata.IndexMetaData;
++import org.elasticsearch.common.lucene.Lucene;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
++
++import java.util.concurrent.ConcurrentMap;
+ 
+ /**
+  *
+  */
+ public class PreBuiltAnalyzerProviderFactory implements AnalyzerProviderFactory {
+ 
++    public static interface AnalyzerFactory {
++        Analyzer create(Version version);
++    }
++
++    private final String name;
++    private final AnalyzerScope scope;
++    private final AnalyzerFactory analyzerFactory;
++    private final ConcurrentMap<Version, PreBuiltAnalyzerProvider> cachedAnalyzers;
+     private final PreBuiltAnalyzerProvider analyzerProvider;
+ 
+     public PreBuiltAnalyzerProviderFactory(String name, AnalyzerScope scope, Analyzer analyzer) {
+@@ -34,15 +48,61 @@ public class PreBuiltAnalyzerProviderFactory implements AnalyzerProviderFactory
+     }
+ 
+     public PreBuiltAnalyzerProviderFactory(PreBuiltAnalyzerProvider analyzerProvider) {
++        this.name = analyzerProvider.name();
++        this.scope = analyzerProvider.scope();
++        this.analyzerFactory = null;
++        this.cachedAnalyzers = null;
+         this.analyzerProvider = analyzerProvider;
+     }
+ 
++    public PreBuiltAnalyzerProviderFactory(String name, AnalyzerScope scope, AnalyzerFactory analyzerFactory) {
++        this.name = name;
++        this.scope = scope;
++        this.analyzerFactory = analyzerFactory;
++        this.cachedAnalyzers = ConcurrentCollections.newConcurrentMap();
++        this.analyzerProvider = null;
++    }
++
+     @Override
+     public AnalyzerProvider create(String name, Settings settings) {
+-        return analyzerProvider;
++        if (analyzerFactory == null) {
++            return analyzerProvider;
++        }
++        org.elasticsearch.Version indexVersion = org.elasticsearch.Version.CURRENT;
++        if (settings != null) {
++            indexVersion = settings.getAsVersion(IndexMetaData.SETTING_VERSION_CREATED, org.elasticsearch.Version.CURRENT);
++        }
++        return cachedAnalyzer(indexVersion.luceneVersion);
+     }
+ 
+     public Analyzer analyzer() {
+-        return analyzerProvider.get();
++        if (analyzerFactory == null) {
++            return analyzerProvider.get();
++        }
++        return cachedAnalyzer(Lucene.ANALYZER_VERSION).get();
++    }
++
++    public void close() {
++        if (analyzerFactory == null) {
++            if (analyzerProvider != null) {
++                analyzerProvider.get().close();
++            }
++            return;
++        }
++        for (PreBuiltAnalyzerProvider provider : cachedAnalyzers.values()) {
++            provider.get().close();
++        }
++    }
++
++    private PreBuiltAnalyzerProvider cachedAnalyzer(Version version) {
++        PreBuiltAnalyzerProvider provider = cachedAnalyzers.get(version);
++        if (provider == null) {
++            provider = new PreBuiltAnalyzerProvider(name, scope, analyzerFactory.create(version));
++            PreBuiltAnalyzerProvider existing = cachedAnalyzers.putIfAbsent(version, provider);
++            if (existing != null) {
++                provider = existing;
++            }
++        }
++        return provider;
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/indices/analysis/IndicesAnalysisService.java b/src/main/java/org/elasticsearch/indices/analysis/IndicesAnalysisService.java
+index 6b52755..1f38c35 100644
+--- a/src/main/java/org/elasticsearch/indices/analysis/IndicesAnalysisService.java
++++ b/src/main/java/org/elasticsearch/indices/analysis/IndicesAnalysisService.java
+@@ -82,6 +82,7 @@ import org.apache.lucene.analysis.th.ThaiAnalyzer;
+ import org.apache.lucene.analysis.tr.TurkishAnalyzer;
+ import org.apache.lucene.analysis.util.ElisionFilter;
+ import org.apache.lucene.analysis.util.CharArraySet;
++import org.apache.lucene.util.Version;
+ import org.elasticsearch.common.component.AbstractComponent;
+ import org.elasticsearch.common.inject.Inject;
+ import org.elasticsearch.common.lucene.Lucene;
+@@ -114,52 +115,257 @@ public class IndicesAnalysisService extends AbstractComponent {
+     public IndicesAnalysisService(Settings settings) {
+         super(settings);
+ 
+-        StandardAnalyzer standardAnalyzer = new StandardAnalyzer(Lucene.ANALYZER_VERSION);
++        PreBuiltAnalyzerProviderFactory.AnalyzerFactory standardAnalyzer = new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new StandardAnalyzer(version);
++            }
++        };
+         analyzerProviderFactories.put("default", new PreBuiltAnalyzerProviderFactory("default", AnalyzerScope.INDICES, standardAnalyzer));
+         analyzerProviderFactories.put("standard", new PreBuiltAnalyzerProviderFactory("standard", AnalyzerScope.INDICES, standardAnalyzer));
+-        analyzerProviderFactories.put("keyword", new PreBuiltAnalyzerProviderFactory("keyword", AnalyzerScope.INDICES, new KeywordAnalyzer()));
+-        analyzerProviderFactories.put("stop", new PreBuiltAnalyzerProviderFactory("stop", AnalyzerScope.INDICES, new StopAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("whitespace", new PreBuiltAnalyzerProviderFactory("whitespace", AnalyzerScope.INDICES, new WhitespaceAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("simple", new PreBuiltAnalyzerProviderFactory("simple", AnalyzerScope.INDICES, new SimpleAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("classic", new PreBuiltAnalyzerProviderFactory("classic", AnalyzerScope.INDICES, new ClassicAnalyzer(Lucene.ANALYZER_VERSION)));
+-
+-        // extended ones
+-        analyzerProviderFactories.put("pattern", new PreBuiltAnalyzerProviderFactory("pattern", AnalyzerScope.INDICES, new PatternAnalyzer(Lucene.ANALYZER_VERSION, Regex.compile("\\W+" /*PatternAnalyzer.NON_WORD_PATTERN*/, null), true, StopAnalyzer.ENGLISH_STOP_WORDS_SET)));
+-        analyzerProviderFactories.put("snowball", new PreBuiltAnalyzerProviderFactory("snowball", AnalyzerScope.INDICES, new SnowballAnalyzer(Lucene.ANALYZER_VERSION, "English", StopAnalyzer.ENGLISH_STOP_WORDS_SET)));
+-        analyzerProviderFactories.put("standard_html_strip", new PreBuiltAnalyzerProviderFactory("standard_html_strip", AnalyzerScope.INDICES, new StandardHtmlStripAnalyzer(Lucene.ANALYZER_VERSION)));
+-
+-        analyzerProviderFactories.put("arabic", new PreBuiltAnalyzerProviderFactory("arabic", AnalyzerScope.INDICES, new ArabicAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("armenian", new PreBuiltAnalyzerProviderFactory("armenian", AnalyzerScope.INDICES, new ArmenianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("basque", new PreBuiltAnalyzerProviderFactory("basque", AnalyzerScope.INDICES, new BasqueAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("brazilian", new PreBuiltAnalyzerProviderFactory("brazilian", AnalyzerScope.INDICES, new BrazilianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("bulgarian", new PreBuiltAnalyzerProviderFactory("bulgarian", AnalyzerScope.INDICES, new BulgarianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("catalan", new PreBuiltAnalyzerProviderFactory("catalan", AnalyzerScope.INDICES, new CatalanAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("chinese", new PreBuiltAnalyzerProviderFactory("chinese", AnalyzerScope.INDICES, new ChineseAnalyzer()));
+-        analyzerProviderFactories.put("cjk", new PreBuiltAnalyzerProviderFactory("cjk", AnalyzerScope.INDICES, new CJKAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("czech", new PreBuiltAnalyzerProviderFactory("czech", AnalyzerScope.INDICES, new CzechAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("dutch", new PreBuiltAnalyzerProviderFactory("dutch", AnalyzerScope.INDICES, new DutchAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("danish", new PreBuiltAnalyzerProviderFactory("danish", AnalyzerScope.INDICES, new DanishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("english", new PreBuiltAnalyzerProviderFactory("english", AnalyzerScope.INDICES, new EnglishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("finnish", new PreBuiltAnalyzerProviderFactory("finnish", AnalyzerScope.INDICES, new FinnishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("french", new PreBuiltAnalyzerProviderFactory("french", AnalyzerScope.INDICES, new FrenchAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("galician", new PreBuiltAnalyzerProviderFactory("galician", AnalyzerScope.INDICES, new GalicianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("german", new PreBuiltAnalyzerProviderFactory("german", AnalyzerScope.INDICES, new GermanAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("greek", new PreBuiltAnalyzerProviderFactory("greek", AnalyzerScope.INDICES, new GreekAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("hindi", new PreBuiltAnalyzerProviderFactory("hindi", AnalyzerScope.INDICES, new HindiAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("hungarian", new PreBuiltAnalyzerProviderFactory("hungarian", AnalyzerScope.INDICES, new HungarianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("indonesian", new PreBuiltAnalyzerProviderFactory("indonesian", AnalyzerScope.INDICES, new IndonesianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("irish", new PreBuiltAnalyzerProviderFactory("irish", AnalyzerScope.INDICES, new IrishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("italian", new PreBuiltAnalyzerProviderFactory("italian", AnalyzerScope.INDICES, new ItalianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("latvian", new PreBuiltAnalyzerProviderFactory("latvian", AnalyzerScope.INDICES, new LatvianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("norwegian", new PreBuiltAnalyzerProviderFactory("norwegian", AnalyzerScope.INDICES, new NorwegianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("persian", new PreBuiltAnalyzerProviderFactory("persian", AnalyzerScope.INDICES, new PersianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("portuguese", new PreBuiltAnalyzerProviderFactory("portuguese", AnalyzerScope.INDICES, new PortugueseAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("romanian", new PreBuiltAnalyzerProviderFactory("romanian", AnalyzerScope.INDICES, new RomanianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("russian", new PreBuiltAnalyzerProviderFactory("russian", AnalyzerScope.INDICES, new RussianAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("spanish", new PreBuiltAnalyzerProviderFactory("spanish", AnalyzerScope.INDICES, new SpanishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("swedish", new PreBuiltAnalyzerProviderFactory("swedish", AnalyzerScope.INDICES, new SwedishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("turkish", new PreBuiltAnalyzerProviderFactory("turkish", AnalyzerScope.INDICES, new TurkishAnalyzer(Lucene.ANALYZER_VERSION)));
+-        analyzerProviderFactories.put("thai", new PreBuiltAnalyzerProviderFactory("thai", AnalyzerScope.INDICES, new ThaiAnalyzer(Lucene.ANALYZER_VERSION)));
++        analyzerProviderFactories.put("keyword", new PreBuiltAnalyzerProviderFactory("keyword", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new KeywordAnalyzer();
++            }
++        }));
++        analyzerProviderFactories.put("stop", new PreBuiltAnalyzerProviderFactory("stop", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new StopAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("whitespace", new PreBuiltAnalyzerProviderFactory("whitespace", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new WhitespaceAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("simple", new PreBuiltAnalyzerProviderFactory("simple", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new SimpleAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("classic", new PreBuiltAnalyzerProviderFactory("classic", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ClassicAnalyzer(version);
++            }
++        }));
++
++        final java.util.regex.Pattern pattern = Regex.compile("\\W+" /*PatternAnalyzer.NON_WORD_PATTERN*/, null);
++        analyzerProviderFactories.put("pattern", new PreBuiltAnalyzerProviderFactory("pattern", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new PatternAnalyzer(version, pattern, true, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
++            }
++        }));
++        analyzerProviderFactories.put("snowball", new PreBuiltAnalyzerProviderFactory("snowball", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new SnowballAnalyzer(version, "English", StopAnalyzer.ENGLISH_STOP_WORDS_SET);
++            }
++        }));
++        analyzerProviderFactories.put("standard_html_strip", new PreBuiltAnalyzerProviderFactory("standard_html_strip", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new StandardHtmlStripAnalyzer(version);
++            }
++        }));
++
++        analyzerProviderFactories.put("arabic", new PreBuiltAnalyzerProviderFactory("arabic", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ArabicAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("armenian", new PreBuiltAnalyzerProviderFactory("armenian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ArmenianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("basque", new PreBuiltAnalyzerProviderFactory("basque", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new BasqueAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("brazilian", new PreBuiltAnalyzerProviderFactory("brazilian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new BrazilianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("bulgarian", new PreBuiltAnalyzerProviderFactory("bulgarian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new BulgarianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("catalan", new PreBuiltAnalyzerProviderFactory("catalan", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new CatalanAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("chinese", new PreBuiltAnalyzerProviderFactory("chinese", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ChineseAnalyzer();
++            }
++        }));
++        analyzerProviderFactories.put("cjk", new PreBuiltAnalyzerProviderFactory("cjk", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new CJKAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("czech", new PreBuiltAnalyzerProviderFactory("czech", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new CzechAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("dutch", new PreBuiltAnalyzerProviderFactory("dutch", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new DutchAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("danish", new PreBuiltAnalyzerProviderFactory("danish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new DanishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("english", new PreBuiltAnalyzerProviderFactory("english", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new EnglishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("finnish", new PreBuiltAnalyzerProviderFactory("finnish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new FinnishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("french", new PreBuiltAnalyzerProviderFactory("french", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new FrenchAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("galician", new PreBuiltAnalyzerProviderFactory("galician", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new GalicianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("german", new PreBuiltAnalyzerProviderFactory("german", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new GermanAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("greek", new PreBuiltAnalyzerProviderFactory("greek", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new GreekAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("hindi", new PreBuiltAnalyzerProviderFactory("hindi", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new HindiAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("hungarian", new PreBuiltAnalyzerProviderFactory("hungarian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new HungarianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("indonesian", new PreBuiltAnalyzerProviderFactory("indonesian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new IndonesianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("irish", new PreBuiltAnalyzerProviderFactory("irish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new IrishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("italian", new PreBuiltAnalyzerProviderFactory("italian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ItalianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("latvian", new PreBuiltAnalyzerProviderFactory("latvian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new LatvianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("norwegian", new PreBuiltAnalyzerProviderFactory("norwegian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new NorwegianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("persian", new PreBuiltAnalyzerProviderFactory("persian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new PersianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("portuguese", new PreBuiltAnalyzerProviderFactory("portuguese", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new PortugueseAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("romanian", new PreBuiltAnalyzerProviderFactory("romanian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new RomanianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("russian", new PreBuiltAnalyzerProviderFactory("russian", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new RussianAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("spanish", new PreBuiltAnalyzerProviderFactory("spanish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new SpanishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("swedish", new PreBuiltAnalyzerProviderFactory("swedish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new SwedishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("turkish", new PreBuiltAnalyzerProviderFactory("turkish", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new TurkishAnalyzer(version);
++            }
++        }));
++        analyzerProviderFactories.put("thai", new PreBuiltAnalyzerProviderFactory("thai", AnalyzerScope.INDICES, new PreBuiltAnalyzerProviderFactory.AnalyzerFactory() {
++            @Override
++            public Analyzer create(Version version) {
++                return new ThaiAnalyzer(version);
++            }
++        }));
+ 
+         // Base Tokenizers
+         tokenizerFactories.put("standard", new PreBuiltTokenizerFactoryFactory(new TokenizerFactory() {
+@@ -785,7 +991,7 @@ public class IndicesAnalysisService extends AbstractComponent {
+     public void close() {
+         for (PreBuiltAnalyzerProviderFactory analyzerProviderFactory : analyzerProviderFactories.values()) {
+             try {
+-                analyzerProviderFactory.analyzer().close();
++                analyzerProviderFactory.close();
+             } catch (Exception e) {
+                 // ignore
+             }

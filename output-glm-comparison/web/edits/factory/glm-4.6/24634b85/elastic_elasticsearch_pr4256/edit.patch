@@ -1,0 +1,91 @@
+diff --git a/docs/reference/setup/as-a-service-win.asciidoc b/docs/reference/setup/as-a-service-win.asciidoc
+index e786741..e1a5953 100644
+--- a/docs/reference/setup/as-a-service-win.asciidoc
++++ b/docs/reference/setup/as-a-service-win.asciidoc
+@@ -1,11 +1,22 @@
+ [[setup-service-win]]
+ == Running as a Service on Windows
+ 
+-Windows users can configure Elasticsearch to run as a service to run in the background or start automatically 
+-at startup without any user interaction.
++Windows users can configure Elasticsearch to run as a service to run in the background without any user interaction.
+ This can be achieved through `service.bat` script under `bin/` folder which allows one to install,
+ remove, manage or configure the service and potentially start and stop the service, all from the command-line.
+ 
++[NOTE]
++====
++After installing the Elasticsearch service, it is NOT started automatically. You need to start it manually using:
++
++* To start the service: `service.bat start` (or `sc start elasticsearch-service-x64` for the 64-bit service)
++* To stop the service: `service.bat stop` (or `sc stop elasticsearch-service-x64` for the 64-bit service)
++
++To configure the service to start automatically on Windows startup, use:
++* Via service manager: `service.bat manager` and set the startup type to "Automatic"
++* Via command line: `sc config elasticsearch-service-x64 start= auto`
++====
++
+ [source,sh]
+ --------------------------------------------------
+ c:\elasticsearch-0.90.5\bin>service
+diff --git a/docs/reference/setup/as-a-service.asciidoc b/docs/reference/setup/as-a-service.asciidoc
+index d8a935b..95b9cbf 100644
+--- a/docs/reference/setup/as-a-service.asciidoc
++++ b/docs/reference/setup/as-a-service.asciidoc
+@@ -7,6 +7,18 @@ In order to run elasticsearch as a service on your operating system, the provide
+ 
+ Currently our build automatically creates a debian package and an RPM package, which is available on the download page. The package itself does not have any dependencies, but you have to make sure that you installed a JDK.
+ 
++[NOTE]
++====
++After installation, Elasticsearch is NOT started automatically. You need to start it manually using the appropriate command for your system:
++
++* For systems using systemd: `sudo systemctl start elasticsearch.service`
++* For systems using SysV init: `sudo service elasticsearch start` or `sudo /etc/init.d/elasticsearch start`
++
++To enable Elasticsearch to start automatically on system boot, use:
++* For systemd: `sudo systemctl enable elasticsearch.service`
++* For SysV init with chkconfig: `sudo chkconfig elasticsearch on`
++====
++
+ Each package features a configuration file, which allows you to set the following parameters
+ 
+ [horizontal]
+diff --git a/src/deb/control/postinst b/src/deb/control/postinst
+index 1e14e8a..29adfac 100755
+--- a/src/deb/control/postinst
++++ b/src/deb/control/postinst
+@@ -40,9 +40,15 @@ case "$1" in
+ 	# if $2 is set, this is an upgrade
+ 	if ( [ -n $2 ] && [ "$RESTART_ON_UPGRADE" = "true" ] ) ; then
+ 		startElasticsearch
+-	# this is a fresh installation, start anyway
++	# this is a fresh installation, do NOT start automatically
+ 	elif [ -z $2 ] ; then
+-		startElasticsearch
++		# Note: Elasticsearch is NOT started automatically after installation.
++		# To start Elasticsearch manually, use one of these commands:
++		#   service elasticsearch start              (for systems with service command)
++		#   /etc/init.d/elasticsearch start          (fallback)
++		#   invoke-rc.d elasticsearch start          (alternative)
++		echo "Elasticsearch has been installed but NOT started automatically."
++		echo "To start Elasticsearch, run: sudo service elasticsearch start"
+ 	fi
+ 	;;
+ esac
+diff --git a/src/rpm/scripts/postinstall b/src/rpm/scripts/postinstall
+index aefbea3..4d941fa 100644
+--- a/src/rpm/scripts/postinstall
++++ b/src/rpm/scripts/postinstall
+@@ -35,7 +35,11 @@ if [ $1 -eq 1 ] ; then
+         /sbin/chkconfig --add elasticsearch
+     fi
+ 
+-	startElasticsearch
++	# Note: Elasticsearch is NOT started automatically after installation.
++	# To start Elasticsearch manually, use one of these commands:
++	#   systemctl start elasticsearch.service    (for systems with systemd)
++	#   service elasticsearch start              (for systems with sysv init)
++	#   /etc/init.d/elasticsearch start          (fallback)
+ elif [ $1 -ge 2 -a "$RESTART_ON_UPGRADE" == "true" ] ; then
+ 	stopElasticsearch
+ 	startElasticsearch

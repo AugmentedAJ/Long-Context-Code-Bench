@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long-Context-Bench - Leaderboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Long-Context-Bench</h1>
+        </header>
+
+        <main>
+            <section class="intro">
+                <h2>About Long-Context-Code-Bench</h2>
+                <p>
+                    Long-Context-Code-Bench evaluates AI coding agents on <strong>enterprise-scale repositories with ~20,000 files</strong>.
+                    Unlike existing benchmarks that focus on small codebases, LCB measures what matters most for enterprise adoption:
+                    the ability to understand, modify, and integrate changes across massive real-world repositories.
+                </p>
+                <p>
+                    Each agent is tested on recreating actual PR changes from the Elasticsearch repository given only the PR description—no
+                    access to the solution or git history. Solutions are evaluated by a judge model (Claude Sonnet 4.5) that compares
+                    the agent's changes against the ground truth diff, scoring on correctness, completeness, code reuse, best practices,
+                    and unsolicited documentation.
+                </p>
+                <p>
+                    <strong>🔍 Most Openly Verifiable Benchmark:</strong> For each task, you can view the judge's detailed rationale,
+                    side-by-side diff comparisons, and complete agent execution logs—making this the most transparent and verifiable
+                    coding agent benchmark available. The entire benchmark is <strong>reproducible and fully open source</strong> at
+                    <a href="https://github.com/AugmentedAJ/Long-Context-Code-Bench" target="_blank">github.com/AugmentedAJ/Long-Context-Code-Bench</a>.
+                </p>
+                <div class="version-notice">
+                    <strong>📊 Version v1</strong> — This release features 100 PRs from the Elasticsearch repository (~20,000 files)
+                    with single-agent evaluation. Future versions will include head-to-head agent-as-judge comparisons,
+                    diverse codebases across multiple languages (Java, TypeScript, Go, Rust), and even larger repository sizes to
+                    comprehensively evaluate context engines and retrieval systems at scale.
+                </div>
+            </section>
+
+            <section class="leaderboard">
+                <h2>Agent Leaderboard</h2>
+                <p class="section-description">
+                    Results from single-agent evaluation.
+                </p>
+                <div class="table-container">
+                    <table id="h2h-leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Agent</th>
+                                <th>Win Rate</th>
+                                <th>Correctness</th>
+                                <th>Completeness</th>
+                                <th>Code Reuse</th>
+                                <th>Best Practices</th>
+                                <th>Unsol. Docs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="h2h-leaderboard-body">
+                            <tr>
+                                <td colspan="8" class="loading">Loading leaderboard...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="metrics-comparison" style="margin-top: 3rem;">
+                <h2>Metric Comparison</h2>
+                <p class="section-description">Visual comparison of agent performance across all metrics</p>
+                <div class="chart-container" style="max-width: 1200px; margin: 0 auto;">
+                    <canvas id="metrics-bar-chart" style="max-height: 500px;"></canvas>
+                </div>
+            </section>
+
+            <section class="cross-agent-details">
+                <h2>Head-to-Head Details by PR</h2>
+                <p class="section-description">View pairwise agent judgments and results for each PR</p>
+
+                <!-- Analysis List -->
+                <div class="analysis-list-container">
+                    <div class="analysis-list" id="analysis-list">
+                        <p class="loading">Loading cross-agent analyses...</p>
+                    </div>
+                </div>
+
+                <!-- Analysis Detail View -->
+                <div class="analysis-detail" id="analysis-detail" style="display: none;">
+                    <button id="back-button" class="btn-secondary" style="margin-bottom: 1rem;">← Back to List</button>
+
+                    <h3 id="detail-title"></h3>
+
+                    <!-- Task Description (collapsible) -->
+                    <div class="card collapsible-card">
+                        <div class="card-header" onclick="toggleCollapsible(this)">
+                            <h4>📋 Task Description</h4>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div class="card-content collapsed">
+                            <pre id="task-instructions" class="code-block"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Metric Charts - Prominent placement -->
+                    <div id="agent-scores-charts-container" class="card">
+                        <h4>📊 Agent Score Comparison</h4>
+                        <canvas id="agent-scores-chart" style="max-height: 350px;"></canvas>
+                    </div>
+
+                    <!-- Agent Results Table -->
+                    <div class="card">
+                        <h4>🏆 Agent Results</h4>
+                        <div class="table-container">
+                            <table id="agent-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Agent</th>
+                                        <th>Aggregate</th>
+                                        <th>Corr.</th>
+                                        <th>Comp.</th>
+                                        <th>Reuse</th>
+                                        <th>Pract.</th>
+                                        <th>Docs</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agent-results-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Side-by-side Inspector - Main comparison view -->
+                    <div class="card" id="agent-comparison-card">
+                        <h4>🔍 Side-by-Side Inspector</h4>
+                        <p class="section-description">
+                            Compare agent outputs against the human ground truth. Select Summary, Diff, or Logs for each side.
+                        </p>
+                        <div class="agent-comparison-layout">
+                            <div class="agent-comparison-column" id="agent-comparison-left"></div>
+                            <div class="agent-comparison-column" id="agent-comparison-right"></div>
+                        </div>
+                    </div>
+
+                    <!-- Individual Agent Details Cards -->
+                    <div id="agent-details-container"></div>
+
+                    <!-- Hidden sections for backwards compatibility -->
+                    <div class="card" id="comparative-section" style="display: none;">
+                        <h4>Comparative Analysis</h4>
+                        <div class="comparative-content">
+                            <div class="metric-card">
+                                <div class="stat-label">Best Agent</div>
+                                <div class="stat-value" id="best-agent"></div>
+                            </div>
+                            <div class="analysis-text">
+                                <h5>Summary</h5>
+                                <p id="comparative-summary"></p>
+                                <h5>Best Agent Reasoning</h5>
+                                <p id="best-agent-reasoning"></p>
+                                <h5>Approach Differences</h5>
+                                <p id="approach-differences"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Last updated: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+	    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	    <script src="data-loader.js?v=8"></script>
+	    <script src="charts.js?v=8"></script>
+	    <script src="app.js?v=8"></script>
+    <script>
+        // Toggle collapsible card sections
+        function toggleCollapsible(headerEl) {
+            const content = headerEl.nextElementSibling;
+            const icon = headerEl.querySelector('.collapse-icon');
+            if (content && content.classList.contains('card-content')) {
+                content.classList.toggle('collapsed');
+                if (icon) {
+                    icon.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+                }
+            }
+        }
+
+        // Initialize leaderboard page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadLeaderboard();
+
+            // Back button handler for detail view
+            const backButton = document.getElementById('back-button');
+            if (backButton) {
+                backButton.addEventListener('click', () => {
+                    // Show the PR list again
+                    document.getElementById('analysis-list').style.display = 'block';
+                    document.getElementById('analysis-detail').style.display = 'none';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

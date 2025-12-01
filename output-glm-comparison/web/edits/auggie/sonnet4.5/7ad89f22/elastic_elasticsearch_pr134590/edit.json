@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134590,
+  "base_commit": "2f49a5ebad3a0123b6b97d537a25ddabfdd47d55",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 56987,
+  "patch_unified": "diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\nindex 6f7319bd..401a250b 100644\n--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\n+++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\n@@ -59,7 +59,7 @@ public abstract class ValidateTransportVersionReferencesTask extends DefaultTask\n                         + \"\\\") was used at \"\n                         + tvReference.location()\n                         + \", but lacks a\"\n-                        + \" transport version definition. This can be generated with the <TODO> task\" // todo\n+                        + \" transport version definition. This can be generated with the 'generateTransportVersionDefinition' task\"\n                 );\n             }\n         }",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134590/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

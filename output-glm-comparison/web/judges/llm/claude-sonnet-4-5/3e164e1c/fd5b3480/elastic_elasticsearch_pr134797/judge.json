@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134797,
+  "base_commit": "5ce0c649d6b0ebe7c731eb23157489e8d3c46633",
+  "head_commit": "e445d07963ebcc04ffeee5d7df7907cd422fdabc",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": 0.0,
+  "rationale": "The agent's diff is functionally identical to the ground truth. Both comment out the same assert statement at line 177 in TimeSeriesSourceOperatorTests.java using the same commenting style. The only difference in the diff headers (c3979852 vs c39798528ff) is cosmetic and relates to git commit hash display length, not the actual change. The agent correctly identified the misfiring assert, applied the exact same fix (commenting it out with //), and made no other modifications. This is a perfect match to the ground truth in all dimensions.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/esql/compute/src/test/java/org/elasticsearch/compute/lucene/TimeSeriesSourceOperatorTests.java b/x-pack/plugin/esql/compute/src/test/java/org/elasticsearch/compute/lucene/TimeSeriesSourceOperatorTests.java\nindex c39798528ff..8e0652ef215 100644\n--- a/x-pack/plugin/esql/compute/src/test/java/org/elasticsearch/compute/lucene/TimeSeriesSourceOperatorTests.java\n+++ b/x-pack/plugin/esql/compute/src/test/java/org/elasticsearch/compute/lucene/TimeSeriesSourceOperatorTests.java\n@@ -174,6 +174,6 @@ public class TimeSeriesSourceOperatorTests extends SourceOperatorTestCase {\n             () -> {}\n         );\n         OperatorTestCase.runDriver(driver);\n-        assertThat(lastSliceIndex.get(), equalTo(numShards * 3 - 1));\n+        // assertThat(lastSliceIndex.get(), equalTo(numShards * 3 - 1));\n     }\n }"
+}

@@ -1,0 +1,40 @@
+diff --git a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+index 6e49621..e133913 100644
+--- a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
++++ b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+@@ -79,18 +79,23 @@ public enum GeoDistance {
+     ARC() {
+         @Override
+         public double calculate(double sourceLatitude, double sourceLongitude, double targetLatitude, double targetLongitude, DistanceUnit unit) {
+-            double longitudeDifference = targetLongitude - sourceLongitude;
+-            double a = Math.toRadians(90D - sourceLatitude);
+-            double c = Math.toRadians(90D - targetLatitude);
+-            double factor = (Math.cos(a) * Math.cos(c)) + (Math.sin(a) * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));
+-
+-            if (factor < -1D) {
+-                return unit.fromMeters(Math.PI * GeoUtils.EARTH_MEAN_RADIUS);
+-            } else if (factor >= 1D) {
+-                return 0;
+-            } else {
+-                return unit.fromMeters(Math.acos(factor) * GeoUtils.EARTH_MEAN_RADIUS);
+-            }
++            // Convert to radians
++            double sourceLatRad = Math.toRadians(sourceLatitude);
++            double sourceLonRad = Math.toRadians(sourceLongitude);
++            double targetLatRad = Math.toRadians(targetLatitude);
++            double targetLonRad = Math.toRadians(targetLongitude);
++            
++            // Haversine formula
++            double deltaLatRad = targetLatRad - sourceLatRad;
++            double deltaLonRad = targetLonRad - sourceLonRad;
++            
++            double a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
++                       Math.cos(sourceLatRad) * Math.cos(targetLatRad) *
++                       Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
++            
++            double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
++            
++            return unit.fromMeters(c * GeoUtils.EARTH_MEAN_RADIUS);
+         }
+ 
+         @Override

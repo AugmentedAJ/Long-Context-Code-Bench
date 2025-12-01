@@ -1,0 +1,59 @@
+diff --git a/TESTING.asciidoc b/TESTING.asciidoc
+index a022f73..7310835 100644
+--- a/TESTING.asciidoc
++++ b/TESTING.asciidoc
+@@ -7,6 +7,23 @@ Elasticsearch uses jUnit for testing, it also uses randomness in the
+ tests, that can be set using a seed, the following is a cheatsheet of
+ options for running the tests for ES.
+ 
++== Test framework for plugins
++
++Third party plugins can reuse the Elasticsearch test framework classes.
++The build now publishes a dedicated test framework jar that contains the
++`org.elasticsearch.test` package. Add the following dependency to the
++plugin's `pom.xml` to make those helpers available to your tests:
++
++-----------------------------
++<dependency>
++    <groupId>org.elasticsearch</groupId>
++    <artifactId>elasticsearch</artifactId>
++    <version>${elasticsearch.version}</version>
++    <classifier>test-framework</classifier>
++    <scope>test</scope>
++</dependency>
++-----------------------------
++
+ == Creating packages
+ 
+ To create a distribution without running the tests, simply run the
+diff --git a/pom.xml b/pom.xml
+index dec5334..aab8f4f 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -318,6 +318,26 @@
+                     <target>1.6</target>
+                 </configuration>
+             </plugin>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <version>2.4</version>
++                <executions>
++                    <execution>
++                        <id>test-framework</id>
++                        <phase>package</phase>
++                        <goals>
++                            <goal>test-jar</goal>
++                        </goals>
++                        <configuration>
++                            <classifier>test-framework</classifier>
++                            <includes>
++                                <include>org/elasticsearch/test/**</include>
++                            </includes>
++                        </configuration>
++                    </execution>
++                </executions>
++            </plugin>
+             <plugin>
+                 <groupId>com.carrotsearch.randomizedtesting</groupId>
+                 <artifactId>junit4-maven-plugin</artifactId>

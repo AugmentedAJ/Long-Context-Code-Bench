@@ -1,0 +1,140 @@
+diff --git a/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java b/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
+index 7698020..bd87884 100644
+--- a/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
++++ b/src/main/java/org/elasticsearch/index/analysis/AnalysisService.java
+@@ -189,12 +189,14 @@ public class AnalysisService extends AbstractIndexComponent implements Closeable
+             for (Map.Entry<String, PreBuiltAnalyzerProviderFactory> entry : indicesAnalysisService.analyzerProviderFactories().entrySet()) {
+                 String name = entry.getKey();
+                 if (!analyzerProviders.containsKey(name)) {
+-                    analyzerProviders.put(name, entry.getValue().create(name, ImmutableSettings.Builder.EMPTY_SETTINGS));
++                    // Pass index settings to allow version-aware analyzer creation
++                    analyzerProviders.put(name, entry.getValue().create(name, indexSettings));
+                 }
+                 name = Strings.toCamelCase(entry.getKey());
+                 if (!name.equals(entry.getKey())) {
+                     if (!analyzerProviders.containsKey(name)) {
+-                        analyzerProviders.put(name, entry.getValue().create(name, ImmutableSettings.Builder.EMPTY_SETTINGS));
++                        // Pass index settings to allow version-aware analyzer creation
++                        analyzerProviders.put(name, entry.getValue().create(name, indexSettings));
+                     }
+                 }
+             }
+diff --git a/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java b/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
+index 1cf698d..630a664 100644
+--- a/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
++++ b/src/main/java/org/elasticsearch/index/analysis/PreBuiltAnalyzerProviderFactory.java
+@@ -20,29 +20,108 @@
+ package org.elasticsearch.index.analysis;
+ 
+ import org.apache.lucene.analysis.Analyzer;
++import org.apache.lucene.util.Version;
++import org.elasticsearch.cluster.metadata.IndexMetaData;
++import org.elasticsearch.common.logging.ESLogger;
++import org.elasticsearch.common.logging.Loggers;
+ import org.elasticsearch.common.settings.Settings;
+ 
+ /**
+- *
++ * Version-aware prebuilt analyzer provider factory.
++ * <p>
++ * This factory can either hold a fixed analyzer (for backwards compatibility) or
++ * a reference to a {@link PreBuiltAnalyzers} enum that creates version-specific analyzers.
++ * <p>
++ * When the factory is configured with a PreBuiltAnalyzers enum, it will create
++ * an analyzer with the appropriate Lucene version based on when the index was created.
+  */
+ public class PreBuiltAnalyzerProviderFactory implements AnalyzerProviderFactory {
+ 
+-    private final PreBuiltAnalyzerProvider analyzerProvider;
++    private final PreBuiltAnalyzerProvider fixedAnalyzerProvider;
++    private final PreBuiltAnalyzers preBuiltAnalyzer;
++    private final String name;
++    private final AnalyzerScope scope;
++
++    private static final ESLogger logger = Loggers.getLogger(PreBuiltAnalyzerProviderFactory.class);
+ 
++    /**
++     * Creates a factory with a fixed analyzer (backwards compatibility).
++     */
+     public PreBuiltAnalyzerProviderFactory(String name, AnalyzerScope scope, Analyzer analyzer) {
+-        this(new PreBuiltAnalyzerProvider(name, scope, analyzer));
++        this.name = name;
++        this.scope = scope;
++        this.fixedAnalyzerProvider = new PreBuiltAnalyzerProvider(name, scope, analyzer);
++        this.preBuiltAnalyzer = null;
+     }
+ 
++    /**
++     * Creates a factory with a PreBuiltAnalyzers enum for version-aware creation.
++     */
++    public PreBuiltAnalyzerProviderFactory(String name, AnalyzerScope scope, PreBuiltAnalyzers preBuiltAnalyzer) {
++        this.name = name;
++        this.scope = scope;
++        this.preBuiltAnalyzer = preBuiltAnalyzer;
++        this.fixedAnalyzerProvider = null;
++    }
++
++    /**
++     * Backwards compatibility constructor.
++     */
+     public PreBuiltAnalyzerProviderFactory(PreBuiltAnalyzerProvider analyzerProvider) {
+-        this.analyzerProvider = analyzerProvider;
++        this.name = analyzerProvider.name();
++        this.scope = analyzerProvider.scope();
++        this.fixedAnalyzerProvider = analyzerProvider;
++        this.preBuiltAnalyzer = null;
+     }
+ 
+     @Override
+     public AnalyzerProvider create(String name, Settings settings) {
+-        return analyzerProvider;
++        // If using a fixed analyzer, return it directly (backwards compatibility)
++        if (fixedAnalyzerProvider != null) {
++            return fixedAnalyzerProvider;
++        }
++
++        // Otherwise, create a version-specific analyzer based on index settings
++        Version version = extractVersion(settings);
++        Analyzer analyzer = preBuiltAnalyzer.create(version);
++        return new PreBuiltAnalyzerProvider(name, scope, analyzer);
++    }
++
++    /**
++     * Extracts the Lucene version to use for the analyzer from the settings.
++     * The version is determined by:
++     * 1. Explicit version setting on the analyzer
++     * 2. Index-level analysis version setting
++     * 3. The version when the index was created (from index.version.created)
++     */
++    private Version extractVersion(Settings settings) {
++        // First check for explicit version on the analyzer
++        String versionString = settings.get("version");
++        if (versionString != null) {
++            return org.elasticsearch.common.lucene.Lucene.parseVersion(versionString,
++                org.elasticsearch.common.lucene.Lucene.ANALYZER_VERSION, logger);
++        }
++
++        // Check for index-level analysis version
++        versionString = settings.get("index.analysis.version");
++        if (versionString != null) {
++            return org.elasticsearch.common.lucene.Lucene.parseVersion(versionString,
++                org.elasticsearch.common.lucene.Lucene.ANALYZER_VERSION, logger);
++        }
++
++        // Fall back to the version from when the index was created
++        org.elasticsearch.Version indexVersion = settings.getAsVersion(
++            IndexMetaData.SETTING_VERSION_CREATED,
++            org.elasticsearch.Version.CURRENT
++        );
++        return indexVersion.luceneVersion;
+     }
+ 
+     public Analyzer analyzer() {
+-        return analyzerProvider.get();
++        if (fixedAnalyzerProvider != null) {
++            return fixedAnalyzerProvider.get();
++        }
++        // For version-aware analyzers, return the latest version
++        return preBuiltAnalyzer.create(org.elasticsearch.common.lucene.Lucene.ANALYZER_VERSION);
+     }
+ }

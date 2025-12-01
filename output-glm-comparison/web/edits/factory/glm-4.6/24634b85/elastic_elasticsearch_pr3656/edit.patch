@@ -1,0 +1,25 @@
+diff --git a/docs/reference/setup.asciidoc b/docs/reference/setup.asciidoc
+index 50012dc..7850e0c 100644
+--- a/docs/reference/setup.asciidoc
++++ b/docs/reference/setup.asciidoc
+@@ -44,7 +44,7 @@ script. When set, both override anything set using either `JAVA_OPTS` or
+ 
+ [source,sh]
+ --------------------------------------------------
+-$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.storage.type=memory
++$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory
+ --------------------------------------------------
+ *************************************************************************
+ --
+diff --git a/docs/reference/setup/installation.asciidoc b/docs/reference/setup/installation.asciidoc
+index e17db47..20d14f6 100644
+--- a/docs/reference/setup/installation.asciidoc
++++ b/docs/reference/setup/installation.asciidoc
+@@ -34,6 +34,6 @@ script. When set, both override anything set using either `JAVA_OPTS` or
+ 
+ [source,sh]
+ --------------------------------------------------
+-$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.storage.type=memory
++$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory
+ --------------------------------------------------
+ *************************************************************************

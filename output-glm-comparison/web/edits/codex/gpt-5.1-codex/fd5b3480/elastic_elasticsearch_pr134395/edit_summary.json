@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 25192,
+  "logs_path": "codex/gpt-5.1-codex/93548e0a/elastic_elasticsearch_pr134395/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "93548e0a",
+  "test_label": "v1-agent-comparison",
+  "patch_file": "edit.patch"
+}

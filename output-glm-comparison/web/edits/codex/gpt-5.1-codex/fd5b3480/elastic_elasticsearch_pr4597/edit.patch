@@ -1,0 +1,34 @@
+diff --git a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+index 6e49621..c7cbc25 100644
+--- a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
++++ b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+@@ -79,18 +79,17 @@ public enum GeoDistance {
+     ARC() {
+         @Override
+         public double calculate(double sourceLatitude, double sourceLongitude, double targetLatitude, double targetLongitude, DistanceUnit unit) {
+-            double longitudeDifference = targetLongitude - sourceLongitude;
+-            double a = Math.toRadians(90D - sourceLatitude);
+-            double c = Math.toRadians(90D - targetLatitude);
+-            double factor = (Math.cos(a) * Math.cos(c)) + (Math.sin(a) * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));
+-
+-            if (factor < -1D) {
+-                return unit.fromMeters(Math.PI * GeoUtils.EARTH_MEAN_RADIUS);
+-            } else if (factor >= 1D) {
+-                return 0;
+-            } else {
+-                return unit.fromMeters(Math.acos(factor) * GeoUtils.EARTH_MEAN_RADIUS);
+-            }
++            double sourceLatRad = Math.toRadians(sourceLatitude);
++            double targetLatRad = Math.toRadians(targetLatitude);
++            double deltaLat = targetLatRad - sourceLatRad;
++            double deltaLon = Math.toRadians(targetLongitude - sourceLongitude);
++
++            double sinHalfLat = Math.sin(deltaLat * 0.5d);
++            double sinHalfLon = Math.sin(deltaLon * 0.5d);
++            double a = sinHalfLat * sinHalfLat + Math.cos(sourceLatRad) * Math.cos(targetLatRad) * sinHalfLon * sinHalfLon;
++            a = Math.max(0d, Math.min(1d, a));
++            double c = 2d * Math.asin(Math.sqrt(a));
++            return unit.fromMeters(c * GeoUtils.EARTH_MEAN_RADIUS);
+         }
+ 
+         @Override

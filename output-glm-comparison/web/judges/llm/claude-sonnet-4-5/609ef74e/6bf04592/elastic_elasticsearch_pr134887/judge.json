@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134887,
+  "base_commit": "987e7af02b69cd4bb25755aa47e91a6a4bbebf1d",
+  "head_commit": "295ee4a7e4d81780a5159b9f7918e9f6337e1980",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.8,
+    "completeness": -0.9,
+    "code_reuse": -0.7,
+    "best_practices": -0.6,
+    "unsolicited_docs": -0.3
+  },
+  "aggregate": -0.66,
+  "rationale": "The agent's solution has critical correctness issues. Ground truth moves `valueFetcher(searchExecutionContext, null)` and `searchExecutionContext.lookup()` outside the lambda to avoid capturing the SearchExecutionContext reference. The agent instead replaces `valueFetcher(searchExecutionContext, null)` with `SourceValueFetcher.toString(sourcePaths)`, which fundamentally changes the implementation and likely breaks functionality since it doesn't pass the searchExecutionContext parameter that the original method requires. The agent also introduces `sourcePaths` extraction that isn't in ground truth and adds extensive inline comments (unsolicited documentation). The agent is missing the changelog file entirely (docs/changelog/134887.yaml), which is a significant omission. While the agent correctly extracts `sourceProvider` outside the lambda, the incorrect replacement of the valueFetcher call and missing changelog constitute major errors.",
+  "edit_run_id": "6bf04592",
+  "judge_run_id": "609ef74e",
+  "ground_truth_patch": "diff --git a/docs/changelog/134887.yaml b/docs/changelog/134887.yaml\nnew file mode 100644\nindex 000000000000..aa566ad8fdcf\n--- /dev/null\n+++ b/docs/changelog/134887.yaml\n@@ -0,0 +1,5 @@\n+pr: 134887\n+summary: Avoid holding references to `SearchExecutionContext` in `SourceConfirmedTextQuery`\n+area: Mapping\n+type: bug\n+issues: []\ndiff --git a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\nindex 1d9fd9cb3a13..645c0cffe806 100644\n--- a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n+++ b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n@@ -301,9 +301,9 @@ public class MatchOnlyTextFieldMapper extends FieldMapper {\n                 String name = storedFieldNameForSyntheticSource();\n                 return storedFieldFetcher(name);\n             }\n+            ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n+            SourceProvider sourceProvider = searchExecutionContext.lookup();\n             return context -> {\n-                ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n-                SourceProvider sourceProvider = searchExecutionContext.lookup();\n                 valueFetcher.setNextReader(context);\n                 return docID -> {\n                     try {"
+}

@@ -1,0 +1,286 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+index 7052861..59fdd23 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+@@ -19,7 +19,7 @@
+ 
+ package org.elasticsearch.action.admin.indices.create;
+ 
+-import org.elasticsearch.action.ActionResponse;
++import org.elasticsearch.action.support.master.AcknowledgedResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+@@ -28,34 +28,24 @@ import java.io.IOException;
+ /**
+  * A response for a create index action.
+  */
+-public class CreateIndexResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class CreateIndexResponse extends AcknowledgedResponse {
+ 
+     CreateIndexResponse() {
+     }
+ 
+     CreateIndexResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    /**
+-     * Has the index creation been acknowledged by all current cluster nodes within the
+-     * provided {@link CreateIndexRequest#timeout(org.elasticsearch.common.unit.TimeValue)}.
+-     */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
++        super(acknowledged);
+     }
+ 
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+-        acknowledged = in.readBoolean();
++        readAcknowledged(in);
+     }
+ 
+     @Override
+     public void writeTo(StreamOutput out) throws IOException {
+         super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        writeAcknowledged(out);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/cluster/ClusterModule.java b/src/main/java/org/elasticsearch/cluster/ClusterModule.java
+index 5edfa23..ae123dd 100644
+--- a/src/main/java/org/elasticsearch/cluster/ClusterModule.java
++++ b/src/main/java/org/elasticsearch/cluster/ClusterModule.java
+@@ -71,7 +71,6 @@ public class ClusterModule extends AbstractModule implements SpawnModules {
+         bind(RoutingService.class).asEagerSingleton();
+ 
+         bind(ShardStateAction.class).asEagerSingleton();
+-        bind(NodeIndexCreatedAction.class).asEagerSingleton();
+         bind(NodeIndexDeletedAction.class).asEagerSingleton();
+         bind(NodeMappingRefreshAction.class).asEagerSingleton();
+         bind(MappingUpdatedAction.class).asEagerSingleton();
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+index a394166..573d789 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+@@ -33,7 +33,6 @@ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
+ import org.elasticsearch.cluster.ClusterService;
+ import org.elasticsearch.cluster.ClusterState;
+ import org.elasticsearch.cluster.TimeoutClusterStateUpdateTask;
+-import org.elasticsearch.cluster.action.index.NodeIndexCreatedAction;
+ import org.elasticsearch.cluster.block.ClusterBlock;
+ import org.elasticsearch.cluster.block.ClusterBlocks;
+ import org.elasticsearch.cluster.routing.RoutingTable;
+@@ -69,11 +68,9 @@ import java.io.FileInputStream;
+ import java.io.IOException;
+ import java.io.InputStreamReader;
+ import java.util.*;
+-import java.util.concurrent.ScheduledFuture;
+ import java.util.concurrent.Semaphore;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicBoolean;
+-import java.util.concurrent.atomic.AtomicInteger;
+ 
+ import static com.google.common.collect.Maps.newHashMap;
+ import static org.elasticsearch.cluster.metadata.IndexMetaData.*;
+@@ -89,21 +86,19 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+     private final ClusterService clusterService;
+     private final IndicesService indicesService;
+     private final AllocationService allocationService;
+-    private final NodeIndexCreatedAction nodeIndexCreatedAction;
+     private final MetaDataService metaDataService;
+     private final Version version;
+     private final String riverIndexName;
+ 
+     @Inject
+     public MetaDataCreateIndexService(Settings settings, Environment environment, ThreadPool threadPool, ClusterService clusterService, IndicesService indicesService,
+-                                      AllocationService allocationService, NodeIndexCreatedAction nodeIndexCreatedAction, MetaDataService metaDataService, Version version, @RiverIndexName String riverIndexName) {
++                                      AllocationService allocationService, MetaDataService metaDataService, Version version, @RiverIndexName String riverIndexName) {
+         super(settings);
+         this.environment = environment;
+         this.threadPool = threadPool;
+         this.clusterService = clusterService;
+         this.indicesService = indicesService;
+         this.allocationService = allocationService;
+-        this.nodeIndexCreatedAction = nodeIndexCreatedAction;
+         this.metaDataService = metaDataService;
+         this.version = version;
+         this.riverIndexName = riverIndexName;
+@@ -360,31 +355,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+                         updatedState = ClusterState.builder(updatedState).routingResult(routingResult).build();
+                     }
+ 
+-                    // we wait for events from all nodes that the index has been added to the metadata
+-                    final AtomicInteger counter = new AtomicInteger(currentState.nodes().size());
+-
+-                    final NodeIndexCreatedAction.Listener nodeIndexCreatedListener = new NodeIndexCreatedAction.Listener() {
+-                        @Override
+-                        public void onNodeIndexCreated(String index, String nodeId) {
+-                            if (index.equals(request.index)) {
+-                                if (counter.decrementAndGet() == 0) {
+-                                    listener.onResponse(new Response(true, indexMetaData));
+-                                    nodeIndexCreatedAction.remove(this);
+-                                }
+-                            }
+-                        }
+-                    };
+-
+-                    nodeIndexCreatedAction.add(nodeIndexCreatedListener);
+-
+-                    listener.future = threadPool.schedule(request.timeout, ThreadPool.Names.SAME, new Runnable() {
+-                        @Override
+-                        public void run() {
+-                            listener.onResponse(new Response(false, indexMetaData));
+-                            nodeIndexCreatedAction.remove(nodeIndexCreatedListener);
+-                        }
+-                    });
+-
+                     return updatedState;
+                 } finally {
+                     if (indexCreated) {
+@@ -396,6 +366,7 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+ 
+             @Override
+             public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
++                listener.onResponse(new Response(true, indexMetaData));
+             }
+         });
+     }
+@@ -406,7 +377,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         private final Semaphore mdLock;
+         private final Request request;
+         private final Listener listener;
+-        volatile ScheduledFuture future;
+ 
+         private CreateIndexListener(Semaphore mdLock, Request request, Listener listener) {
+             this.mdLock = mdLock;
+@@ -418,9 +388,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         public void onResponse(final Response response) {
+             if (notified.compareAndSet(false, true)) {
+                 mdLock.release();
+-                if (future != null) {
+-                    future.cancel(false);
+-                }
+                 listener.onResponse(response);
+             }
+         }
+@@ -429,9 +396,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         public void onFailure(Throwable t) {
+             if (notified.compareAndSet(false, true)) {
+                 mdLock.release();
+-                if (future != null) {
+-                    future.cancel(false);
+-                }
+                 listener.onFailure(t);
+             }
+         }
+diff --git a/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java b/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
+index d559b94..14f2805 100644
+--- a/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
++++ b/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
+@@ -28,7 +28,6 @@ import org.elasticsearch.ExceptionsHelper;
+ import org.elasticsearch.cluster.ClusterChangedEvent;
+ import org.elasticsearch.cluster.ClusterService;
+ import org.elasticsearch.cluster.ClusterStateListener;
+-import org.elasticsearch.cluster.action.index.NodeIndexCreatedAction;
+ import org.elasticsearch.cluster.action.index.NodeIndexDeletedAction;
+ import org.elasticsearch.cluster.action.index.NodeMappingRefreshAction;
+ import org.elasticsearch.cluster.action.shard.ShardStateAction;
+@@ -86,7 +85,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     private final ThreadPool threadPool;
+     private final RecoveryTarget recoveryTarget;
+     private final ShardStateAction shardStateAction;
+-    private final NodeIndexCreatedAction nodeIndexCreatedAction;
+     private final NodeIndexDeletedAction nodeIndexDeletedAction;
+     private final NodeMappingRefreshAction nodeMappingRefreshAction;
+ 
+@@ -117,7 +115,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     public IndicesClusterStateService(Settings settings, IndicesService indicesService, ClusterService clusterService,
+                                       ThreadPool threadPool, RecoveryTarget recoveryTarget,
+                                       ShardStateAction shardStateAction,
+-                                      NodeIndexCreatedAction nodeIndexCreatedAction, NodeIndexDeletedAction nodeIndexDeletedAction,
++                                      NodeIndexDeletedAction nodeIndexDeletedAction,
+                                       NodeMappingRefreshAction nodeMappingRefreshAction) {
+         super(settings);
+         this.indicesService = indicesService;
+@@ -125,7 +123,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+         this.threadPool = threadPool;
+         this.recoveryTarget = recoveryTarget;
+         this.shardStateAction = shardStateAction;
+-        this.nodeIndexCreatedAction = nodeIndexCreatedAction;
+         this.nodeIndexDeletedAction = nodeIndexDeletedAction;
+         this.nodeMappingRefreshAction = nodeMappingRefreshAction;
+ 
+@@ -193,13 +190,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     private void sendIndexLifecycleEvents(final ClusterChangedEvent event) {
+         String localNodeId = event.state().nodes().localNodeId();
+         assert localNodeId != null;
+-        for (String index : event.indicesCreated()) {
+-            try {
+-                nodeIndexCreatedAction.nodeIndexCreated(event.state(), index, localNodeId);
+-            } catch (Throwable e) {
+-                logger.debug("failed to send to master index {} created event", e, index);
+-            }
+-        }
+         for (String index : event.indicesDeleted()) {
+             try {
+                 nodeIndexDeletedAction.nodeIndexDeleted(event.state(), index, localNodeId);
+diff --git a/src/main/java/org/elasticsearch/rest/action/admin/indices/create/RestCreateIndexAction.java b/src/main/java/org/elasticsearch/rest/action/admin/indices/create/RestCreateIndexAction.java
+index 90cb970..5f97bf4 100644
+--- a/src/main/java/org/elasticsearch/rest/action/admin/indices/create/RestCreateIndexAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/admin/indices/create/RestCreateIndexAction.java
+@@ -19,20 +19,15 @@
+ 
+ package org.elasticsearch.rest.action.admin.indices.create;
+ 
+-import org.elasticsearch.action.ActionListener;
+ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+ import org.elasticsearch.client.Client;
+ import org.elasticsearch.common.inject.Inject;
+ import org.elasticsearch.common.settings.Settings;
+-import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.rest.*;
+-import org.elasticsearch.rest.action.support.RestXContentBuilder;
+ 
+ import java.io.IOException;
+ 
+-import static org.elasticsearch.rest.RestStatus.OK;
+-
+ /**
+  *
+  */
+@@ -66,29 +61,6 @@ public class RestCreateIndexAction extends BaseRestHandler {
+         createIndexRequest.timeout(request.paramAsTime("timeout", createIndexRequest.timeout()));
+         createIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", createIndexRequest.masterNodeTimeout()));
+ 
+-        client.admin().indices().create(createIndexRequest, new ActionListener<CreateIndexResponse>() {
+-            @Override
+-            public void onResponse(CreateIndexResponse response) {
+-                try {
+-                    XContentBuilder builder = RestXContentBuilder.restContentBuilder(request);
+-                    builder.startObject()
+-                            .field("ok", true)
+-                            .field("acknowledged", response.isAcknowledged())
+-                            .endObject();
+-                    channel.sendResponse(new XContentRestResponse(request, OK, builder));
+-                } catch (Throwable e) {
+-                    onFailure(e);
+-                }
+-            }
+-
+-            @Override
+-            public void onFailure(Throwable e) {
+-                try {
+-                    channel.sendResponse(new XContentThrowableRestResponse(request, e));
+-                } catch (IOException e1) {
+-                    logger.error("Failed to send failure response", e1);
+-                }
+-            }
+-        });
++        client.admin().indices().create(createIndexRequest, new AcknowledgedRestResponseActionListener<CreateIndexResponse>(request, channel, logger));
+     }
+ }

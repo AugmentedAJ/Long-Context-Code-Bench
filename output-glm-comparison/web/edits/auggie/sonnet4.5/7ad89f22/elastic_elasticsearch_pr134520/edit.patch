@@ -1,0 +1,47 @@
+diff --git a/server/src/internalClusterTest/java/org/elasticsearch/threadpool/SimpleThreadPoolIT.java b/server/src/internalClusterTest/java/org/elasticsearch/threadpool/SimpleThreadPoolIT.java
+index fa81ee40..219d71ba 100644
+--- a/server/src/internalClusterTest/java/org/elasticsearch/threadpool/SimpleThreadPoolIT.java
++++ b/server/src/internalClusterTest/java/org/elasticsearch/threadpool/SimpleThreadPoolIT.java
+@@ -245,16 +245,21 @@ public class SimpleThreadPoolIT extends ESIntegTestCase {
+         var threadPool = internalCluster().getInstance(ThreadPool.class, nodeName);
+ 
+         // Verify that the write thread pools all use the tracking executor.
+-        for (var name : List.of(ThreadPool.Names.WRITE, ThreadPool.Names.SYSTEM_WRITE, ThreadPool.Names.SYSTEM_CRITICAL_WRITE)) {
++        for (var name : List.of(
++            ThreadPool.Names.WRITE,
++            ThreadPool.Names.WRITE_COORDINATION,
++            ThreadPool.Names.SYSTEM_WRITE,
++            ThreadPool.Names.SYSTEM_CRITICAL_WRITE
++        )) {
+             assertThat(threadPool.executor(name), instanceOf(TaskExecutionTimeTrackingEsThreadPoolExecutor.class));
+             final var executor = (TaskExecutionTimeTrackingEsThreadPoolExecutor) threadPool.executor(name);
+             assertThat(Double.compare(executor.getExecutionEwmaAlpha(), executionEwmaAlpha), CoreMatchers.equalTo(0));
+ 
+-            // Only the WRITE thread pool should enable further tracking.
+-            if (name.equals(ThreadPool.Names.WRITE) == false) {
++            // Only the WRITE and WRITE_COORDINATION thread pools should enable further tracking.
++            if (name.equals(ThreadPool.Names.WRITE) == false && name.equals(ThreadPool.Names.WRITE_COORDINATION) == false) {
+                 assertFalse(executor.trackingMaxQueueLatency());
+             } else {
+-                // Verify that the WRITE thread pool has extra tracking enabled.
++                // Verify that the WRITE and WRITE_COORDINATION thread pools have extra tracking enabled.
+                 assertTrue(executor.trackingMaxQueueLatency());
+             }
+         }
+diff --git a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
+index 4ebcae1c..877c59fd 100644
+--- a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
++++ b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
+@@ -45,7 +45,11 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {
+                 ThreadPool.Names.WRITE_COORDINATION,
+                 allocatedProcessors,
+                 10000,
+-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK
++                EsExecutors.TaskTrackingConfig.builder()
++                    .trackOngoingTasks()
++                    .trackMaxQueueLatency()
++                    .trackExecutionTime(indexAutoscalingEWMA)
++                    .build()
+             )
+         );
+         result.put(

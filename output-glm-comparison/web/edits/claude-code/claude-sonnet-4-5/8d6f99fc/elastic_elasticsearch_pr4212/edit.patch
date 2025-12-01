@@ -1,0 +1,77 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+index 0f9d59d..d88b547 100644
+--- a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
++++ b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+@@ -27,6 +27,8 @@ import org.elasticsearch.cluster.ack.ClusterStateUpdateResponse;
+ import org.elasticsearch.cluster.metadata.MetaData;
+ import org.elasticsearch.cluster.metadata.RepositoriesMetaData;
+ import org.elasticsearch.cluster.metadata.RepositoryMetaData;
++import org.elasticsearch.cluster.metadata.RestoreMetaData;
++import org.elasticsearch.cluster.metadata.SnapshotMetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNode;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.component.AbstractComponent;
+@@ -72,6 +74,37 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         }
+     }
+ 
++    /**
++     * Checks if a repository is currently in use by any snapshot or restore operations
++     *
++     * @param repository repository name to check
++     * @param state      current cluster state
++     * @return true if repository is in use, false otherwise
++     */
++    private boolean isRepositoryInUse(String repository, ClusterState state) {
++        // Check for active snapshots
++        SnapshotMetaData snapshotMetaData = state.metaData().custom(SnapshotMetaData.TYPE);
++        if (snapshotMetaData != null && !snapshotMetaData.entries().isEmpty()) {
++            for (SnapshotMetaData.Entry entry : snapshotMetaData.entries()) {
++                if (repository.equals(entry.snapshotId().getRepository())) {
++                    return true;
++                }
++            }
++        }
++
++        // Check for active restores
++        RestoreMetaData restoreMetaData = state.metaData().custom(RestoreMetaData.TYPE);
++        if (restoreMetaData != null && !restoreMetaData.entries().isEmpty()) {
++            for (RestoreMetaData.Entry entry : restoreMetaData.entries()) {
++                if (repository.equals(entry.snapshotId().getRepository())) {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
+     /**
+      * Registers new repository in the cluster
+      * <p/>
+@@ -105,6 +138,13 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+                     for (RepositoryMetaData repositoryMetaData : repositories.repositories()) {
+                         if (repositoryMetaData.name().equals(newRepositoryMetaData.name())) {
+                             found = true;
++                            // Check if repository is being updated (different settings)
++                            boolean settingsChanged = !repositoryMetaData.type().equals(newRepositoryMetaData.type())
++                                || !repositoryMetaData.settings().equals(newRepositoryMetaData.settings());
++                            if (settingsChanged && isRepositoryInUse(repositoryMetaData.name(), currentState)) {
++                                throw new RepositoryInUseException(repositoryMetaData.name(),
++                                    "trying to modify or delete repository that is currently used by snapshot or restore operations");
++                            }
+                             repositoriesMetaData.add(newRepositoryMetaData);
+                         } else {
+                             repositoriesMetaData.add(repositoryMetaData);
+@@ -180,6 +220,11 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+                     boolean changed = false;
+                     for (RepositoryMetaData repositoryMetaData : repositories.repositories()) {
+                         if (Regex.simpleMatch(request.name, repositoryMetaData.name())) {
++                            // Check if repository is in use before allowing deletion
++                            if (isRepositoryInUse(repositoryMetaData.name(), currentState)) {
++                                throw new RepositoryInUseException(repositoryMetaData.name(),
++                                    "trying to modify or delete repository that is currently used by snapshot or restore operations");
++                            }
+                             logger.info("delete repository [{}]", repositoryMetaData.name());
+                             changed = true;
+                         } else {

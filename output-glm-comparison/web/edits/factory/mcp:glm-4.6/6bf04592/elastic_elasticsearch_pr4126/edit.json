@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4126,
+  "base_commit": "97bdc8f9c21b9f890b42c738905221241a3ceb82",
+  "runner": "factory",
+  "model": "mcp:glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 269685,
+  "patch_unified": "diff --git a/pom.xml b/pom.xml\nindex dec5334..2fbed5a 100644\n--- a/pom.xml\n+++ b/pom.xml\n@@ -312,10 +312,10 @@\n             <plugin>\n                 <groupId>org.apache.maven.plugins</groupId>\n                 <artifactId>maven-compiler-plugin</artifactId>\n-                <version>2.3.2</version>\n+                <version>3.8.1</version>\n                 <configuration>\n-                    <source>1.6</source>\n-                    <target>1.6</target>\n+                    <source>1.8</source>\n+                    <target>1.8</target>\n                 </configuration>\n             </plugin>\n             <plugin>\n@@ -423,6 +423,25 @@\n                     </execution>\n                 </executions>\n             </plugin>\n+            <plugin>\n+                <groupId>org.apache.maven.plugins</groupId>\n+                <artifactId>maven-jar-plugin</artifactId>\n+                <version>2.4</version>\n+                <executions>\n+                    <execution>\n+                        <id>create-test-jar</id>\n+                        <goals>\n+                            <goal>test-jar</goal>\n+                        </goals>\n+                    </execution>\n+                </executions>\n+                <configuration>\n+                    <includes>\n+                        <include>org/elasticsearch/test/**</include>\n+                        <include>org/elasticsearch/common/lucene/**</include>\n+                    </includes>\n+                </configuration>\n+            </plugin>\n             <plugin>\n                 <groupId>org.apache.maven.plugins</groupId>\n                 <artifactId>maven-shade-plugin</artifactId>",
+  "logs_path": "factory/mcp:glm-4.6/6bf04592/elastic_elasticsearch_pr4126/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "6bf04592",
+  "test_label": "v1-mcp"
+}

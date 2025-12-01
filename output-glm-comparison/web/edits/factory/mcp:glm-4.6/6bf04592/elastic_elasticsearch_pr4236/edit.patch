@@ -1,0 +1,118 @@
+diff --git a/pom.xml b/pom.xml
+index 2bec5c2..19be732 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -315,8 +315,8 @@
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <version>2.3.2</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                 </configuration>
+             </plugin>
+             <plugin>
+@@ -910,7 +910,7 @@
+                     <execution>
+                         <id>check-forbidden-apis</id>
+                         <configuration>
+-                            <targetVersion>1.6</targetVersion>
++                            <targetVersion>1.8</targetVersion>
+                             <!-- disallow undocumented classes like sun.misc.Unsafe: -->
+                             <internalRuntimeForbidden>true</internalRuntimeForbidden>
+                             <!-- if the used Java version is too new, don't fail, just do nothing: -->
+@@ -943,7 +943,7 @@
+                     <execution>
+                         <id>check-forbidden-test-apis</id>
+                         <configuration>
+-                            <targetVersion>1.6</targetVersion>
++                            <targetVersion>1.8</targetVersion>
+                             <!-- disallow undocumented classes like sun.misc.Unsafe: -->
+                             <internalRuntimeForbidden>true</internalRuntimeForbidden>
+                             <!-- if the used Java version is too new, don't fail, just do nothing: -->
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java b/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java
+index 6a15044..f4cb671 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java
+@@ -297,7 +297,7 @@ public class IndexTemplateMetaData {
+             Builder builder = new Builder(parser.currentName());
+ 
+             String currentFieldName = null;
+-            XContentParser.Token token = parser.nextToken();
++            XContentParser.Token token = parser.currentToken();
+             while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+                 if (token == XContentParser.Token.FIELD_NAME) {
+                     currentFieldName = parser.currentName();
+diff --git a/src/test/java/org/elasticsearch/indices/template/SimpleIndexTemplateTests.java b/src/test/java/org/elasticsearch/indices/template/SimpleIndexTemplateTests.java
+index c0dfd43..02574cb 100644
+--- a/src/test/java/org/elasticsearch/indices/template/SimpleIndexTemplateTests.java
++++ b/src/test/java/org/elasticsearch/indices/template/SimpleIndexTemplateTests.java
+@@ -23,14 +23,18 @@ import com.google.common.collect.Lists;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
+ import org.elasticsearch.action.search.SearchResponse;
++import org.elasticsearch.cluster.metadata.IndexTemplateMetaData;
+ import org.elasticsearch.common.Priority;
+ import org.elasticsearch.common.xcontent.XContentFactory;
++import org.elasticsearch.common.xcontent.XContentParser;
+ import org.elasticsearch.indices.IndexTemplateAlreadyExistsException;
+ import org.elasticsearch.test.ElasticsearchIntegrationTest;
+ import org.junit.Test;
+ 
++import java.io.IOException;
+ import java.util.Arrays;
+ import java.util.List;
++import java.util.Map;
+ 
+ import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
+@@ -269,4 +273,48 @@ public class SimpleIndexTemplateTests extends ElasticsearchIntegrationTest {
+                 "get template with " + Arrays.toString(names));
+     }
+ 
++    @Test
++    public void testTemplateParsingAllFields() throws IOException {
++        // Test to ensure the first field after template name is not skipped during parsing
++        String templateJson = XContentFactory.jsonBuilder()
++                .startObject()
++                    .field("my-template", "my-template-name")
++                    .field("order", 10)  // This should NOT be skipped (it's the first field after template name)
++                    .field("template", "test-*")
++                    .startObject("settings")
++                        .field("number_of_shards", 1)
++                        .field("number_of_replicas", 0)
++                    .endObject()
++                    .startObject("mappings")
++                        .startObject("type1")
++                            .startObject("properties")
++                                .startObject("field1")
++                                    .field("type", "string")
++                                .endObject()
++                            .endObject()
++                        .endObject()
++                    .endObject()
++                .endObject()
++                .string();
++
++        XContentParser parser = XContentFactory.xContent(templateJson).createParser(templateJson);
++        IndexTemplateMetaData template = IndexTemplateMetaData.Builder.fromXContentStandalone(parser);
++
++        // Verify all fields were parsed correctly
++        assertThat(template, notNullValue());
++        assertThat(template.name(), equalTo("my-template-name"));
++        assertThat(template.template(), equalTo("my-template-name"));
++        assertThat(template.order(), equalTo(10));  // This should NOT be null
++        
++        // Verify settings were parsed
++        Map<String, String> settings = template.settings().getAsMap();
++        assertThat(settings.get("number_of_shards"), equalTo("1"));
++        assertThat(settings.get("number_of_replicas"), equalTo("0"));
++        
++        // Verify mappings were parsed
++        assertThat(template.mappings(), notNullValue());
++        assertThat(template.mappings().containsKey("type1"), equalTo(true));
++        assertThat(template.mappings().get("type1"), notNullValue());
++    }
++
+ }

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4236,
+  "base_commit": "e66c2793aac69cf8d07199133cc3f76f4a801df9",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 96975,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java b/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java\nindex 6a15044..630e009 100644\n--- a/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java\n+++ b/src/main/java/org/elasticsearch/cluster/metadata/IndexTemplateMetaData.java\n@@ -297,7 +297,7 @@ public class IndexTemplateMetaData {\n             Builder builder = new Builder(parser.currentName());\n \n             String currentFieldName = null;\n-            XContentParser.Token token = parser.nextToken();\n+            XContentParser.Token token;\n             while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {\n                 if (token == XContentParser.Token.FIELD_NAME) {\n                     currentFieldName = parser.currentName();",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr4236/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

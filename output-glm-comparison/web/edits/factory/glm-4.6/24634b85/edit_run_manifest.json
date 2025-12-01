@@ -1,0 +1,21 @@
+{
+  "dataset_version": "v1",
+  "harness_version": "0.1.0",
+  "runner": "factory",
+  "runner_version": null,
+  "model": "glm-4.6",
+  "os": "Darwin",
+  "python_version": "3.11.6",
+  "timeout_s": 1800,
+  "concurrency": 5,
+  "total_shards": 1,
+  "shard_index": 0,
+  "flags": {
+    "disable_retrieval": false,
+    "disable_shell": false,
+    "enable_mcp_codebase_qa": false
+  },
+  "timestamp": "2025-11-22T00:49:35.733268",
+  "edit_run_id": "24634b85",
+  "test_label": "v1-agent-comparison"
+}

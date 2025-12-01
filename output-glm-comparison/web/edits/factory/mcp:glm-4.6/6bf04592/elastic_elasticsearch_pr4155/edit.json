@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4155,
+  "base_commit": "16ee74268240118c59b64ea3ee2ee854c7566505",
+  "runner": "factory",
+  "model": "mcp:glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 206878,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java\nindex b8fb83a..a0b8946 100644\n--- a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java\n+++ b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java\n@@ -283,25 +283,31 @@ public class BulkProcessor {\n                 return;\n             }\n             listener.beforeBulk(executionId, bulkRequest);\n-            client.bulk(bulkRequest, new ActionListener<BulkResponse>() {\n-                @Override\n-                public void onResponse(BulkResponse response) {\n-                    try {\n-                        listener.afterBulk(executionId, bulkRequest, response);\n-                    } finally {\n-                        semaphore.release();\n+            try {\n+                client.bulk(bulkRequest, new ActionListener<BulkResponse>() {\n+                    @Override\n+                    public void onResponse(BulkResponse response) {\n+                        try {\n+                            listener.afterBulk(executionId, bulkRequest, response);\n+                        } finally {\n+                            semaphore.release();\n+                        }\n                     }\n-                }\n \n-                @Override\n-                public void onFailure(Throwable e) {\n-                    try {\n-                        listener.afterBulk(executionId, bulkRequest, e);\n-                    } finally {\n-                        semaphore.release();\n+                    @Override\n+                    public void onFailure(Throwable e) {\n+                        try {\n+                            listener.afterBulk(executionId, bulkRequest, e);\n+                        } finally {\n+                            semaphore.release();\n+                        }\n                     }\n-                }\n-            });\n+                });\n+            } catch (Exception e) {\n+                // If client.bulk throws synchronously, release the semaphore and notify listener\n+                semaphore.release();\n+                listener.afterBulk(executionId, bulkRequest, e);\n+            }\n         }\n     }\n ",
+  "logs_path": "factory/mcp:glm-4.6/6bf04592/elastic_elasticsearch_pr4155/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "6bf04592",
+  "test_label": "v1-mcp"
+}

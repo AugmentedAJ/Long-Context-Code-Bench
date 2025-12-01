@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134887,
+  "base_commit": "987e7af02b69cd4bb25755aa47e91a6a4bbebf1d",
+  "head_commit": "295ee4a7e4d81780a5159b9f7918e9f6337e1980",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.9,
+    "completeness": -0.8,
+    "code_reuse": -0.5,
+    "best_practices": -0.3,
+    "unsolicited_docs": -1.0
+  },
+  "aggregate": -0.7,
+  "rationale": "The agent's changes are critically flawed. Ground truth fixes the memory leak by moving two variable declarations (valueFetcher and sourceProvider) outside the lambda to avoid capturing the SearchExecutionContext reference. The agent instead: (1) Introduces new variables sourcePaths and sourceProvider that don't match the ground truth implementation - it calls searchExecutionContext.createSourceProvider(null) instead of searchExecutionContext.lookup(), which is a different API; (2) Replaces valueFetcher(searchExecutionContext, null) with SourceValueFetcher.toString(sourcePaths), fundamentally changing the implementation logic without justification; (3) Still captures searchExecutionContext in the first two new lines, defeating the purpose of the fix; (4) Completely omits the required changelog file (docs/changelog/134887.yaml). The agent's approach appears to be a different refactoring that doesn't address the memory leak issue as specified, introduces API changes that may break functionality, and fails to document the change. The code reuse is poor because it invents a new implementation rather than simply hoisting existing calls. Missing the changelog is a major completeness failure.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/docs/changelog/134887.yaml b/docs/changelog/134887.yaml\nnew file mode 100644\nindex 00000000000..aa566ad8fdc\n--- /dev/null\n+++ b/docs/changelog/134887.yaml\n@@ -0,0 +1,5 @@\n+pr: 134887\n+summary: Avoid holding references to `SearchExecutionContext` in `SourceConfirmedTextQuery`\n+area: Mapping\n+type: bug\n+issues: []\ndiff --git a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\nindex 1d9fd9cb3a1..645c0cffe80 100644\n--- a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n+++ b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n@@ -301,9 +301,9 @@ public class MatchOnlyTextFieldMapper extends FieldMapper {\n                 String name = storedFieldNameForSyntheticSource();\n                 return storedFieldFetcher(name);\n             }\n+            ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n+            SourceProvider sourceProvider = searchExecutionContext.lookup();\n             return context -> {\n-                ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n-                SourceProvider sourceProvider = searchExecutionContext.lookup();\n                 valueFetcher.setNextReader(context);\n                 return docID -> {\n                     try {"
+}

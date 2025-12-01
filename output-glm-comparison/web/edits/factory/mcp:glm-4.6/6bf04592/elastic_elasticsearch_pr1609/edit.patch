@@ -1,0 +1,316 @@
+diff --git a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+index ae9eea7..32c2eb5 100644
+--- a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
++++ b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+@@ -43,6 +43,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
+ import org.elasticsearch.common.collect.Tuple;
+ import org.elasticsearch.common.inject.Inject;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.strings.Strings;
+ import org.elasticsearch.common.unit.TimeValue;
+ import org.elasticsearch.common.xcontent.XContentHelper;
+ import org.elasticsearch.common.xcontent.XContentType;
+@@ -50,10 +51,12 @@ import org.elasticsearch.index.engine.DocumentMissingException;
+ import org.elasticsearch.index.engine.DocumentSourceMissingException;
+ import org.elasticsearch.index.engine.VersionConflictEngineException;
+ import org.elasticsearch.index.get.GetResult;
++import org.elasticsearch.index.mapper.ParsedDocument;
+ import org.elasticsearch.index.mapper.internal.ParentFieldMapper;
+ import org.elasticsearch.index.mapper.internal.RoutingFieldMapper;
+ import org.elasticsearch.index.mapper.internal.SourceFieldMapper;
+ import org.elasticsearch.index.mapper.internal.TTLFieldMapper;
++import org.elasticsearch.index.percolator.PercolatorExecutor;
+ import org.elasticsearch.index.service.IndexService;
+ import org.elasticsearch.index.shard.IllegalIndexShardStateException;
+ import org.elasticsearch.index.shard.ShardId;
+@@ -208,20 +211,32 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+             }
+         }
+ 
+-        // TODO percolate?
+-
+-        // TODO: external version type, does it make sense here? does not seem like it...
++        // handle percolation
++        boolean shouldPercolate = Strings.hasLength(request.percolate());
++        ParsedDocument parsedDoc = null;
++        
++        // apply script to update the source
++        String routing = getResult.fields().containsKey(RoutingFieldMapper.NAME) ? getResult.field(RoutingFieldMapper.NAME).value().toString() : null;
++        String parent = getResult.fields().containsKey(ParentFieldMapper.NAME) ? getResult.field(ParentFieldMapper.NAME).value().toString() : null;
++        // No TTL has been given in the update script so we keep previous TTL value if there is one
++        if (ttl == null) {
++            ttl = getResult.fields().containsKey(TTLFieldMapper.NAME) ? (Long) getResult.field(TTLFieldMapper.NAME).value() : null;
++            if (ttl != null) {
++                ttl = ttl - (System.currentTimeMillis() - getDate); // It is an approximation of exact TTL value, could be improved
++            }
++        }
+ 
+         if (operation == null || "index".equals(operation)) {
+             IndexRequest indexRequest = Requests.indexRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
+                     .source(source, sourceAndContent.v1())
+                     .version(getResult.version()).replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel())
+-                    .timestamp(timestamp).ttl(ttl);
++                    .timestamp(timestamp).ttl(ttl).percolate(request.percolate());
+             indexRequest.operationThreaded(false);
+             indexAction.execute(indexRequest, new ActionListener<IndexResponse>() {
+                 @Override
+                 public void onResponse(IndexResponse response) {
+                     UpdateResponse update = new UpdateResponse(response.index(), response.type(), response.id(), response.version());
++                    update.matches(response.matches());
+                     listener.onResponse(update);
+                 }
+ 
+@@ -250,6 +265,7 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+                 @Override
+                 public void onResponse(DeleteResponse response) {
+                     UpdateResponse update = new UpdateResponse(response.index(), response.type(), response.id(), response.version());
++                    // No percolation matches for delete operation
+                     listener.onResponse(update);
+                 }
+ 
+@@ -271,10 +287,14 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+                 }
+             });
+         } else if ("none".equals(operation)) {
+-            listener.onResponse(new UpdateResponse(getResult.index(), getResult.type(), getResult.id(), getResult.version()));
++            UpdateResponse update = new UpdateResponse(getResult.index(), getResult.type(), getResult.id(), getResult.version());
++            // No percolation matches for none operation
++            listener.onResponse(update);
+         } else {
+             logger.warn("Used update operation [{}] for script [{}], doing nothing...", operation, request.script);
+-            listener.onResponse(new UpdateResponse(getResult.index(), getResult.type(), getResult.id(), getResult.version()));
++            UpdateResponse update = new UpdateResponse(getResult.index(), getResult.type(), getResult.id(), getResult.version());
++            // No percolation matches for unknown operation
++            listener.onResponse(update);
+         }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+index 05e39ce..47167e2 100644
+--- a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
++++ b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+@@ -53,15 +53,18 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+ 
+     private ReplicationType replicationType = ReplicationType.DEFAULT;
+     private WriteConsistencyLevel consistencyLevel = WriteConsistencyLevel.DEFAULT;
++    
++    private String percolate;
+ 
+     UpdateRequest() {
+-
++        this.percolate = null;
+     }
+ 
+     public UpdateRequest(String index, String type, String id) {
+         this.index = index;
+         this.type = type;
+         this.id = id;
++        this.percolate = null;
+     }
+ 
+     @Override
+@@ -281,6 +284,23 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         return this;
+     }
+ 
++    /**
++     * Causes the update request document to be percolated. The parameter is the percolate query
++     * to use to reduce the percolated queries that are going to run against this doc. Can be
++     * set to <tt>*</tt> to indicate that all percolate queries should be run.
++     */
++    public UpdateRequest percolate(String percolate) {
++        this.percolate = percolate;
++        return this;
++    }
++
++    /**
++     * The percolate query to run against this document.
++     */
++    public String percolate() {
++        return this.percolate;
++    }
++
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+@@ -297,6 +317,11 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         }
+         scriptParams = in.readMap();
+         retryOnConflict = in.readVInt();
++        if (in.readBoolean()) {
++            percolate = in.readUTF();
++        } else {
++            percolate = null;
++        }
+     }
+ 
+     @Override
+@@ -321,5 +346,11 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         }
+         out.writeMap(scriptParams);
+         out.writeVInt(retryOnConflict);
++        if (percolate == null) {
++            out.writeBoolean(false);
++        } else {
++            out.writeBoolean(true);
++            out.writeUTF(percolate);
++        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/update/UpdateResponse.java b/src/main/java/org/elasticsearch/action/update/UpdateResponse.java
+index f4a41dd..f2e6dc3 100644
+--- a/src/main/java/org/elasticsearch/action/update/UpdateResponse.java
++++ b/src/main/java/org/elasticsearch/action/update/UpdateResponse.java
+@@ -19,11 +19,15 @@
+ 
+ package org.elasticsearch.action.update;
+ 
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.Lists;
+ import org.elasticsearch.action.ActionResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+ import java.io.IOException;
++import java.util.ArrayList;
++import java.util.List;
+ 
+ /**
+  */
+@@ -37,8 +41,10 @@ public class UpdateResponse implements ActionResponse {
+ 
+     private long version;
+ 
+-    public UpdateResponse() {
++    private List<String> matches;
+ 
++    public UpdateResponse() {
++        this.matches = null;
+     }
+ 
+     public UpdateResponse(String index, String type, String id, long version) {
+@@ -104,12 +110,50 @@ public class UpdateResponse implements ActionResponse {
+         return version();
+     }
+ 
++    /**
++     * Returns the percolate queries matches. <tt>null</tt> if no percolation was requested.
++     */
++    public List<String> matches() {
++        return this.matches;
++    }
++
++    /**
++     * Returns the percolate queries matches. <tt>null</tt> if no percolation was requested.
++     */
++    public List<String> getMatches() {
++        return this.matches;
++    }
++
++    public void matches(List<String> matches) {
++        this.matches = matches;
++    }
++
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         index = in.readUTF();
+         id = in.readUTF();
+         type = in.readUTF();
+         version = in.readLong();
++        int size = in.readVInt();
++        if (size == 0) {
++            matches = ImmutableList.of();
++        } else if (size == 1) {
++            matches = ImmutableList.of(in.readUTF());
++        } else if (size == 2) {
++            matches = ImmutableList.of(in.readUTF(), in.readUTF());
++        } else if (size == 3) {
++            matches = ImmutableList.of(in.readUTF(), in.readUTF(), in.readUTF());
++        } else if (size == 4) {
++            matches = ImmutableList.of(in.readUTF(), in.readUTF(), in.readUTF(), in.readUTF());
++        } else if (size == 5) {
++            matches = ImmutableList.of(in.readUTF(), in.readUTF(), in.readUTF(), in.readUTF(), in.readUTF());
++        } else {
++            String[] tmpMatches = new String[size];
++            for (int i = 0; i < size; i++) {
++                tmpMatches[i] = in.readUTF();
++            }
++            matches = ImmutableList.copyOf(tmpMatches);
++        }
+     }
+ 
+     @Override
+@@ -118,5 +162,13 @@ public class UpdateResponse implements ActionResponse {
+         out.writeUTF(id);
+         out.writeUTF(type);
+         out.writeLong(version);
++        if (matches == null) {
++            out.writeVInt(0);
++        } else {
++            out.writeVInt(matches.size());
++            for (String match : matches) {
++                out.writeUTF(match);
++            }
++        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/client/action/update/UpdateRequestBuilder.java b/src/main/java/org/elasticsearch/client/action/update/UpdateRequestBuilder.java
+index dd5c4e3..1482bad 100644
+--- a/src/main/java/org/elasticsearch/client/action/update/UpdateRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/client/action/update/UpdateRequestBuilder.java
+@@ -150,6 +150,16 @@ public class UpdateRequestBuilder extends BaseRequestBuilder<UpdateRequest, Upda
+         return this;
+     }
+ 
++    /**
++     * Causes the update request document to be percolated. The parameter is the percolate query
++     * to use to reduce the percolated queries that are going to run against this doc. Can be
++     * set to <tt>*</tt> to indicate that all percolate queries should be run.
++     */
++    public UpdateRequestBuilder setPercolate(String percolate) {
++        request.percolate(percolate);
++        return this;
++    }
++
+     @Override
+     protected void doExecute(ActionListener<UpdateResponse> listener) {
+         client.update(request, listener);
+diff --git a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+index e6bef60..5a6dcab 100644
+--- a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+@@ -75,6 +75,7 @@ public class RestUpdateAction extends BaseRestHandler {
+             }
+         }
+         updateRequest.retryOnConflict(request.paramAsInt("retry_on_conflict", updateRequest.retryOnConflict()));
++        updateRequest.percolate(request.param("percolate"));
+ 
+         // see if we have it in the body
+         if (request.hasContent()) {
+@@ -92,6 +93,9 @@ public class RestUpdateAction extends BaseRestHandler {
+                     if (content.containsKey("params")) {
+                         updateRequest.scriptParams((Map<String, Object>) content.get("params"));
+                     }
++                    if (content.containsKey("percolate")) {
++                        updateRequest.percolate(content.get("percolate").toString());
++                    }
+                 } catch (Exception e) {
+                     try {
+                         channel.sendResponse(new XContentThrowableRestResponse(request, e));
+@@ -114,6 +118,9 @@ public class RestUpdateAction extends BaseRestHandler {
+                             .field(Fields._TYPE, response.type())
+                             .field(Fields._ID, response.id())
+                             .field(Fields._VERSION, response.version());
++                    if (response.matches() != null && !response.matches().isEmpty()) {
++                        builder.field(Fields.MATCHES, response.matches());
++                    }
+                     builder.endObject();
+                     RestStatus status = OK;
+                     if (response.version() == 1) {
+@@ -142,5 +149,6 @@ public class RestUpdateAction extends BaseRestHandler {
+         static final XContentBuilderString _TYPE = new XContentBuilderString("_type");
+         static final XContentBuilderString _ID = new XContentBuilderString("_id");
+         static final XContentBuilderString _VERSION = new XContentBuilderString("_version");
++        static final XContentBuilderString MATCHES = new XContentBuilderString("matches");
+     }
+ }

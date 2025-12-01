@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134478,
+  "base_commit": "7295189560dee0151019e46059d5b5e1fe0f5378",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 123413,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\nindex b57b4369..26885b9a 100644\n--- a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\n+++ b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\n@@ -53,10 +53,10 @@ public interface Block extends Accountable, BlockLoader.Block, Writeable, RefCou\n      * For now, we approximate this overhead, per block, using this value.\n      *\n      * The exact overhead per block would be (more correctly) {@link RamUsageEstimator#NUM_BYTES_OBJECT_REF},\n-     * but we approximate it with {@link RamUsageEstimator#NUM_BYTES_OBJECT_ALIGNMENT} to avoid further alignments\n-     * to object size (at the end of the alignment, it would make no practical difference).\n+     * but we use a multiple of {@link RamUsageEstimator#NUM_BYTES_OBJECT_ALIGNMENT} to better account for\n+     * circuit breaking with many small pages, where the cumulative overhead can be significant.\n      */\n-    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT;\n+    int PAGE_MEM_OVERHEAD_PER_BLOCK = 3 * RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT;\n \n     /**\n      * {@return an efficient dense single-value view of this block}.",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr134478/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

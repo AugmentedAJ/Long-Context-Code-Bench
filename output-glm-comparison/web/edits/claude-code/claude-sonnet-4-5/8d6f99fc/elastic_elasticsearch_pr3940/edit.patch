@@ -1,0 +1,64 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequest.java b/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequest.java
+index a8320dc..795c41b 100644
+--- a/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequest.java
+@@ -66,6 +66,14 @@ public class ClusterHealthRequest extends MasterNodeOperationRequest<ClusterHeal
+         return timeout;
+     }
+ 
++    /**
++     * Sets the timeout to wait for the desired cluster health condition to be satisfied.
++     * When any wait_for_* parameter is specified (e.g., wait_for_status, wait_for_nodes,
++     * wait_for_active_shards), the request will poll the cluster state and wait up to this
++     * timeout for the condition to be met. If the condition is not satisfied within the
++     * timeout period, the response will have timed_out set to true and return the current
++     * cluster health state. Defaults to 30 seconds.
++     */
+     public ClusterHealthRequest timeout(TimeValue timeout) {
+         this.timeout = timeout;
+         if (masterNodeTimeout == DEFAULT_MASTER_NODE_TIMEOUT) {
+@@ -74,6 +82,14 @@ public class ClusterHealthRequest extends MasterNodeOperationRequest<ClusterHeal
+         return this;
+     }
+ 
++    /**
++     * Sets the timeout to wait for the desired cluster health condition to be satisfied.
++     * When any wait_for_* parameter is specified (e.g., wait_for_status, wait_for_nodes,
++     * wait_for_active_shards), the request will poll the cluster state and wait up to this
++     * timeout for the condition to be met. If the condition is not satisfied within the
++     * timeout period, the response will have timed_out set to true and return the current
++     * cluster health state. Defaults to 30 seconds.
++     */
+     public ClusterHealthRequest timeout(String timeout) {
+         return this.timeout(TimeValue.parseTimeValue(timeout, null));
+     }
+diff --git a/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequestBuilder.java b/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequestBuilder.java
+index f521251..e5d3ec3 100644
+--- a/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/action/admin/cluster/health/ClusterHealthRequestBuilder.java
+@@ -40,11 +40,25 @@ public class ClusterHealthRequestBuilder extends MasterNodeOperationRequestBuild
+         return this;
+     }
+ 
++    /**
++     * Sets the timeout to wait for the desired cluster health status to be reached.
++     * When any wait_for_* condition is specified (e.g., wait_for_status, wait_for_nodes),
++     * the request will poll the cluster state and wait up to this timeout for the condition
++     * to be satisfied. If the condition is not met within the timeout, the response will
++     * have timed_out set to true. Defaults to 30 seconds.
++     */
+     public ClusterHealthRequestBuilder setTimeout(TimeValue timeout) {
+         request.timeout(timeout);
+         return this;
+     }
+ 
++    /**
++     * Sets the timeout to wait for the desired cluster health status to be reached.
++     * When any wait_for_* condition is specified (e.g., wait_for_status, wait_for_nodes),
++     * the request will poll the cluster state and wait up to this timeout for the condition
++     * to be satisfied. If the condition is not met within the timeout, the response will
++     * have timed_out set to true. Defaults to 30 seconds.
++     */
+     public ClusterHealthRequestBuilder setTimeout(String timeout) {
+         request.timeout(timeout);
+         return this;

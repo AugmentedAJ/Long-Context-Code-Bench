@@ -1,0 +1,55 @@
+diff --git a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
+index ac543c4f..e2955b22 100644
+--- a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
++++ b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
+@@ -1376,26 +1376,40 @@ public final class Authentication implements ToXContentObject {
+         return authentication;
+     }
+ 
+-    public static Authentication newCloudAccessTokenAuthentication(
++    /**
++     * Creates a cloud authentication with the specified authentication type and realm reference.
++     * This unified method supports both User (TOKEN) and API Key authentication types for cloud-managed credentials.
++     *
++     * @param authResult The authentication result containing the user and metadata
++     * @param realmRef The realm reference for the authentication
++     * @param authenticationType The type of authentication (TOKEN or API_KEY)
++     * @return A new Authentication instance
++     */
++    public static Authentication newCloudAuthentication(
+         AuthenticationResult<User> authResult,
+-        Authentication.RealmRef realmRef
++        Authentication.RealmRef realmRef,
++        AuthenticationType authenticationType
+     ) {
+-        assert authResult.isAuthenticated() : "cloud access token authn result must be successful";
++        assert authResult.isAuthenticated() : "cloud authentication result must be successful";
++        assert authenticationType == AuthenticationType.TOKEN || authenticationType == AuthenticationType.API_KEY
++            : "cloud authentication type must be either TOKEN or API_KEY";
+         final User user = authResult.getValue();
+         return new Authentication(
+             new Subject(user, realmRef, TransportVersion.current(), authResult.getMetadata()),
+-            AuthenticationType.TOKEN
++            authenticationType
+         );
+     }
+ 
++    public static Authentication newCloudAccessTokenAuthentication(
++        AuthenticationResult<User> authResult,
++        Authentication.RealmRef realmRef
++    ) {
++        return newCloudAuthentication(authResult, realmRef, AuthenticationType.TOKEN);
++    }
++
+     public static Authentication newCloudApiKeyAuthentication(AuthenticationResult<User> authResult, String nodeName) {
+-        assert authResult.isAuthenticated() : "cloud API Key authn result must be successful";
+-        final User apiKeyUser = authResult.getValue();
+         final Authentication.RealmRef authenticatedBy = newCloudApiKeyRealmRef(nodeName);
+-        return new Authentication(
+-            new Subject(apiKeyUser, authenticatedBy, TransportVersion.current(), authResult.getMetadata()),
+-            AuthenticationType.API_KEY
+-        );
++        return newCloudAuthentication(authResult, authenticatedBy, AuthenticationType.API_KEY);
+     }
+ 
+     public static Authentication newApiKeyAuthentication(AuthenticationResult<User> authResult, String nodeName) {

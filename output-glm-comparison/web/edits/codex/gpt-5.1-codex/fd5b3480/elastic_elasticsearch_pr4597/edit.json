@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4597,
+  "base_commit": "2a73cf4f823e113926232864b8c7468f9103f88a",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 46524,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\nindex 6e49621..c7cbc25 100644\n--- a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\n+++ b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\n@@ -79,18 +79,17 @@ public enum GeoDistance {\n     ARC() {\n         @Override\n         public double calculate(double sourceLatitude, double sourceLongitude, double targetLatitude, double targetLongitude, DistanceUnit unit) {\n-            double longitudeDifference = targetLongitude - sourceLongitude;\n-            double a = Math.toRadians(90D - sourceLatitude);\n-            double c = Math.toRadians(90D - targetLatitude);\n-            double factor = (Math.cos(a) * Math.cos(c)) + (Math.sin(a) * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));\n-\n-            if (factor < -1D) {\n-                return unit.fromMeters(Math.PI * GeoUtils.EARTH_MEAN_RADIUS);\n-            } else if (factor >= 1D) {\n-                return 0;\n-            } else {\n-                return unit.fromMeters(Math.acos(factor) * GeoUtils.EARTH_MEAN_RADIUS);\n-            }\n+            double sourceLatRad = Math.toRadians(sourceLatitude);\n+            double targetLatRad = Math.toRadians(targetLatitude);\n+            double deltaLat = targetLatRad - sourceLatRad;\n+            double deltaLon = Math.toRadians(targetLongitude - sourceLongitude);\n+\n+            double sinHalfLat = Math.sin(deltaLat * 0.5d);\n+            double sinHalfLon = Math.sin(deltaLon * 0.5d);\n+            double a = sinHalfLat * sinHalfLat + Math.cos(sourceLatRad) * Math.cos(targetLatRad) * sinHalfLon * sinHalfLon;\n+            a = Math.max(0d, Math.min(1d, a));\n+            double c = 2d * Math.asin(Math.sqrt(a));\n+            return unit.fromMeters(c * GeoUtils.EARTH_MEAN_RADIUS);\n         }\n \n         @Override",
+  "logs_path": "codex/gpt-5.1-codex/1c2e04d5/elastic_elasticsearch_pr4597/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

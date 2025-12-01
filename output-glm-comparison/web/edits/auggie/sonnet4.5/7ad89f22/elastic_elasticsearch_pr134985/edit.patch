@@ -1,0 +1,35 @@
+diff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java
+index 2b3bc52d..6ef91ce0 100644
+--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java
++++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java
+@@ -130,7 +130,7 @@ public final class AuthorizationStatePersistenceUtils {
+             },
+             error -> {
+                 String msg = TransformMessages.getMessage(TransformMessages.FAILED_TO_LOAD_TRANSFORM_STATE, transformId);
+-                logger.error(msg, error);
++                logger.warn(msg, error);
+                 listener.onFailure(error);
+             }
+         );
+diff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java
+index 05918a33..27820f77 100644
+--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java
++++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java
+@@ -213,7 +213,7 @@ public final class TransformIndex {
+                     config.getDestination().getIndex(),
+                     config.getId()
+                 );
+-                logger.error(message, e);
++                logger.warn(message, e);
+                 listener.onFailure(new RuntimeException(message, e));
+             })
+         );
+@@ -255,7 +255,7 @@ public final class TransformIndex {
+                     config.getDestination().getIndex(),
+                     config.getId()
+                 );
+-                logger.error(message, e);
++                logger.warn(message, e);
+                 listener.onFailure(new RuntimeException(message, e));
+             })
+         );

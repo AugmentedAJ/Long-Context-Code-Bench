@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134887,
+  "base_commit": "987e7af02b69cd4bb25755aa47e91a6a4bbebf1d",
+  "head_commit": "295ee4a7e4d81780a5159b9f7918e9f6337e1980",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": -0.3,
+    "code_reuse": 0.0,
+    "best_practices": -0.2,
+    "unsolicited_docs": -0.5
+  },
+  "aggregate": -0.2,
+  "rationale": "The agent correctly fixes the memory leak in MatchOnlyTextFieldMapper.java by moving the valueFetcher and sourceProvider extraction outside the lambda, matching the ground truth's technical approach. However, it has three issues: (1) Completeness: Missing the required changelog file (docs/changelog/134887.yaml) that documents the bug fix, which is a standard requirement in this codebase. (2) Best Practices: Added verbose inline comments explaining the fix when the ground truth has none, violating the principle of avoiding unsolicited documentation and over-commenting obvious refactorings. (3) Unsolicited changes: Modified an additional file (PatternedTextFieldType.java) that was not part of the ground truth, applying the same pattern elsewhere. While this could be viewed as proactive bug fixing, the task specifically mentioned 'SourceConfirmedTextQuery' and the evaluation criteria explicitly state to 'judge strictly against the task instructions' and 'do not reward extra or unrelated changes'. The core fix is correct but the missing changelog is a significant omission for a production codebase.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/docs/changelog/134887.yaml b/docs/changelog/134887.yaml\nnew file mode 100644\nindex 00000000000..aa566ad8fdc\n--- /dev/null\n+++ b/docs/changelog/134887.yaml\n@@ -0,0 +1,5 @@\n+pr: 134887\n+summary: Avoid holding references to `SearchExecutionContext` in `SourceConfirmedTextQuery`\n+area: Mapping\n+type: bug\n+issues: []\ndiff --git a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\nindex 1d9fd9cb3a1..645c0cffe80 100644\n--- a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n+++ b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java\n@@ -301,9 +301,9 @@ public class MatchOnlyTextFieldMapper extends FieldMapper {\n                 String name = storedFieldNameForSyntheticSource();\n                 return storedFieldFetcher(name);\n             }\n+            ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n+            SourceProvider sourceProvider = searchExecutionContext.lookup();\n             return context -> {\n-                ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);\n-                SourceProvider sourceProvider = searchExecutionContext.lookup();\n                 valueFetcher.setNextReader(context);\n                 return docID -> {\n                     try {"
+}

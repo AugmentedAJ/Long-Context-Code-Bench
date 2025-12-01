@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134936,
+  "base_commit": "0d0c0ad2354f522d2dbd3ecd2db295f3cf085ba0",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 187033,
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134936/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5",
+  "patch_file": "edit.patch"
+}

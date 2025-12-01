@@ -1,0 +1,13 @@
+diff --git a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/operator/topn/DefaultUnsortableTopNEncoder.java b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/operator/topn/DefaultUnsortableTopNEncoder.java
+index df1025f8..603af7f4 100644
+--- a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/operator/topn/DefaultUnsortableTopNEncoder.java
++++ b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/operator/topn/DefaultUnsortableTopNEncoder.java
+@@ -143,7 +143,7 @@ public final class DefaultUnsortableTopNEncoder implements TopNEncoder {
+     public void encodeDouble(double value, BreakingBytesRefBuilder bytesRefBuilder) {
+         bytesRefBuilder.grow(bytesRefBuilder.length() + Double.BYTES);
+         DOUBLE.set(bytesRefBuilder.bytes(), bytesRefBuilder.length(), value);
+-        bytesRefBuilder.setLength(bytesRefBuilder.length() + Long.BYTES);
++        bytesRefBuilder.setLength(bytesRefBuilder.length() + Double.BYTES);
+     }
+ 
+     @Override

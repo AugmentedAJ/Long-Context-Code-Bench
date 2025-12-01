@@ -1,0 +1,13 @@
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java
+index 6f7319bd..f64b7ef2 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java
+@@ -59,7 +59,7 @@ public abstract class ValidateTransportVersionReferencesTask extends DefaultTask
+                         + "\") was used at "
+                         + tvReference.location()
+                         + ", but lacks a"
+-                        + " transport version definition. This can be generated with the <TODO> task" // todo
++                        + " transport version definition. Run './gradle generateTransportVersion' to create it"
+                 );
+             }
+         }

@@ -1,0 +1,30 @@
+diff --git a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
+index b8fb83a..677e99f 100644
+--- a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
++++ b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
+@@ -283,7 +283,8 @@ public class BulkProcessor {
+                 return;
+             }
+             listener.beforeBulk(executionId, bulkRequest);
+-            client.bulk(bulkRequest, new ActionListener<BulkResponse>() {
++            try {
++                client.bulk(bulkRequest, new ActionListener<BulkResponse>() {
+                 @Override
+                 public void onResponse(BulkResponse response) {
+                     try {
+@@ -301,7 +302,14 @@ public class BulkProcessor {
+                         semaphore.release();
+                     }
+                 }
+-            });
++                });
++            } catch (Exception e) {
++                try {
++                    listener.afterBulk(executionId, bulkRequest, e);
++                } finally {
++                    semaphore.release();
++                }
++            }
+         }
+     }
+ 

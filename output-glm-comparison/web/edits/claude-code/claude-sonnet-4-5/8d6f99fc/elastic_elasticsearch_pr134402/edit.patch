@@ -1,0 +1,22 @@
+diff --git a/.buildkite/pipelines/java-ea-check-new-build.yml b/.buildkite/pipelines/java-ea-check-new-build.yml
+index 025b2850..fb8523c2 100644
+--- a/.buildkite/pipelines/java-ea-check-new-build.yml
++++ b/.buildkite/pipelines/java-ea-check-new-build.yml
+@@ -3,5 +3,5 @@ steps:
+     env:
+       RECENT_TIME_WINDOW: "24" # time window to consider a build as new in hours
+     agents:
+-      image: "docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.5"
++      image: "docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.15"
+       memory: "4G"
+diff --git a/.buildkite/pipelines/pull-request/pr-upgrade.yml b/.buildkite/pipelines/pull-request/pr-upgrade.yml
+index 429a75a3..3b171872 100644
+--- a/.buildkite/pipelines/pull-request/pr-upgrade.yml
++++ b/.buildkite/pipelines/pull-request/pr-upgrade.yml
+@@ -2,5 +2,5 @@ steps:
+   - label: pr-upgrade
+     command: ".buildkite/scripts/run-pr-upgrade-tests.sh"
+     agents:
+-      image: "docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.5"
++      image: "docker.elastic.co/ci-agent-images/eck-region/buildkite-agent:1.15"
+       memory: "4G"

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134665,
+  "base_commit": "2886ee1833eb8679be12a7191c8532c93328694d",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 285224,
+  "patch_unified": "diff --git a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\nindex b99c1a69..c129c890 100644\n--- a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\n+++ b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\n@@ -81,13 +81,14 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest\n         }\"\"\";\n \n     // when sorted, this message will appear at the top and hence can be used to validate query results\n-    private String smallestMessage;\n+    private static String smallestMessage;\n \n     public TextRollingUpgradeIT(@Name(\"upgradedNodes\") int upgradedNodes) {\n         super(upgradedNodes);\n     }\n \n     public void testIndexing() throws Exception {\n+        assumeTrue(\"requires synthetic source support\", oldClusterHasFeature(\"gte_v9.1.0\"));\n \n         if (isOldCluster()) {\n             // given - enable logsdb and create a template",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134665/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

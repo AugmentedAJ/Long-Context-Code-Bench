@@ -1,0 +1,15 @@
+diff --git a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java
+index 263c2362..d50a06d7 100644
+--- a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java
++++ b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java
+@@ -134,6 +134,10 @@ public class AllocationService {
+         return allocationDeciders;
+     }
+ 
++    public ClusterInfoService getClusterInfoService() {
++        return clusterInfoService;
++    }
++
+     public ShardRoutingRoleStrategy getShardRoutingRoleStrategy() {
+         return shardRoutingRoleStrategy;
+     }

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134704,
+  "base_commit": "1bbc0dbb7f5a79f16a878e495b19287bf1e226b3",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 57194,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\nindex 263c2362..d50a06d7 100644\n--- a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n+++ b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n@@ -134,6 +134,10 @@ public class AllocationService {\n         return allocationDeciders;\n     }\n \n+    public ClusterInfoService getClusterInfoService() {\n+        return clusterInfoService;\n+    }\n+\n     public ShardRoutingRoleStrategy getShardRoutingRoleStrategy() {\n         return shardRoutingRoleStrategy;\n     }",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr134704/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

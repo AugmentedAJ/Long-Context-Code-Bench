@@ -1,0 +1,151 @@
+diff --git a/src/main/java/org/elasticsearch/index/fielddata/AbstractIndexFieldData.java b/src/main/java/org/elasticsearch/index/fielddata/AbstractIndexFieldData.java
+index 3deaad3..ce73dd0 100644
+--- a/src/main/java/org/elasticsearch/index/fielddata/AbstractIndexFieldData.java
++++ b/src/main/java/org/elasticsearch/index/fielddata/AbstractIndexFieldData.java
+@@ -9,14 +9,11 @@ import org.elasticsearch.index.Index;
+ import org.elasticsearch.index.mapper.FieldMapper;
+ import org.elasticsearch.index.settings.IndexSettings;
+ 
+-import java.util.concurrent.atomic.AtomicLong;
+-
+ /**
+  */
+ public abstract class AbstractIndexFieldData<FD extends AtomicFieldData> extends AbstractIndexComponent implements IndexFieldData<FD> {
+ 
+     private final FieldMapper.Names fieldNames;
+-    private final AtomicLong highestUniqueValuesCount = new AtomicLong();
+     protected final FieldDataType fieldDataType;
+     protected final IndexFieldDataCache cache;
+ 
+@@ -42,16 +39,10 @@ public abstract class AbstractIndexFieldData<FD extends AtomicFieldData> extends
+         cache.clear(reader);
+     }
+ 
+-    @Override
+-    public long getHighestNumberOfSeenUniqueValues() {
+-        return highestUniqueValuesCount.get();
+-    }
+-
+     @Override
+     public final FD load(AtomicReaderContext context) {
+         try {
+             FD fd = cache.load(context, this);
+-            updateHighestSeenValuesCount(fd.getNumberUniqueValues());
+             return fd;
+         } catch (Throwable e) {
+             if (e instanceof ElasticSearchException) {
+@@ -62,13 +53,4 @@ public abstract class AbstractIndexFieldData<FD extends AtomicFieldData> extends
+         }
+     }
+ 
+-    private void updateHighestSeenValuesCount(long newValuesCount) {
+-        long current;
+-        do {
+-            if ((current = highestUniqueValuesCount.get()) >= newValuesCount) {
+-                break;
+-            }
+-        } while (!highestUniqueValuesCount.compareAndSet(current, newValuesCount));
+-    }
+-
+ }
+diff --git a/src/main/java/org/elasticsearch/index/fielddata/IndexFieldData.java b/src/main/java/org/elasticsearch/index/fielddata/IndexFieldData.java
+index 90cf52c..c527d9c 100644
+--- a/src/main/java/org/elasticsearch/index/fielddata/IndexFieldData.java
++++ b/src/main/java/org/elasticsearch/index/fielddata/IndexFieldData.java
+@@ -81,11 +81,6 @@ public interface IndexFieldData<FD extends AtomicFieldData> extends IndexCompone
+ 
+     void clear(IndexReader reader);
+ 
+-    /**
+-     * Returns the highest ever seen uniqiue values in an atomic reader.
+-     */
+-    long getHighestNumberOfSeenUniqueValues();
+-
+     // we need this extended source we we have custom comparators to reuse our field data
+     // in this case, we need to reduce type that will be used when search results are reduced
+     // on another node (we don't have the custom source them...)
+diff --git a/src/main/java/org/elasticsearch/index/fielddata/plain/DocValuesIndexFieldData.java b/src/main/java/org/elasticsearch/index/fielddata/plain/DocValuesIndexFieldData.java
+index c0ee85a..5a2cdb1 100644
+--- a/src/main/java/org/elasticsearch/index/fielddata/plain/DocValuesIndexFieldData.java
++++ b/src/main/java/org/elasticsearch/index/fielddata/plain/DocValuesIndexFieldData.java
+@@ -35,12 +35,9 @@ import org.elasticsearch.index.mapper.internal.UidFieldMapper;
+ 
+ import java.util.Map;
+ import java.util.Set;
+-import java.util.concurrent.atomic.AtomicLong;
+-
+ /** {@link IndexFieldData} impl based on Lucene's doc values. Caching is done on the Lucene side. */
+ public abstract class DocValuesIndexFieldData {
+ 
+-    private final AtomicLong maxUniqueValueCount;
+     protected final Index index;
+     protected final Names fieldNames;
+ 
+@@ -48,7 +45,6 @@ public abstract class DocValuesIndexFieldData {
+         super();
+         this.index = index;
+         this.fieldNames = fieldNames;
+-        maxUniqueValueCount = new AtomicLong();
+     }
+ 
+     public final Names getFieldNames() {
+@@ -67,19 +63,6 @@ public abstract class DocValuesIndexFieldData {
+         return index;
+     }
+ 
+-    public final long getHighestNumberOfSeenUniqueValues() {
+-        return maxUniqueValueCount.get();
+-    }
+-
+-    void updateMaxUniqueValueCount(long uniqueValueCount) {
+-        while (true) {
+-            final long current = maxUniqueValueCount.get();
+-            if (current >= uniqueValueCount || maxUniqueValueCount.compareAndSet(current, uniqueValueCount)) {
+-                break;
+-            }
+-        }
+-    }
+-
+     public static class Builder implements IndexFieldData.Builder {
+ 
+         private static final Set<String> BINARY_INDEX_FIELD_NAMES = ImmutableSet.of(UidFieldMapper.NAME, IdFieldMapper.NAME);
+diff --git a/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVBytesIndexFieldData.java b/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVBytesIndexFieldData.java
+index d79c101..c091d7f 100644
+--- a/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVBytesIndexFieldData.java
++++ b/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVBytesIndexFieldData.java
+@@ -44,7 +44,6 @@ public class SortedSetDVBytesIndexFieldData extends DocValuesIndexFieldData impl
+     @Override
+     public SortedSetDVBytesAtomicFieldData load(AtomicReaderContext context) {
+         final SortedSetDVBytesAtomicFieldData atomicFieldData = new SortedSetDVBytesAtomicFieldData(context.reader(), fieldNames.indexName());
+-        updateMaxUniqueValueCount(atomicFieldData.getNumberUniqueValues());
+         return atomicFieldData;
+     }
+ 
+diff --git a/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVNumericIndexFieldData.java b/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVNumericIndexFieldData.java
+index dc183a1..38dfafe 100644
+--- a/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVNumericIndexFieldData.java
++++ b/src/main/java/org/elasticsearch/index/fielddata/plain/SortedSetDVNumericIndexFieldData.java
+@@ -155,7 +155,6 @@ public class SortedSetDVNumericIndexFieldData extends DocValuesIndexFieldData im
+     @Override
+     public SortedSetDVNumericAtomicFieldData load(AtomicReaderContext context) {
+         final SortedSetDVNumericAtomicFieldData atomicFieldData = new SortedSetDVNumericAtomicFieldData(context.reader(), fieldNames.indexName(), numericType);
+-        updateMaxUniqueValueCount(atomicFieldData.getNumberUniqueValues());
+         return atomicFieldData;
+     }
+ 
+diff --git a/src/test/java/org/elasticsearch/index/fielddata/NoOrdinalsStringFieldDataTests.java b/src/test/java/org/elasticsearch/index/fielddata/NoOrdinalsStringFieldDataTests.java
+index d7ec3bb..6de1077 100644
+--- a/src/test/java/org/elasticsearch/index/fielddata/NoOrdinalsStringFieldDataTests.java
++++ b/src/test/java/org/elasticsearch/index/fielddata/NoOrdinalsStringFieldDataTests.java
+@@ -76,11 +76,6 @@ public class NoOrdinalsStringFieldDataTests extends PagedBytesStringFieldDataTes
+                 in.clear(reader);
+             }
+ 
+-            @Override
+-            public long getHighestNumberOfSeenUniqueValues() {
+-                return in.getHighestNumberOfSeenUniqueValues();
+-            }
+-
+         };
+     }
+ 

@@ -1,0 +1,60 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+index 0b59da7..4a42f39 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+@@ -88,7 +88,12 @@ public class PutWarmerRequest extends AcknowledgedRequest<PutWarmerRequest> {
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+-        ActionRequestValidationException validationException = searchRequest.validate();
++        ActionRequestValidationException validationException = null;
++        if (searchRequest == null) {
++            validationException = addValidationError("searchRequest is missing", validationException);
++        } else {
++            validationException = searchRequest.validate();
++        }
+         if (name == null) {
+             validationException = addValidationError("name is missing", validationException);
+         }
+diff --git a/src/test/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequestTests.java b/src/test/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequestTests.java
+index d29dfaa..1fa77d4 100644
+--- a/src/test/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequestTests.java
++++ b/src/test/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequestTests.java
+@@ -19,6 +19,7 @@
+ package org.elasticsearch.action.admin.indices.warmer.put;
+ 
+ import org.elasticsearch.Version;
++import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.common.io.stream.InputStreamStreamInput;
+ import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
+ import org.elasticsearch.common.unit.TimeValue;
+@@ -29,6 +30,8 @@ import java.io.ByteArrayInputStream;
+ import java.io.ByteArrayOutputStream;
+ 
+ import static org.hamcrest.CoreMatchers.equalTo;
++import static org.hamcrest.CoreMatchers.notNullValue;
++import static org.hamcrest.MatcherAssert.assertThat;
+ 
+ public class PutWarmerRequestTests extends ElasticsearchTestCase {
+ 
+@@ -73,4 +76,20 @@ public class PutWarmerRequestTests extends ElasticsearchTestCase {
+         //timeout is default as we don't read it from the received buffer
+         assertThat(inRequest.timeout().millis(), equalTo(outRequest.timeout().millis()));
+     }
++
++    @Test
++    public void testValidation() {
++        // Test validation with null searchRequest - should fail
++        PutWarmerRequest request = new PutWarmerRequest("test");
++        ActionRequestValidationException validationException = request.validate();
++        assertThat(validationException, notNullValue());
++        assertThat(validationException.getMessage(), org.hamcrest.CoreMatchers.containsString("searchRequest is missing"));
++        
++        // Test validation with missing name
++        PutWarmerRequest request2 = new PutWarmerRequest();
++        validationException = request2.validate();
++        assertThat(validationException, notNullValue());
++        assertThat(validationException.getMessage(), org.hamcrest.CoreMatchers.containsString("name is missing"));
++        assertThat(validationException.getMessage(), org.hamcrest.CoreMatchers.containsString("searchRequest is missing"));
++    }
+ }

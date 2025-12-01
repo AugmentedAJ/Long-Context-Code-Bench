@@ -1,0 +1,145 @@
+diff --git a/server/src/main/java/org/elasticsearch/http/HttpStats.java b/server/src/main/java/org/elasticsearch/http/HttpStats.java
+index d4df9c8f..89f51c92 100644
+--- a/server/src/main/java/org/elasticsearch/http/HttpStats.java
++++ b/server/src/main/java/org/elasticsearch/http/HttpStats.java
+@@ -90,8 +90,11 @@ public record HttpStats(long serverOpen, long totalOpen, List<ClientStats> clien
+         static final String CLIENT_REMOTE_ADDRESS = "remote_address";
+         static final String CLIENT_LAST_URI = "last_uri";
+         static final String CLIENT_OPENED_TIME_MILLIS = "opened_time_millis";
++        static final String CLIENT_OPENED_TIME = "opened_time";
+         static final String CLIENT_CLOSED_TIME_MILLIS = "closed_time_millis";
++        static final String CLIENT_CLOSED_TIME = "closed_time";
+         static final String CLIENT_LAST_REQUEST_TIME_MILLIS = "last_request_time_millis";
++        static final String CLIENT_LAST_REQUEST_TIME = "last_request_time";
+         static final String CLIENT_REQUEST_COUNT = "request_count";
+         static final String CLIENT_REQUEST_SIZE_BYTES = "request_size_bytes";
+         static final String CLIENT_FORWARDED_FOR = "x_forwarded_for";
+@@ -179,11 +182,27 @@ public record HttpStats(long serverOpen, long totalOpen, List<ClientStats> clien
+             if (opaqueId != null) {
+                 builder.field(Fields.CLIENT_OPAQUE_ID, opaqueId);
+             }
+-            builder.field(Fields.CLIENT_OPENED_TIME_MILLIS, openedTimeMillis);
++            builder.timestampFieldsFromUnixEpochMillis(
++                Fields.CLIENT_OPENED_TIME_MILLIS,
++                Fields.CLIENT_OPENED_TIME,
++                openedTimeMillis
++            );
+             if (closedTimeMillis != NOT_CLOSED) {
+-                builder.field(Fields.CLIENT_CLOSED_TIME_MILLIS, closedTimeMillis);
++                builder.timestampFieldsFromUnixEpochMillis(
++                    Fields.CLIENT_CLOSED_TIME_MILLIS,
++                    Fields.CLIENT_CLOSED_TIME,
++                    closedTimeMillis
++                );
++            }
++            if (lastRequestTimeMillis >= 0) {
++                builder.timestampFieldsFromUnixEpochMillis(
++                    Fields.CLIENT_LAST_REQUEST_TIME_MILLIS,
++                    Fields.CLIENT_LAST_REQUEST_TIME,
++                    lastRequestTimeMillis
++                );
++            } else {
++                builder.field(Fields.CLIENT_LAST_REQUEST_TIME_MILLIS, lastRequestTimeMillis);
+             }
+-            builder.field(Fields.CLIENT_LAST_REQUEST_TIME_MILLIS, lastRequestTimeMillis);
+             builder.field(Fields.CLIENT_REQUEST_COUNT, requestCount);
+             builder.field(Fields.CLIENT_REQUEST_SIZE_BYTES, requestSizeBytes);
+             builder.endObject();
+diff --git a/server/src/test/java/org/elasticsearch/http/HttpStatsTests.java b/server/src/test/java/org/elasticsearch/http/HttpStatsTests.java
+index f5271ce2..2753fb36 100644
+--- a/server/src/test/java/org/elasticsearch/http/HttpStatsTests.java
++++ b/server/src/test/java/org/elasticsearch/http/HttpStatsTests.java
+@@ -11,9 +11,13 @@ package org.elasticsearch.http;
+ 
+ import org.elasticsearch.common.Strings;
+ import org.elasticsearch.common.unit.ByteSizeUnit;
++import org.elasticsearch.common.xcontent.XContentElasticsearchExtension;
+ import org.elasticsearch.core.Tuple;
+ import org.elasticsearch.test.ESTestCase;
++import org.elasticsearch.xcontent.json.JsonXContent;
+ 
++import java.io.IOException;
++import java.time.Instant;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+@@ -75,6 +79,58 @@ public class HttpStatsTests extends ESTestCase {
+         );
+     }
+ 
++    public void testClientStatsIncludeHumanReadableTimestamps() throws IOException {
++        final long openedTime = 1_696_000_000_000L;
++        final long closedTime = openedTime + 1_000L;
++        final long lastRequestTime = closedTime + 500L;
++
++        final Map<String, Object> client = serializeClient(new HttpStats.ClientStats(
++            7,
++            "agent",
++            "local",
++            "remote",
++            "/_path",
++            "forwarded",
++            "opaque",
++            openedTime,
++            closedTime,
++            lastRequestTime,
++            10,
++            20
++        ));
++
++        assertThat(client.get("opened_time"), equalTo(formatMillis(openedTime)));
++        assertThat(((Number) client.get("opened_time_millis")).longValue(), equalTo(openedTime));
++        assertThat(client.get("closed_time"), equalTo(formatMillis(closedTime)));
++        assertThat(((Number) client.get("closed_time_millis")).longValue(), equalTo(closedTime));
++        assertThat(client.get("last_request_time"), equalTo(formatMillis(lastRequestTime)));
++        assertThat(((Number) client.get("last_request_time_millis")).longValue(), equalTo(lastRequestTime));
++    }
++
++    public void testClientStatsSkipHumanReadableWhenNoLastRequest() throws IOException {
++        final long openedTime = 1_696_000_000_000L;
++
++        final Map<String, Object> client = serializeClient(new HttpStats.ClientStats(
++            11,
++            null,
++            null,
++            null,
++            null,
++            null,
++            null,
++            openedTime,
++            HttpStats.ClientStats.NOT_CLOSED,
++            -1L,
++            0L,
++            0L
++        ));
++
++        assertThat(client.get("opened_time"), equalTo(formatMillis(openedTime)));
++        assertThat(client.containsKey("closed_time"), equalTo(false));
++        assertThat(client.containsKey("last_request_time"), equalTo(false));
++        assertThat(((Number) client.get("last_request_time_millis")).longValue(), equalTo(-1L));
++    }
++
+     public static HttpStats randomHttpStats() {
+         return new HttpStats(
+             randomLongBetween(0, Long.MAX_VALUE),
+@@ -112,4 +168,20 @@ public class HttpStatsTests extends ESTestCase {
+             IntStream.range(0, 18).mapToLong(i -> randomLongBetween(0, 42)).toArray()
+         );
+     }
++
++    @SuppressWarnings("unchecked")
++    private Map<String, Object> serializeClient(HttpStats.ClientStats clientStats) throws IOException {
++        final HttpStats httpStats = new HttpStats(0, 0, List.of(clientStats), Map.of());
++        try (var parser = createParser(JsonXContent.jsonXContent, Strings.toString(httpStats, false, true))) {
++            Map<String, Object> serialized = parser.mapOrdered();
++            Map<String, Object> http = (Map<String, Object>) serialized.get("http");
++            List<Map<String, Object>> clients = (List<Map<String, Object>>) http.get("clients");
++            assertThat(clients, hasSize(1));
++            return clients.get(0);
++        }
++    }
++
++    private static String formatMillis(long millis) {
++        return XContentElasticsearchExtension.DEFAULT_FORMATTER.format(Instant.ofEpochMilli(millis));
++    }
+ }

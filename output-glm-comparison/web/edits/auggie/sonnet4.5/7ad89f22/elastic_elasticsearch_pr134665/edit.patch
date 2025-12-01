@@ -1,0 +1,13 @@
+diff --git a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
+index b99c1a69..0f0995d4 100644
+--- a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
++++ b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java
+@@ -81,7 +81,7 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest
+         }""";
+ 
+     // when sorted, this message will appear at the top and hence can be used to validate query results
+-    private String smallestMessage;
++    private static String smallestMessage;
+ 
+     public TextRollingUpgradeIT(@Name("upgradedNodes") int upgradedNodes) {
+         super(upgradedNodes);

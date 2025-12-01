@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134520,
+  "base_commit": "63b6d96a44939b8720a20b5809b28318dc2a75fd",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 253085,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\nindex 4ebcae1c..7e6be194 100644\n--- a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n+++ b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n@@ -45,7 +45,10 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {\n                 ThreadPool.Names.WRITE_COORDINATION,\n                 allocatedProcessors,\n                 10000,\n-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK\n+                EsExecutors.TaskTrackingConfig.builder()\n+                    .trackOngoingTasks()\n+                    .trackMaxQueueLatency()\n+                    .build()\n             )\n         );\n         result.put(",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134520/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

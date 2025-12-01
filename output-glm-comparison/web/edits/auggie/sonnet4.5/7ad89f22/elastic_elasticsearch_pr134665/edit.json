@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134665,
+  "base_commit": "2886ee1833eb8679be12a7191c8532c93328694d",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 89063,
+  "patch_unified": "diff --git a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\nindex b99c1a69..0f0995d4 100644\n--- a/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\n+++ b/x-pack/plugin/logsdb/qa/rolling-upgrade/src/javaRestTest/java/org/elasticsearch/upgrades/TextRollingUpgradeIT.java\n@@ -81,7 +81,7 @@ public class TextRollingUpgradeIT extends AbstractRollingUpgradeWithSecurityTest\n         }\"\"\";\n \n     // when sorted, this message will appear at the top and hence can be used to validate query results\n-    private String smallestMessage;\n+    private static String smallestMessage;\n \n     public TextRollingUpgradeIT(@Name(\"upgradedNodes\") int upgradedNodes) {\n         super(upgradedNodes);",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134665/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

@@ -1,0 +1,156 @@
+diff --git a/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java b/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
+index 260bd57..8f87302 100644
+--- a/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
++++ b/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
+@@ -19,12 +19,15 @@
+ package org.elasticsearch.search.suggest.completion;
+ 
+ import org.apache.lucene.analysis.TokenStream;
++import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
+ import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
+ import org.apache.lucene.util.AttributeImpl;
+ import org.apache.lucene.util.BytesRef;
++import org.apache.lucene.util.CharsRef;
+ import org.apache.lucene.util.IntsRef;
++import org.apache.lucene.util.UnicodeUtil;
+ import org.apache.lucene.util.fst.Util;
+ 
+ import java.io.IOException;
+@@ -39,6 +42,7 @@ public final class CompletionTokenStream extends TokenStream {
+     private final PayloadAttribute payloadAttr = addAttribute(PayloadAttribute.class);;
+     private final PositionIncrementAttribute posAttr = addAttribute(PositionIncrementAttribute.class);
+     private final ByteTermAttribute bytesAtt = addAttribute(ByteTermAttribute.class);
++    private final CharTermAttribute charTermAttribute = addAttribute(CharTermAttribute.class);
+ 
+     private final TokenStream input;
+     private BytesRef payload;
+@@ -47,6 +51,7 @@ public final class CompletionTokenStream extends TokenStream {
+     private int posInc = -1;
+     private static final int MAX_PATHS = 256;
+     private final BytesRef scratch = new BytesRef();
++    private final CharsRef spareChars = new CharsRef();
+ 
+     public CompletionTokenStream(TokenStream input, BytesRef payload, ToFiniteStrings toFiniteStrings) throws IOException {
+         this.input = input;
+@@ -76,6 +81,8 @@ public final class CompletionTokenStream extends TokenStream {
+             posInc = 0;
+             Util.toBytesRef(finiteStrings.next(), scratch); // now we have UTF-8
+             bytesAtt.setBytesRef(scratch);
++            UnicodeUtil.UTF8toUTF16(scratch, spareChars);
++            charTermAttribute.copyBuffer(spareChars.chars, spareChars.offset, spareChars.length);
+             if (payload != null) {
+                 payloadAttr.setPayload(this.payload);
+             }
+@@ -143,4 +150,4 @@ public final class CompletionTokenStream extends TokenStream {
+             other.bytes = bytes;
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/test/java/org/elasticsearch/search/suggest/CompletionTokenStreamTest.java b/src/test/java/org/elasticsearch/search/suggest/CompletionTokenStreamTest.java
+index d5ebfa5..e03c733 100644
+--- a/src/test/java/org/elasticsearch/search/suggest/CompletionTokenStreamTest.java
++++ b/src/test/java/org/elasticsearch/search/suggest/CompletionTokenStreamTest.java
+@@ -19,7 +19,6 @@
+ package org.elasticsearch.search.suggest;
+ 
+ import org.apache.lucene.analysis.MockTokenizer;
+-import org.apache.lucene.analysis.TokenFilter;
+ import org.apache.lucene.analysis.TokenStream;
+ import org.apache.lucene.analysis.core.SimpleAnalyzer;
+ import org.apache.lucene.analysis.synonym.SynonymFilter;
+@@ -28,7 +27,6 @@ import org.apache.lucene.analysis.synonym.SynonymMap.Builder;
+ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
+-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+ import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
+ import org.apache.lucene.util.BytesRef;
+ import org.apache.lucene.util.CharsRef;
+@@ -50,13 +48,16 @@ public class CompletionTokenStreamTest extends ElasticsearchTokenStreamTestCase
+     public void testSuggestTokenFilter() throws Exception {
+         TokenStream tokenStream = new MockTokenizer(new StringReader("mykeyword"), MockTokenizer.WHITESPACE, true);
+         BytesRef payload = new BytesRef("Surface keyword|friggin payload|10");
+-        TokenStream suggestTokenStream = new ByteTermAttrToCharTermAttrFilter(new CompletionTokenStream(tokenStream, payload, new CompletionTokenStream.ToFiniteStrings() {
++        TokenStream suggestTokenStream = new CompletionTokenStream(tokenStream, payload, new CompletionTokenStream.ToFiniteStrings() {
+             @Override
+             public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException {
+                 return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
+             }
+-        }));
+-        assertTokenStreamContents(suggestTokenStream, new String[] {"mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10"}, new int[] { 1 }, null, null);
++        });
++        assertCharTermAndPayloads(suggestTokenStream,
++                new String[] {"mykeyword"},
++                new BytesRef[] {payload},
++                new int[] { 1 });
+     }
+ 
+     @Test
+@@ -68,13 +69,16 @@ public class CompletionTokenStreamTest extends ElasticsearchTokenStreamTestCase
+         SynonymFilter filter = new SynonymFilter(tokenizer, builder.build(), true);
+ 
+         BytesRef payload = new BytesRef("Surface keyword|friggin payload|10");
+-        TokenStream suggestTokenStream = new ByteTermAttrToCharTermAttrFilter(new CompletionTokenStream(filter, payload, new CompletionTokenStream.ToFiniteStrings() {
++        TokenStream suggestTokenStream = new CompletionTokenStream(filter, payload, new CompletionTokenStream.ToFiniteStrings() {
+             @Override
+             public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException {
+                 return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
+             }
+-        }));
+-        assertTokenStreamContents(suggestTokenStream, new String[] {"mysynonym", "mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10", "Surface keyword|friggin payload|10"}, new int[] { 2, 0 }, null, null);
++        });
++        assertCharTermAndPayloads(suggestTokenStream,
++                new String[] {"mysynonym", "mykeyword"},
++                new BytesRef[] {payload, payload},
++                new int[] { 2, 0 });
+     }
+ 
+     @Test
+@@ -143,27 +147,23 @@ public class CompletionTokenStreamTest extends ElasticsearchTokenStreamTestCase
+         suggestTokenStream.close();
+ 
+     }
+-    
+-    public final static class ByteTermAttrToCharTermAttrFilter extends TokenFilter {
+-        private CharTermAttribute attr = addAttribute(CharTermAttribute.class);
+-        private ByteTermAttribute byteAttr = addAttribute(ByteTermAttribute.class);
+-        private PayloadAttribute payload = addAttribute(PayloadAttribute.class);
+-        private TypeAttribute type = addAttribute(TypeAttribute.class);
+-        protected ByteTermAttrToCharTermAttrFilter(TokenStream input) {
+-            super(input);
+-        }
++    private void assertCharTermAndPayloads(TokenStream stream, String[] expectedTerms, BytesRef[] expectedPayloads, int[] expectedPosIncrements) throws IOException {
++        assertEquals(expectedTerms.length, expectedPayloads.length);
++        assertEquals(expectedTerms.length, expectedPosIncrements.length);
+ 
+-        @Override
+-        public boolean incrementToken() throws IOException {
+-            if (input.incrementToken()) {
+-                BytesRef bytesRef = byteAttr.getBytesRef();
+-                attr.append(bytesRef.utf8ToString());
+-                // we move them over so we can assert them more easily in the tests
+-                type.setType(payload.getPayload().utf8ToString()); 
+-                return true;
+-            }
+-            return false;
++        CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
++        PayloadAttribute payloadAttr = stream.addAttribute(PayloadAttribute.class);
++        PositionIncrementAttribute posAttr = stream.addAttribute(PositionIncrementAttribute.class);
++
++        stream.reset();
++        for (int i = 0; i < expectedTerms.length; i++) {
++            assertTrue(stream.incrementToken());
++            assertEquals(expectedTerms[i], termAttr.toString());
++            assertEquals(expectedPayloads[i], payloadAttr.getPayload());
++            assertEquals(expectedPosIncrements[i], posAttr.getPositionIncrement());
+         }
+-        
++        assertFalse(stream.incrementToken());
++        stream.end();
++        stream.close();
+     }
+ }

@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134985,
+  "base_commit": "4a2d8fd40328763780fbefc32366456e1419b48b",
+  "head_commit": "72ff6378adb9f7c324886609a94d425ba9e2edab",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.2,
+  "rationale": "The agent's diff is functionally identical to the ground truth. Both change exactly three logger.error() calls to logger.warn() calls: one in AuthorizationStatePersistenceUtils.java (line 133) and two in TransformIndex.java (lines 216 and 258). The only differences are in the commit hashes shown in the diff headers (2b3bc52d vs 2b3bc52d32f, 05918a33 vs 05918a33cef), which are cosmetic artifacts of git diff output and do not affect the actual code changes. The agent correctly identified the transform persistence failures mentioned in the task and changed the log levels as requested. No unsolicited documentation was added, no unnecessary changes were made, and the implementation matches the expected behavior exactly.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\nindex 2b3bc52d32f..6ef91ce0bbd 100644\n--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\n+++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\n@@ -130,7 +130,7 @@ public final class AuthorizationStatePersistenceUtils {\n             },\n             error -> {\n                 String msg = TransformMessages.getMessage(TransformMessages.FAILED_TO_LOAD_TRANSFORM_STATE, transformId);\n-                logger.error(msg, error);\n+                logger.warn(msg, error);\n                 listener.onFailure(error);\n             }\n         );\ndiff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\nindex 05918a33cef..27820f77c5d 100644\n--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\n+++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\n@@ -213,7 +213,7 @@ public final class TransformIndex {\n                     config.getDestination().getIndex(),\n                     config.getId()\n                 );\n-                logger.error(message, e);\n+                logger.warn(message, e);\n                 listener.onFailure(new RuntimeException(message, e));\n             })\n         );\n@@ -255,7 +255,7 @@ public final class TransformIndex {\n                     config.getDestination().getIndex(),\n                     config.getId()\n                 );\n-                logger.error(message, e);\n+                logger.warn(message, e);\n                 listener.onFailure(new RuntimeException(message, e));\n             })\n         );"
+}

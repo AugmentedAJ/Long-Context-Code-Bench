@@ -1,0 +1,173 @@
+diff --git a/pom.xml b/pom.xml
+index dda1a5f..bb470fd 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -312,10 +312,10 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+-                <version>2.3.2</version>
++                <version>3.8.1</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                 </configuration>
+             </plugin>
+             <plugin>
+diff --git a/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java b/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
+index 260bd57..421734e 100644
+--- a/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
++++ b/src/main/java/org/elasticsearch/search/suggest/completion/CompletionTokenStream.java
+@@ -19,6 +19,7 @@
+ package org.elasticsearch.search.suggest.completion;
+ 
+ import org.apache.lucene.analysis.TokenStream;
++import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
+ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
+ import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
+@@ -39,6 +40,7 @@ public final class CompletionTokenStream extends TokenStream {
+     private final PayloadAttribute payloadAttr = addAttribute(PayloadAttribute.class);;
+     private final PositionIncrementAttribute posAttr = addAttribute(PositionIncrementAttribute.class);
+     private final ByteTermAttribute bytesAtt = addAttribute(ByteTermAttribute.class);
++    private final CharTermAttribute charAtt = addAttribute(CharTermAttribute.class);
+ 
+     private final TokenStream input;
+     private BytesRef payload;
+@@ -115,8 +117,9 @@ public final class CompletionTokenStream extends TokenStream {
+         public void setBytesRef(BytesRef bytes);
+     }
+ 
+-    public static final class ByteTermAttributeImpl extends AttributeImpl implements ByteTermAttribute, TermToBytesRefAttribute {
++    public static final class ByteTermAttributeImpl extends AttributeImpl implements ByteTermAttribute, TermToBytesRefAttribute, CharTermAttribute {
+         private BytesRef bytes;
++        private StringBuilder charBuffer = new StringBuilder();
+ 
+         @Override
+         public int fillBytesRef() {
+@@ -131,16 +134,122 @@ public final class CompletionTokenStream extends TokenStream {
+         @Override
+         public void setBytesRef(BytesRef bytes) {
+             this.bytes = bytes;
++            // Update char buffer to match bytes
++            if (bytes != null) {
++                charBuffer.setLength(0);
++                charBuffer.append(bytes.utf8ToString());
++            }
+         }
+ 
+         @Override
+         public void clear() {
++            bytes = null;
++            charBuffer.setLength(0);
+         }
+ 
+         @Override
+         public void copyTo(AttributeImpl target) {
+             ByteTermAttributeImpl other = (ByteTermAttributeImpl) target;
+             other.bytes = bytes;
++            other.charBuffer.setLength(0);
++            other.charBuffer.append(charBuffer);
++        }
++
++        // CharTermAttribute implementation (Lucene 4.5.1 compatible)
++        @Override
++        public int length() {
++            return charBuffer.length();
++        }
++
++        @Override
++        public char charAt(int index) {
++            return charBuffer.charAt(index);
++        }
++
++        @Override
++        public CharTermAttribute append(CharSequence csq) {
++            charBuffer.append(csq);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute append(CharSequence csq, int start, int end) {
++            charBuffer.append(csq, start, end);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute append(char c) {
++            charBuffer.append(c);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute append(String string) {
++            charBuffer.append(string);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute setEmpty() {
++            charBuffer.setLength(0);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute setLength(int length) {
++            charBuffer.setLength(length);
++            return this;
++        }
++
++        @Override
++        public char[] resizeBuffer(int newSize) {
++            if (charBuffer.capacity() < newSize) {
++                charBuffer.ensureCapacity(newSize);
++            }
++            return getCharArray(charBuffer);
++        }
++
++        @Override
++        public char[] buffer() {
++            // Return char array representation of buffer
++            return getCharArray(charBuffer);
++        }
++
++        @Override
++        public void copyBuffer(char[] buffer, int offset, int length) {
++            charBuffer.setLength(0);
++            charBuffer.append(buffer, offset, length);
++        }
++
++        @Override
++        public CharTermAttribute append(StringBuilder builder) {
++            charBuffer.append(builder);
++            return this;
++        }
++
++        @Override
++        public CharTermAttribute append(CharTermAttribute ta) {
++            charBuffer.append(ta);
++            return this;
++        }
++
++        // Helper method to get char array from StringBuilder
++        private char[] getCharArray(StringBuilder sb) {
++            // This is a workaround to access the internal char array
++            char[] result = new char[sb.length()];
++            sb.getChars(0, sb.length(), result, 0);
++            return result;
++        }
++
++        @Override
++        public String toString() {
++            return charBuffer.toString();
++        }
++
++        @Override
++        public CharSequence subSequence(int start, int end) {
++            return charBuffer.subSequence(start, end);
+         }
+     }
+ }
+\ No newline at end of file

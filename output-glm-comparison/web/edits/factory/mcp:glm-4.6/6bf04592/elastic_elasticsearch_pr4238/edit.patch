@@ -1,0 +1,23 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
+index 8af6d85..3f10018 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
+@@ -77,12 +77,16 @@ public class ThrottlingAllocationDecider extends AllocationDecider {
+             assert shardRouting.unassigned() || shardRouting.active();
+             if (shardRouting.unassigned()) {
+                 // primary is unassigned, means we are going to do recovery from gateway
+-                // count *just the primary* currently doing recovery on the node and check against concurrent_recoveries
++                // count *just the primary* currently doing recovery from gateway on the node and check against concurrent_recoveries
++                // Note: we exclude RELOCATING primaries and relocating target primaries since they are not recovering from gateway
+                 int primariesInRecovery = 0;
+                 List<MutableShardRouting> shards = node.shards();
+                 for (int i = 0; i < shards.size(); i++) {
+                     MutableShardRouting shard = shards.get(i);
+-                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary()) {
++                    // Only count primaries that are INITIALIZING (recovering from gateway)
++                    // Exclude RELOCATING primaries and also exclude primaries that are targets of relocation
++                    // (identified by having a relocatingNodeId) as they are not recovering from gateway
++                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary() && shard.relocatingNodeId() == null) {
+                         primariesInRecovery++;
+                     }
+                 }

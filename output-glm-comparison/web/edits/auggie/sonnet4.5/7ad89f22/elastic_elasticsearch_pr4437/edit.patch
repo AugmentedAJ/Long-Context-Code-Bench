@@ -1,0 +1,77 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
+index 53a669c..551467a 100644
+--- a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
++++ b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
+@@ -97,8 +97,6 @@ import static com.google.common.collect.Lists.newArrayList;
+  */
+ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Repository> implements Repository {
+ 
+-    private BlobPath basePath;
+-
+     private ImmutableBlobContainer snapshotsBlobContainer;
+ 
+     private final String repositoryName;
+@@ -124,7 +122,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+         super(repositorySettings.globalSettings());
+         this.repositoryName = repositoryName;
+         this.indexShardRepository = (BlobStoreIndexShardRepository) indexShardRepository;
+-        this.basePath = BlobPath.cleanPath();
+         Map<String, String> globalOnlyParams = Maps.newHashMap();
+         globalOnlyParams.put(MetaData.GLOBAL_PERSISTENT_ONLY_PARAM, "true");
+         globalOnlyFormatParams = new ToXContent.MapParams(globalOnlyParams);
+@@ -135,8 +132,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+      */
+     @Override
+     protected void doStart() throws ElasticSearchException {
+-        this.snapshotsBlobContainer = blobStore().immutableBlobContainer(basePath);
+-        indexShardRepository.initialize(blobStore(), basePath, chunkSize());
++        this.snapshotsBlobContainer = blobStore().immutableBlobContainer(basePath());
++        indexShardRepository.initialize(blobStore(), basePath(), chunkSize());
+     }
+ 
+     /**
+@@ -167,6 +164,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+      */
+     abstract protected BlobStore blobStore();
+ 
++    /**
++     * Returns base path to the repository
++     * <p/>
++     * This method allows each repository type to manage its own path logic.
++     *
++     * @return base path
++     */
++    protected BlobPath basePath() {
++        return BlobPath.cleanPath();
++    }
++
+     /**
+      * Returns true if metadata and snapshot files should be compressed
+      *
+@@ -211,7 +219,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+             snapshotsBlobContainer.writeBlob(metaDataBlobName(snapshotId), bStream.bytes().streamInput(), bStream.bytes().length());
+             for (String index : indices) {
+                 IndexMetaData indexMetaData = metaData.index(index);
+-                BlobPath indexPath = basePath.add("indices").add(index);
++                BlobPath indexPath = basePath().add("indices").add(index);
+                 ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+                 bStream = new BytesStreamOutput();
+                 StreamOutput stream = bStream;
+@@ -244,7 +252,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+             snapshotsBlobContainer.deleteBlob(metaDataBlobName(snapshotId));
+             // Now delete all indices
+             for (String index : snapshot.indices()) {
+-                BlobPath indexPath = basePath.add("indices").add(index);
++                BlobPath indexPath = basePath().add("indices").add(index);
+                 ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+                 try {
+                     indexMetaDataBlobContainer.deleteBlob(blobName);
+@@ -338,7 +346,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+         }
+         MetaData.Builder metaDataBuilder = MetaData.builder(metaData);
+         for (String index : indices) {
+-            BlobPath indexPath = basePath.add("indices").add(index);
++            BlobPath indexPath = basePath().add("indices").add(index);
+             ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+             XContentParser parser = null;
+             try {

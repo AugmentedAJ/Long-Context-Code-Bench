@@ -1,0 +1,542 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+index 1cc7f37..9455dee 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+@@ -25,7 +25,7 @@ import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.ElasticSearchParseException;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+-import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.cluster.metadata.IndexMetaData;
+ import org.elasticsearch.common.bytes.BytesArray;
+ import org.elasticsearch.common.bytes.BytesReference;
+@@ -59,7 +59,7 @@ import static org.elasticsearch.common.unit.TimeValue.readTimeValue;
+  * @see org.elasticsearch.client.Requests#createIndexRequest(String)
+  * @see CreateIndexResponse
+  */
+-public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRequest> {
++public class CreateIndexRequest extends AbstractAcknowledgedRequest<CreateIndexRequest> {
+ 
+     private String cause = "";
+ 
+@@ -71,7 +71,7 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+ 
+     private Map<String, IndexMetaData.Custom> customs = newHashMap();
+ 
+-    private TimeValue timeout = new TimeValue(10, TimeUnit.SECONDS);
++    
+ 
+     CreateIndexRequest() {
+     }
+@@ -346,22 +346,7 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+         return timeout;
+     }
+ 
+-    /**
+-     * Timeout to wait for the index creation to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public CreateIndexRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    /**
+-     * Timeout to wait for the index creation to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public CreateIndexRequest timeout(String timeout) {
+-        return timeout(TimeValue.parseTimeValue(timeout, null));
+-    }
++    
+ 
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+@@ -369,7 +354,6 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+         cause = in.readString();
+         index = in.readString();
+         settings = readSettingsFromStream(in);
+-        timeout = readTimeValue(in);
+         int size = in.readVInt();
+         for (int i = 0; i < size; i++) {
+             mappings.put(in.readString(), in.readString());
+@@ -388,7 +372,6 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+         out.writeString(cause);
+         out.writeString(index);
+         writeSettingsToStream(settings, out);
+-        timeout.writeTo(out);
+         out.writeVInt(mappings.size());
+         for (Map.Entry<String, String> entry : mappings.entrySet()) {
+             out.writeString(entry.getKey());
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+index 7052861..2c21ce1 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+@@ -19,43 +19,22 @@
+ 
+ package org.elasticsearch.action.admin.indices.create;
+ 
+-import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.common.io.stream.StreamInput;
+-import org.elasticsearch.common.io.stream.StreamOutput;
+-
+-import java.io.IOException;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ 
+ /**
+  * A response for a create index action.
+  */
+-public class CreateIndexResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class CreateIndexResponse extends AbstractAcknowledgedResponse {
+ 
+     CreateIndexResponse() {
+     }
+ 
+     CreateIndexResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
++        super(acknowledged);
+     }
+ 
+     /**
+      * Has the index creation been acknowledged by all current cluster nodes within the
+      * provided {@link CreateIndexRequest#timeout(org.elasticsearch.common.unit.TimeValue)}.
+      */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
+-    }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/delete/DeleteIndexResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/delete/DeleteIndexResponse.java
+index c1b9718..ea3df2e 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/delete/DeleteIndexResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/delete/DeleteIndexResponse.java
+@@ -19,43 +19,22 @@
+ 
+ package org.elasticsearch.action.admin.indices.delete;
+ 
+-import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.common.io.stream.StreamInput;
+-import org.elasticsearch.common.io.stream.StreamOutput;
+-
+-import java.io.IOException;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ 
+ /**
+  * A response for a delete index action.
+  */
+-public class DeleteIndexResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class DeleteIndexResponse extends AbstractAcknowledgedResponse {
+ 
+     DeleteIndexResponse() {
+     }
+ 
+     DeleteIndexResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
++        super(acknowledged);
+     }
+ 
+     /**
+      * Has the index deletion been acknowledged by all current cluster nodes within the
+      * provided {@link DeleteIndexRequest#timeout(org.elasticsearch.common.unit.TimeValue)}.
+      */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
+-    }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexRequest.java
+index dd9151b..de2f191 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexRequest.java
+@@ -21,7 +21,7 @@ package org.elasticsearch.action.admin.indices.open;
+ 
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.support.IgnoreIndices;
+-import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.unit.TimeValue;
+@@ -35,10 +35,9 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
+ /**
+  * A request to open an index.
+  */
+-public class OpenIndexRequest extends MasterNodeOperationRequest<OpenIndexRequest> {
++public class OpenIndexRequest extends AbstractAcknowledgedRequest<OpenIndexRequest> {
+ 
+     private String[] indices;
+-    private TimeValue timeout = timeValueSeconds(10);
+     private IgnoreIndices ignoreIndices = IgnoreIndices.DEFAULT;
+ 
+     OpenIndexRequest() {
+@@ -86,22 +85,7 @@ public class OpenIndexRequest extends MasterNodeOperationRequest<OpenIndexReques
+         return timeout;
+     }
+ 
+-    /**
+-     * Timeout to wait for the index opening to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public OpenIndexRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    /**
+-     * Timeout to wait for the index opening to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public OpenIndexRequest timeout(String timeout) {
+-        return timeout(TimeValue.parseTimeValue(timeout, null));
+-    }
++    
+ 
+     /**
+      * Specifies what type of requested indices to ignore. For example indices that don't exist.
+@@ -125,7 +109,6 @@ public class OpenIndexRequest extends MasterNodeOperationRequest<OpenIndexReques
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+         indices = in.readStringArray();
+-        timeout = readTimeValue(in);
+         ignoreIndices = IgnoreIndices.fromId(in.readByte());
+     }
+ 
+@@ -133,7 +116,6 @@ public class OpenIndexRequest extends MasterNodeOperationRequest<OpenIndexReques
+     public void writeTo(StreamOutput out) throws IOException {
+         super.writeTo(out);
+         out.writeStringArray(indices);
+-        timeout.writeTo(out);
+         out.writeByte(ignoreIndices.id());
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexResponse.java
+index 097aa76..26c68d8 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/open/OpenIndexResponse.java
+@@ -19,39 +19,17 @@
+ 
+ package org.elasticsearch.action.admin.indices.open;
+ 
+-import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.common.io.stream.StreamInput;
+-import org.elasticsearch.common.io.stream.StreamOutput;
+-
+-import java.io.IOException;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ 
+ /**
+  * A response for a open index action.
+  */
+-public class OpenIndexResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class OpenIndexResponse extends AbstractAcknowledgedResponse {
+ 
+     OpenIndexResponse() {
+     }
+ 
+     OpenIndexResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        super(acknowledged);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
+index 83be17e..4ead1bf 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
+@@ -21,8 +21,7 @@ package org.elasticsearch.action.admin.indices.warmer.delete;
+ 
+ import org.elasticsearch.Version;
+ import org.elasticsearch.action.ActionRequestValidationException;
+-import org.elasticsearch.action.support.master.AcknowledgedRequest;
+-import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.Strings;
+ import org.elasticsearch.common.io.stream.StreamInput;
+@@ -32,20 +31,16 @@ import org.elasticsearch.common.unit.TimeValue;
+ import java.io.IOException;
+ 
+ import static org.elasticsearch.common.unit.TimeValue.readTimeValue;
+-import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
+ 
+ /**
+  * A request to delete an index warmer.
+  */
+-public class DeleteWarmerRequest extends MasterNodeOperationRequest<DeleteWarmerRequest>
+-        implements AcknowledgedRequest<DeleteWarmerRequest> {
++public class DeleteWarmerRequest extends AbstractAcknowledgedRequest<DeleteWarmerRequest> {
+ 
+     private String name;
+ 
+     private String[] indices = Strings.EMPTY_ARRAY;
+ 
+-    private TimeValue timeout = timeValueSeconds(10);
+-
+     DeleteWarmerRequest() {
+     }
+ 
+@@ -96,31 +91,13 @@ public class DeleteWarmerRequest extends MasterNodeOperationRequest<DeleteWarmer
+         return indices;
+     }
+ 
+-    @Override
+-    public DeleteWarmerRequest timeout(String timeout) {
+-        this.timeout = TimeValue.parseTimeValue(timeout, this.timeout);
+-        return this;
+-    }
+-
+-    @Override
+-    public DeleteWarmerRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    @Override
+-    public TimeValue timeout() {
+-        return timeout;
+-    }
++    
+ 
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+         name = in.readOptionalString();
+         indices = in.readStringArray();
+-        if (in.getVersion().onOrAfter(Version.V_0_90_6)) {
+-            timeout = readTimeValue(in);
+-        }
+     }
+ 
+     @Override
+@@ -128,8 +105,5 @@ public class DeleteWarmerRequest extends MasterNodeOperationRequest<DeleteWarmer
+         super.writeTo(out);
+         out.writeOptionalString(name);
+         out.writeStringArrayNullable(indices);
+-        if (out.getVersion().onOrAfter(Version.V_0_90_6)) {
+-            timeout.writeTo(out);
+-        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
+index 0d8b70e..b43056e 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
+@@ -19,40 +19,17 @@
+ 
+ package org.elasticsearch.action.admin.indices.warmer.delete;
+ 
+-import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.action.support.master.AcknowledgedResponse;
+-import org.elasticsearch.common.io.stream.StreamInput;
+-import org.elasticsearch.common.io.stream.StreamOutput;
+-
+-import java.io.IOException;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ 
+ /**
+  * A response for a delete warmer.
+  */
+-public class DeleteWarmerResponse extends ActionResponse implements AcknowledgedResponse {
+-
+-    private boolean acknowledged;
++public class DeleteWarmerResponse extends AbstractAcknowledgedResponse {
+ 
+     DeleteWarmerResponse() {
+     }
+ 
+     DeleteWarmerResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        super(acknowledged);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+index 5d5872f..2ffc258 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+@@ -23,8 +23,7 @@ import org.elasticsearch.Version;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.search.SearchRequest;
+ import org.elasticsearch.action.search.SearchRequestBuilder;
+-import org.elasticsearch.action.support.master.AcknowledgedRequest;
+-import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+@@ -34,20 +33,16 @@ import java.io.IOException;
+ 
+ import static org.elasticsearch.action.ValidateActions.addValidationError;
+ import static org.elasticsearch.common.unit.TimeValue.readTimeValue;
+-import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
+ 
+ /**
+  * A request to put a search warmer.
+  */
+-public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerRequest>
+-        implements AcknowledgedRequest<PutWarmerRequest> {
++public class PutWarmerRequest extends AbstractAcknowledgedRequest<PutWarmerRequest> {
+ 
+     private String name;
+ 
+     private SearchRequest searchRequest;
+ 
+-    private TimeValue timeout = timeValueSeconds(10);
+-
+     PutWarmerRequest() {
+ 
+     }
+@@ -94,21 +89,7 @@ public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerReques
+         return this.searchRequest;
+     }
+ 
+-    @Override
+-    public PutWarmerRequest timeout(String timeout) {
+-        return this;
+-    }
+-
+-    @Override
+-    public PutWarmerRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    @Override
+-    public TimeValue timeout() {
+-        return timeout;
+-    }
++    
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+@@ -127,9 +108,6 @@ public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerReques
+             searchRequest = new SearchRequest();
+             searchRequest.readFrom(in);
+         }
+-        if (in.getVersion().onOrAfter(Version.V_0_90_6)) {
+-            timeout = readTimeValue(in);
+-        }
+     }
+ 
+     @Override
+@@ -142,8 +120,5 @@ public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerReques
+             out.writeBoolean(true);
+             searchRequest.writeTo(out);
+         }
+-        if (out.getVersion().onOrAfter(Version.V_0_90_6)) {
+-            timeout.writeTo(out);
+-        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
+index c7daac7..c5bed77 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
+@@ -19,44 +19,22 @@
+ 
+ package org.elasticsearch.action.admin.indices.warmer.put;
+ 
+-import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.action.support.master.AcknowledgedResponse;
+-import org.elasticsearch.common.io.stream.StreamInput;
+-import org.elasticsearch.common.io.stream.StreamOutput;
+-
+-import java.io.IOException;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ 
+ /**
+  * The response of put warmer operation.
+  */
+-public class PutWarmerResponse extends ActionResponse implements AcknowledgedResponse {
+-
+-    private boolean acknowledged;
++public class PutWarmerResponse extends AbstractAcknowledgedResponse {
+ 
+     PutWarmerResponse() {
+ 
+     }
+ 
+     PutWarmerResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
++        super(acknowledged);
+     }
+ 
+     /**
+      * Has the put warmer been ack'ed.
+      */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
+-    }
+ }
+\ No newline at end of file

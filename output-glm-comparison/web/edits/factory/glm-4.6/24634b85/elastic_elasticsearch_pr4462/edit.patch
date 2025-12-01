@@ -1,0 +1,116 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+index 157df71..2265c37 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+@@ -78,11 +78,8 @@ public class GetAliasesRequest extends MasterNodeOperationRequest<GetAliasesRequ
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+-        if (aliases.length == 0) {
+-            return addValidationError("No alias specified", null);
+-        } else {
+-            return null;
+-        }
++        // Allow empty aliases array to retrieve all aliases
++        return null;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/TransportGetAliasesAction.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/TransportGetAliasesAction.java
+index 64d1e7d..057744e 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/TransportGetAliasesAction.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/TransportGetAliasesAction.java
+@@ -18,6 +18,7 @@
+ 
+ package org.elasticsearch.action.admin.indices.alias.get;
+ 
++import com.carrotsearch.hppc.cursors.ObjectCursor;
+ import org.elasticsearch.ElasticSearchException;
+ import org.elasticsearch.action.ActionListener;
+ import org.elasticsearch.action.support.master.TransportMasterNodeOperationAction;
+@@ -30,6 +31,7 @@ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.threadpool.ThreadPool;
+ import org.elasticsearch.transport.TransportService;
+ 
++import java.util.ArrayList;
+ import java.util.List;
+ 
+ /**
+@@ -68,8 +70,43 @@ public class TransportGetAliasesAction extends TransportMasterNodeOperationActio
+         request.indices(concreteIndices);
+ 
+         @SuppressWarnings("unchecked") // ImmutableList to List results incompatible type
+-        ImmutableOpenMap<String, List<AliasMetaData>> result = (ImmutableOpenMap) state.metaData().findAliases(request.aliases(), request.indices());
++        ImmutableOpenMap<String, List<AliasMetaData>> result;
++        
++        // If no specific aliases requested, return all aliases for the requested indices
++        if (request.aliases().length == 0) {
++            result = getAllAliasesForIndices(state.metaData(), request.indices());
++        } else {
++            result = (ImmutableOpenMap) state.metaData().findAliases(request.aliases(), request.indices());
++        }
++        
+         listener.onResponse(new GetAliasesResponse(result));
+     }
+ 
++    /**
++     * Gets all aliases for the specified indices.
++     */
++    @SuppressWarnings("unchecked")
++    private ImmutableOpenMap<String, List<AliasMetaData>> getAllAliasesForIndices(org.elasticsearch.cluster.metadata.MetaData metaData, String[] indices) {
++        ImmutableOpenMap.Builder<String, List<AliasMetaData>> mapBuilder = ImmutableOpenMap.builder();
++        
++        if (indices.length == 0) {
++            return mapBuilder.build();
++        }
++
++        for (String index : indices) {
++            org.elasticsearch.cluster.metadata.IndexMetaData indexMetaData = metaData.index(index);
++            if (indexMetaData != null && !indexMetaData.getAliases().isEmpty()) {
++                // Convert the alias metadata to match the expected return type
++                List<AliasMetaData> aliasList = new ArrayList<>();
++                for (ObjectCursor<AliasMetaData> cursor : indexMetaData.getAliases().values()) {
++                    aliasList.add(cursor.value);
++                }
++                if (!aliasList.isEmpty()) {
++                    mapBuilder.put(index, aliasList);
++                }
++            }
++        }
++        return (ImmutableOpenMap<String, List<AliasMetaData>>) (ImmutableOpenMap) mapBuilder.build();
++    }
++
+ }
+diff --git a/src/main/java/org/elasticsearch/rest/action/admin/indices/alias/get/RestGetAliasesAction.java b/src/main/java/org/elasticsearch/rest/action/admin/indices/alias/get/RestGetAliasesAction.java
+index 1ee0283..85b93ed 100644
+--- a/src/main/java/org/elasticsearch/rest/action/admin/indices/alias/get/RestGetAliasesAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/admin/indices/alias/get/RestGetAliasesAction.java
+@@ -71,13 +71,21 @@ public class RestGetAliasesAction extends BaseRestHandler {
+                 try {
+                     XContentBuilder builder = RestXContentBuilder.restContentBuilder(request);
+                     if (response.getAliases().isEmpty()) {
+-                        String message = String.format(Locale.ROOT, "alias [%s] missing", toNamesString(getAliasesRequest.aliases()));
+-                        builder.startObject()
+-                                .field("error", message)
+-                                .field("status", RestStatus.NOT_FOUND.getStatus())
+-                                .endObject();
+-                        channel.sendResponse(new XContentRestResponse(request, RestStatus.NOT_FOUND, builder));
+-                        return;
++                        boolean specifiedAliases = getAliasesRequest.aliases().length > 0;
++                        if (specifiedAliases) {
++                            String message = String.format(Locale.ROOT, "alias [%s] missing", toNamesString(getAliasesRequest.aliases()));
++                            builder.startObject()
++                                    .field("error", message)
++                                    .field("status", RestStatus.NOT_FOUND.getStatus())
++                                    .endObject();
++                            channel.sendResponse(new XContentRestResponse(request, RestStatus.NOT_FOUND, builder));
++                            return;
++                        } else {
++                            // No aliases requested and no aliases found - return empty response
++                            builder.startObject().endObject();
++                            channel.sendResponse(new XContentRestResponse(request, OK, builder));
++                            return;
++                        }
+                     }
+ 
+                     builder.startObject();

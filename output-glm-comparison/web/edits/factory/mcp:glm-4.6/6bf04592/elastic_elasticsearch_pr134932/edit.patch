@@ -1,0 +1,13 @@
+diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/action/EsqlCapabilities.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/action/EsqlCapabilities.java
+index 4de0c461..a68236d4 100644
+--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/action/EsqlCapabilities.java
++++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/action/EsqlCapabilities.java
+@@ -1505,7 +1505,7 @@ public class EsqlCapabilities {
+         ABSENT_OVER_TIME(Build.current().isSnapshot()),
+ 
+         /** INLINESTATS supports remote indices */
+-        INLINESTATS_SUPPORTS_REMOTE;
++        INLINESTATS_SUPPORTS_REMOTE(INLINESTATS.isEnabled());
+ 
+         private final boolean enabled;
+ 

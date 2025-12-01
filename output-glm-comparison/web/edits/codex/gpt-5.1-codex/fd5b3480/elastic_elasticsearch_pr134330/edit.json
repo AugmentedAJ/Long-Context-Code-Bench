@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134330,
+  "base_commit": "cf671ff721da8a26d4d3e30346b6bb639968f268",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 50754,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/internalClusterTest/java/org/elasticsearch/xpack/esql/action/RandomizedTimeSeriesIT.java b/x-pack/plugin/esql/src/internalClusterTest/java/org/elasticsearch/xpack/esql/action/RandomizedTimeSeriesIT.java\nindex 055eb384..e80b09bc 100644\n--- a/x-pack/plugin/esql/src/internalClusterTest/java/org/elasticsearch/xpack/esql/action/RandomizedTimeSeriesIT.java\n+++ b/x-pack/plugin/esql/src/internalClusterTest/java/org/elasticsearch/xpack/esql/action/RandomizedTimeSeriesIT.java\n@@ -303,6 +303,7 @@ public class RandomizedTimeSeriesIT extends AbstractEsqlIntegTestCase {\n         settingsBuilder.put(IndexSettings.MODE.getKey(), IndexMode.TIME_SERIES);\n         settingsBuilder.put(IndexSettings.TIME_SERIES_START_TIME.getKey(), \"2025-07-31T00:00:00Z\");\n         settingsBuilder.put(IndexSettings.TIME_SERIES_END_TIME.getKey(), \"2025-07-31T12:00:00Z\");\n+        settingsBuilder.put(IndexSettings.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), ESTestCase.between(1, 5));\n         CompressedXContent mappings = mappingString == null ? null : CompressedXContent.fromJSON(mappingString);\n         TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(\n             RandomizedTimeSeriesIT.DATASTREAM_NAME",
+  "logs_path": "codex/gpt-5.1-codex/1c2e04d5/elastic_elasticsearch_pr134330/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

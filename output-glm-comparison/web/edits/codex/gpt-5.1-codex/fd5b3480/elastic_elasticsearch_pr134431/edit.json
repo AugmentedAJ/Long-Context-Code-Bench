@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134431,
+  "base_commit": "be9d4e9bb1035ee52d8826bd883e9ff504b54e44",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 29191,
+  "patch_unified": "diff --git a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\nindex 3c5948d7..8a75d267 100644\n--- a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\n+++ b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\n@@ -369,15 +369,14 @@ public class PolicyManager {\n     boolean isTriviallyAllowed(Class<?> requestingClass) {\n         // note: do not log exceptions in here, this could interfere with loading of additionally necessary classes such as ThrowableProxy\n         if (requestingClass == null) {\n-            generalLogger.debug(\"Entitlement trivially allowed: no caller frames outside the entitlement library\");\n+            generalLogger.trace(\"Entitlement trivially allowed: no caller frames outside the entitlement library\");\n             return true;\n         }\n         if (requestingClass == NO_CLASS) {\n-            generalLogger.debug(\"Entitlement trivially allowed from outermost frame\");\n+            generalLogger.trace(\"Entitlement trivially allowed from outermost frame\");\n             return true;\n         }\n         if (isTrustedSystemClass(requestingClass)) {\n-            generalLogger.debug(\"Entitlement trivially allowed from system module [{}]\", requestingClass.getModule().getName());\n             return true;\n         }\n         generalLogger.trace(\"Entitlement not trivially allowed\");",
+  "logs_path": "codex/gpt-5.1-codex/fd5b3480/elastic_elasticsearch_pr134431/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

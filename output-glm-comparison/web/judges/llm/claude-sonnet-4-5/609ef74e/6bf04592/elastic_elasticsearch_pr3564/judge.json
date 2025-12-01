@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "head_commit": "2b03bc83a40e470c977564195f6dcc2c208710d1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.8,
+    "completeness": -0.4,
+    "code_reuse": 0.0,
+    "best_practices": -0.6,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": -0.16000000000000006,
+  "rationale": "The agent correctly removed the duplicate pidfile writing line, addressing the primary task requirement. However, it made critical errors: (1) removed 'exec' from both foreground and background cases, which fundamentally changes the process behavior - in foreground mode, 'exec' replaces the shell process, but the agent's version runs Java as a child process; (2) failed to properly clean up exec return code handling in the foreground case, keeping 'execval=$?' when it's unreachable with 'exec' (ground truth adds a comment explaining why it's unreachable); (3) the background case now attempts to capture the return code of a backgrounded process, which is incorrect. The agent also made an unrelated change to the version flag handler (line 147), changing '$es_parms' to absent and '$props' to '$properties', which appears to be a mistake. Ground truth properly uses 'exec' in foreground, removes it in background with 'return $?', and adds explanatory comments.",
+  "edit_run_id": "6bf04592",
+  "judge_run_id": "609ef74e",
+  "ground_truth_patch": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 5db2355add02..de071cca3892 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -126,16 +126,14 @@ launch_service()\n         es_parms=\"$es_parms -Des.foreground=yes\"\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                 org.elasticsearch.bootstrap.ElasticSearch\n-        execval=$?\n+        # exec without running it in the background, makes it replace this shell, we'll never get here...\n+        # no need to return something\n     else\n         # Startup ElasticSearch, background it, and write the pid.\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                     org.elasticsearch.bootstrap.ElasticSearch <&- &\n-        execval=$?\n-        [ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"\n+        return $?\n     fi\n-\n-    return $execval\n }\n \n # Parse any command line options."
+}

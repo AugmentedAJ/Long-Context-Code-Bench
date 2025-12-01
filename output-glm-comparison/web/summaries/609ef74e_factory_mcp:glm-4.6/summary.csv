@@ -1,0 +1,2 @@
+run_id,total_samples,successful_samples,failed_samples,skipped_samples,success_rate,win_rate,mean_correctness,mean_completeness,mean_code_reuse,mean_best_practices,mean_unsolicited_docs,mean_aggregate,std_aggregate,mean_elapsed_ms,tasks_per_hour,edit_run_id,judge_run_id,test_label,runner,model
+609ef74e,47,47,0,0,1.0,0.2127659574468085,-0.42340425531914894,-0.4308510638297872,-0.24468085106382978,-0.33191489361702126,0.425531914893617,-0.20106382978723406,0.29104933126274685,482452.170212766,7.461879585726324,6bf04592,609ef74e,v1-mcp,factory,custom:glm-4.6

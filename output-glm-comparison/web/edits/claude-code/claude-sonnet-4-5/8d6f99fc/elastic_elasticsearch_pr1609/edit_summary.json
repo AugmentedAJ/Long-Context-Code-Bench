@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 1609,
+  "base_commit": "0530115f62fc2128196fc0f3e39af4d4d1a2aea5",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 238993,
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr1609/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5",
+  "patch_file": "edit.patch"
+}

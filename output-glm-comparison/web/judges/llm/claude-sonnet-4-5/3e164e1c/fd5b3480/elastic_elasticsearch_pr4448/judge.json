@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4448,
+  "base_commit": "c30945a3d84c7e6aa516f123a140d344f5cec42e",
+  "head_commit": "b713cf56ed3199e0f7176ce27515a30553c4348e",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": 0.0,
+  "rationale": "LLM judge failed (JSON parse error): Expecting value: line 1 column 1 (char 0)",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 753aa8e0a34..794cd1b0895 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -150,8 +150,24 @@ launch_service()\n     fi\n }\n \n+# Parse any long getopt options and put them into properties before calling getopt below\n+# Be dash compatible to make sure running under ubuntu works\n+ARGV=\"\"\n+while [ $# -gt 0 ]\n+do\n+    case $1 in\n+      --*=*) properties=\"$properties -Des.${1#--}\"\n+           shift 1\n+           ;;\n+      --*) properties=\"$properties -Des.${1#--}=$2\"\n+           shift 2\n+           ;;\n+      *) ARGV=\"$ARGV $1\" ; shift\n+    esac\n+done\n+\n # Parse any command line options.\n-args=`getopt vdhp:D:X: \"$@\"`\n+args=`getopt vfhp:D:X: $ARGV`\n eval set -- \"$args\"\n \n while true; do\ndiff --git a/docs/reference/setup.asciidoc b/docs/reference/setup.asciidoc\nindex f535c2d1612..799dd47f279 100644\n--- a/docs/reference/setup.asciidoc\n+++ b/docs/reference/setup.asciidoc\n@@ -38,13 +38,13 @@ There are added features when using the `elasticsearch` shell script.\n The first, which was explained earlier, is the ability to easily run the\n process either in the foreground or the background.\n \n-Another feature is the ability to pass `-X` and `-D` directly to the\n-script. When set, both override anything set using either `JAVA_OPTS` or\n-`ES_JAVA_OPTS`. For example:\n+Another feature is the ability to pass `-X` and `-D` or getopt long style\n+configuration parameters directly to the script. When set, all override\n+anything set using either `JAVA_OPTS` or `ES_JAVA_OPTS`. For example:\n \n [source,sh]\n --------------------------------------------------\n-$ bin/elasticsearch -Xmx2g -Xms2g -Des.index.store.type=memory\n+$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory --node.name=my-node\n --------------------------------------------------\n *************************************************************************\n --\ndiff --git a/docs/reference/setup/installation.asciidoc b/docs/reference/setup/installation.asciidoc\nindex 5a6f9baf293..3350cd02429 100644\n--- a/docs/reference/setup/installation.asciidoc\n+++ b/docs/reference/setup/installation.asciidoc\n@@ -28,12 +28,12 @@ There are added features when using the `elasticsearch` shell script.\n The first, which was explained earlier, is the ability to easily run the\n process either in the foreground or the background.\n \n-Another feature is the ability to pass `-X` and `-D` directly to the\n-script. When set, both override anything set using either `JAVA_OPTS` or\n-`ES_JAVA_OPTS`. For example:\n+Another feature is the ability to pass `-X` and `-D` or getopt long style\n+configuration parameters directly to the script. When set, all override\n+anything set using either `JAVA_OPTS` or `ES_JAVA_OPTS`. For example:\n \n [source,sh]\n --------------------------------------------------\n-$ bin/elasticsearch -Xmx2g -Xms2g -Des.index.store.type=memory\n+$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory --node.name=my-node\n --------------------------------------------------\n *************************************************************************"
+}

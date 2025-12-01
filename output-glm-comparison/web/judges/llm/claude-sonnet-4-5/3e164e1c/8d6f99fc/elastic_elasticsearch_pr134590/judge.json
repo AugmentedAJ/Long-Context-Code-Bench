@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134590,
+  "base_commit": "2f49a5ebad3a0123b6b97d537a25ddabfdd47d55",
+  "head_commit": "c6baf40b7c5ce49e2f859f7288aac147b95500ab",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.6,
+    "completeness": -0.5,
+    "code_reuse": 0.0,
+    "best_practices": -0.3,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": -0.08000000000000003,
+  "rationale": "The agent's change is incorrect and incomplete. Ground truth splits the error message into two lines with proper punctuation and provides the specific command './gradle generateTransportVersion'. Agent's change: (1) keeps improper line break with 'a' at end of line 60, (2) invents a task name 'generateTransportVersionDefinition' that differs from ground truth's 'generateTransportVersion', (3) fails to properly format the message as two separate concatenations. The message structure remains awkward with 'but lacks a transport version definition' split incorrectly. Ground truth removes the trailing 'a' and TODO comment entirely, reformatting into two clean statements. Agent also kept the '// todo' comment removal but changed the task name incorrectly.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\nindex 6f7319bd4bc..c253b9583e2 100644\n--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\n+++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/ValidateTransportVersionReferencesTask.java\n@@ -58,8 +58,8 @@ public abstract class ValidateTransportVersionReferencesTask extends DefaultTask\n                         + tvReference.name()\n                         + \"\\\") was used at \"\n                         + tvReference.location()\n-                        + \", but lacks a\"\n-                        + \" transport version definition. This can be generated with the <TODO> task\" // todo\n+                        + \", but lacks a transport version definition. \"\n+                        + \"If this is a new transport version, run './gradle generateTransportVersion'.\"\n                 );\n             }\n         }"
+}

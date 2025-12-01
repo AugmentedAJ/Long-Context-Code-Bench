@@ -1,0 +1,28 @@
+diff --git a/bin/elasticsearch b/bin/elasticsearch
+index 5db2355..da1981c 100755
+--- a/bin/elasticsearch
++++ b/bin/elasticsearch
+@@ -124,18 +124,17 @@ launch_service()
+     # The es-foreground option will tell ElasticSearch not to close stdout/stderr, but it's up to us not to background.
+     if [ "x$foreground" != "x" ]; then
+         es_parms="$es_parms -Des.foreground=yes"
++        # Use exec in foreground mode so we replace the shell process
+         exec "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
+                 org.elasticsearch.bootstrap.ElasticSearch
+-        execval=$?
++        # exec never returns, so the code below never executes in foreground mode
+     else
+-        # Startup ElasticSearch, background it, and write the pid.
+-        exec "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
++        # Startup ElasticSearch, background it.  Java will write the pid file if pidpath is set.
++        "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
+                     org.elasticsearch.bootstrap.ElasticSearch <&- &
+         execval=$?
+-        [ ! -z "$pidpath" ] && printf '%d' $! > "$pidpath"
++        return $execval
+     fi
+-
+-    return $execval
+ }
+ 
+ # Parse any command line options.

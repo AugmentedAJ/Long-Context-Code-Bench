@@ -1,0 +1,150 @@
+diff --git a/server/src/main/java/org/elasticsearch/ingest/ConditionalProcessor.java b/server/src/main/java/org/elasticsearch/ingest/ConditionalProcessor.java
+index 24e093d5..f639c58d 100644
+--- a/server/src/main/java/org/elasticsearch/ingest/ConditionalProcessor.java
++++ b/server/src/main/java/org/elasticsearch/ingest/ConditionalProcessor.java
+@@ -158,6 +158,8 @@ public class ConditionalProcessor extends AbstractProcessor implements WrappingP
+             return new UnmodifiableIngestData((Map<String, Object>) raw);
+         } else if (raw instanceof List) {
+             return new UnmodifiableIngestList((List<Object>) raw);
++        } else if (raw instanceof Set) {
++            return new UnmodifiableIngestSet((Set<Object>) raw);
+         } else if (raw instanceof byte[] bytes) {
+             return bytes.clone();
+         }
+@@ -465,4 +467,104 @@ public class ConditionalProcessor extends AbstractProcessor implements WrappingP
+             }
+         }
+     }
++
++    private static final class UnmodifiableIngestSet implements Set<Object> {
++
++        private final Set<Object> data;
++
++        UnmodifiableIngestSet(Set<Object> data) {
++            this.data = data;
++        }
++
++        @Override
++        public int size() {
++            return data.size();
++        }
++
++        @Override
++        public boolean isEmpty() {
++            return data.isEmpty();
++        }
++
++        @Override
++        public boolean contains(final Object o) {
++            return data.contains(o);
++        }
++
++        @Override
++        public Iterator<Object> iterator() {
++            Iterator<Object> wrapped = data.iterator();
++            return new Iterator<Object>() {
++                @Override
++                public boolean hasNext() {
++                    return wrapped.hasNext();
++                }
++
++                @Override
++                public Object next() {
++                    return wrapUnmodifiable(wrapped.next());
++                }
++
++                @Override
++                public void remove() {
++                    throw unmodifiableException();
++                }
++            };
++        }
++
++        @Override
++        public Object[] toArray() {
++            Object[] wrapped = data.toArray(new Object[0]);
++            for (int i = 0; i < wrapped.length; i++) {
++                wrapped[i] = wrapUnmodifiable(wrapped[i]);
++            }
++            return wrapped;
++        }
++
++        @Override
++        @SuppressWarnings("unchecked")
++        public <T> T[] toArray(final T[] a) {
++            Object[] raw = data.toArray(new Object[0]);
++            T[] wrapped = (T[]) Arrays.copyOf(raw, a.length, a.getClass());
++            for (int i = 0; i < wrapped.length; i++) {
++                wrapped[i] = (T) wrapUnmodifiable(wrapped[i]);
++            }
++            return wrapped;
++        }
++
++        @Override
++        public boolean add(final Object o) {
++            throw unmodifiableException();
++        }
++
++        @Override
++        public boolean remove(final Object o) {
++            throw unmodifiableException();
++        }
++
++        @Override
++        public boolean containsAll(final Collection<?> c) {
++            return data.containsAll(c);
++        }
++
++        @Override
++        public boolean addAll(final Collection<?> c) {
++            throw unmodifiableException();
++        }
++
++        @Override
++        public boolean retainAll(final Collection<?> c) {
++            throw unmodifiableException();
++        }
++
++        @Override
++        public boolean removeAll(final Collection<?> c) {
++            throw unmodifiableException();
++        }
++
++        @Override
++        public void clear() {
++            throw unmodifiableException();
++        }
++    }
+ }
+diff --git a/server/src/test/java/org/elasticsearch/ingest/ConditionalProcessorTests.java b/server/src/test/java/org/elasticsearch/ingest/ConditionalProcessorTests.java
+index 1317233d..29174aa2 100644
+--- a/server/src/test/java/org/elasticsearch/ingest/ConditionalProcessorTests.java
++++ b/server/src/test/java/org/elasticsearch/ingest/ConditionalProcessorTests.java
+@@ -26,8 +26,10 @@ import org.elasticsearch.test.ESTestCase;
+ import java.text.ParseException;
+ import java.util.ArrayList;
+ import java.util.HashMap;
++import java.util.HashSet;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Set;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.function.BiConsumer;
+@@ -141,6 +143,8 @@ public class ConditionalProcessorTests extends ESTestCase {
+         assertMutatingCtxThrows(ctx -> ctx.put("foo", "bar"));
+         assertMutatingCtxThrows(ctx -> ((List<Object>) ctx.get("listField")).add("bar"));
+         assertMutatingCtxThrows(ctx -> ((List<Object>) ctx.get("listField")).remove("bar"));
++        assertMutatingCtxThrows(ctx -> ((Set<Object>) ctx.get("setField")).add("bar"));
++        assertMutatingCtxThrows(ctx -> ((Set<Object>) ctx.get("setField")).remove("bar"));
+     }
+ 
+     public void testPrecompiledError() {
+@@ -221,6 +225,7 @@ public class ConditionalProcessorTests extends ESTestCase {
+         );
+         IngestDocument ingestDocument = RandomDocumentPicks.randomIngestDocument(random(), document);
+         ingestDocument.setFieldValue("listField", new ArrayList<>());
++        ingestDocument.setFieldValue("setField", new HashSet<>());
+         execProcessor(processor, ingestDocument, (result, e) -> {});
+         Exception e = safeGet(expectedException);
+         assertThat(e, instanceOf(UnsupportedOperationException.class));

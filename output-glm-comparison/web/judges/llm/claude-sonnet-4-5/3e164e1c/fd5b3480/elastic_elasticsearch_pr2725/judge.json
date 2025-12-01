@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 2725,
+  "base_commit": "a1b24343398babc34e5c5bb372f8d041a3257c94",
+  "head_commit": "dc28151ad77df81fc8b77b7ecf0ebe9d0430ffee",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.8,
+    "completeness": 1.0,
+    "code_reuse": 0.9,
+    "best_practices": 0.9,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.9199999999999999,
+  "rationale": "The agent correctly identified and fixed the swapped fields in FieldDataStats.toXContent(). Both diffs swap the two field assignments to fix the bug. The ground truth uses `getMemorySize().toString()` and `memorySize` for the two fields, while the agent uses `getMemorySize()` and `getMemorySizeInBytes()`. The agent's approach is slightly better because it consistently uses getter methods rather than mixing direct field access with getters, which is more encapsulated and follows better OOP practices. The `getMemorySize()` method likely returns a ByteSizeValue or similar object that has a proper toString() implementation, so omitting .toString() relies on implicit conversion which should work correctly. The use of `getMemorySizeInBytes()` is more explicit and readable than accessing the raw `memorySize` field. No unsolicited documentation was added. The change is complete and addresses the task fully.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\nindex f9255ab2dd5..33f898f02b0 100644\n--- a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n+++ b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n@@ -83,8 +83,8 @@ public class FieldDataStats implements Streamable, ToXContent {\n     @Override\n     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {\n         builder.startObject(Fields.FIELD_DATA);\n-        builder.field(Fields.MEMORY_SIZE, memorySize);\n-        builder.field(Fields.MEMORY_SIZE_IN_BYTES, getMemorySize().toString());\n+        builder.field(Fields.MEMORY_SIZE, getMemorySize().toString());\n+        builder.field(Fields.MEMORY_SIZE_IN_BYTES, memorySize);\n         builder.field(Fields.EVICTIONS, getEvictions());\n         builder.endObject();\n         return builder;"
+}

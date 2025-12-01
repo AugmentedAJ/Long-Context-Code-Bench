@@ -1,0 +1,67 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
+index 8af6d85..dadddbb 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java
+@@ -82,7 +82,7 @@ public class ThrottlingAllocationDecider extends AllocationDecider {
+                 List<MutableShardRouting> shards = node.shards();
+                 for (int i = 0; i < shards.size(); i++) {
+                     MutableShardRouting shard = shards.get(i);
+-                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary()) {
++                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary() && shard.relocatingNodeId() == null) {
+                         primariesInRecovery++;
+                     }
+                 }
+diff --git a/src/test/java/org/elasticsearch/cluster/routing/allocation/ThrottlingAllocationTests.java b/src/test/java/org/elasticsearch/cluster/routing/allocation/ThrottlingAllocationTests.java
+index da89e11..342e2da 100644
+--- a/src/test/java/org/elasticsearch/cluster/routing/allocation/ThrottlingAllocationTests.java
++++ b/src/test/java/org/elasticsearch/cluster/routing/allocation/ThrottlingAllocationTests.java
+@@ -23,12 +23,21 @@ import org.elasticsearch.cluster.ClusterState;
+ import org.elasticsearch.cluster.metadata.IndexMetaData;
+ import org.elasticsearch.cluster.metadata.MetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNodes;
++import org.elasticsearch.cluster.routing.MutableShardRouting;
++import org.elasticsearch.cluster.routing.RoutingNode;
+ import org.elasticsearch.cluster.routing.RoutingTable;
++import org.elasticsearch.cluster.routing.allocation.decider.Decision;
++import org.elasticsearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider;
+ import org.elasticsearch.common.logging.ESLogger;
+ import org.elasticsearch.common.logging.Loggers;
++import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.node.settings.NodeSettingsService;
+ import org.elasticsearch.test.ElasticsearchTestCase;
+ import org.junit.Test;
+ 
++import java.util.ArrayList;
++import java.util.List;
++
+ import static org.elasticsearch.cluster.routing.ShardRoutingState.*;
+ import static org.elasticsearch.cluster.routing.allocation.RoutingAllocationTests.newNode;
+ import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
+@@ -171,4 +180,27 @@ public class ThrottlingAllocationTests extends ElasticsearchTestCase {
+         assertThat(routingTable.shardsWithState(INITIALIZING).size(), equalTo(0));
+         assertThat(routingTable.shardsWithState(UNASSIGNED).size(), equalTo(0));
+     }
++
++    @Test
++    public void testRelocatingPrimariesDoNotCountAsLocalRecoveries() {
++        Settings settings = settingsBuilder()
++                .put("cluster.routing.allocation.node_initial_primaries_recoveries", 1)
++                .put("cluster.routing.allocation.node_concurrent_recoveries", 10)
++                .build();
++        ThrottlingAllocationDecider decider = new ThrottlingAllocationDecider(settings, new NodeSettingsService(settings));
++
++        MutableShardRouting unassignedPrimary = new MutableShardRouting("idx", 1, null, true, UNASSIGNED, 0);
++
++        List<MutableShardRouting> shards = new ArrayList<MutableShardRouting>();
++        shards.add(new MutableShardRouting("idx", 0, "node1", "node0", true, INITIALIZING, 0));
++
++        RoutingNode node = new RoutingNode("node1", newNode("node1"), shards);
++
++        Decision decision = decider.canAllocate(unassignedPrimary, node, null);
++        assertThat(decision, equalTo(Decision.YES));
++
++        shards.add(new MutableShardRouting("idx", 2, "node1", null, true, INITIALIZING, 0));
++        decision = decider.canAllocate(unassignedPrimary, node, null);
++        assertThat(decision, equalTo(Decision.THROTTLE));
++    }
+ }

@@ -1,0 +1,13 @@
+diff --git a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
+index b57b4369..c4039741 100644
+--- a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
++++ b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
+@@ -56,7 +56,7 @@ public interface Block extends Accountable, BlockLoader.Block, Writeable, RefCou
+      * but we approximate it with {@link RamUsageEstimator#NUM_BYTES_OBJECT_ALIGNMENT} to avoid further alignments
+      * to object size (at the end of the alignment, it would make no practical difference).
+      */
+-    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT;
++    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT * 4;
+ 
+     /**
+      * {@return an efficient dense single-value view of this block}.

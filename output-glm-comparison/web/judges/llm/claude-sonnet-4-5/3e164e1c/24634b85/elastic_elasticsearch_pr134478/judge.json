@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134478,
+  "base_commit": "7295189560dee0151019e46059d5b5e1fe0f5378",
+  "head_commit": "58f680cd5c8d125c65ea833461bf8332df2317b1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": -0.3,
+    "unsolicited_docs": -1.0
+  },
+  "aggregate": -0.26,
+  "rationale": "The agent correctly implements the core change by multiplying PAGE_MEM_OVERHEAD_PER_BLOCK by 4, matching the ground truth's functional requirement. However, the agent significantly deviated from the ground truth's documentation approach. The ground truth keeps the existing comment about avoiding object alignment and adds a concise one-line explanation mentioning experiments with many small pages. The agent removed important context about alignment and replaced it with verbose, redundant documentation (3 lines explaining the same concept repeatedly). This represents unsolicited over-documentation that deviates from the minimal, targeted style of the ground truth. The task asked to 'increase the Block memory overhead estimate' - it did not request extensive documentation rewriting or elaboration beyond what the ground truth shows.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\nindex b57b436964a..8af78dc4fa8 100644\n--- a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\n+++ b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java\n@@ -54,9 +54,10 @@ public interface Block extends Accountable, BlockLoader.Block, Writeable, RefCou\n      *\n      * The exact overhead per block would be (more correctly) {@link RamUsageEstimator#NUM_BYTES_OBJECT_REF},\n      * but we approximate it with {@link RamUsageEstimator#NUM_BYTES_OBJECT_ALIGNMENT} to avoid further alignments\n-     * to object size (at the end of the alignment, it would make no practical difference).\n+     * to object size (at the end of the alignment, it would make no practical difference). We uplift it {@code * 4}\n+     * based on experiments with many small pages.\n      */\n-    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT;\n+    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT * 4;\n \n     /**\n      * {@return an efficient dense single-value view of this block}."
+}

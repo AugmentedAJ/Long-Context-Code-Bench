@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4448,
+  "base_commit": "c30945a3d84c7e6aa516f123a140d344f5cec42e",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 64895,
+  "patch_unified": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 753aa8e..8aa807c 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -151,6 +151,7 @@ launch_service()\n }\n \n # Parse any command line options.\n+properties=\"\"\n args=`getopt vdhp:D:X: \"$@\"`\n eval set -- \"$args\"\n \n@@ -170,7 +171,7 @@ while true; do\n             shift\n         ;;\n         -h)\n-            echo \"Usage: $0 [-d] [-h] [-p pidfile]\"\n+            echo \"Usage: $0 [-d] [-h] [-p pidfile] [--key=value ...]\"\n             exit 0\n         ;;\n         -D)\n@@ -192,6 +193,41 @@ while true; do\n     esac\n done\n \n+# Support passing any elasticsearch setting as --key=value which maps to\n+# -Des.key=value\n+while [ $# -gt 0 ]; do\n+    case $1 in\n+        --*)\n+            option=${1#--}\n+            if [ -z \"$option\" ]; then\n+                echo \"Error parsing argument $1!\" >&2\n+                exit 1\n+            fi\n+            case $option in\n+                *=*)\n+                    name=${option%%=*}\n+                    value=${option#*=}\n+                ;;\n+                *)\n+                    if [ $# -lt 2 ]; then\n+                        echo \"Option --$option requires an argument\" >&2\n+                        exit 1\n+                    fi\n+                    name=$option\n+                    value=$2\n+                    shift\n+                ;;\n+            esac\n+            properties=\"$properties -Des.$name=$value\"\n+            shift\n+        ;;\n+        *)\n+            echo \"Error parsing argument $1!\" >&2\n+            exit 1\n+        ;;\n+    esac\n+done\n+\n # Start up the service\n launch_service \"$pidfile\" \"$daemonized\" \"$properties\"\n ",
+  "logs_path": "codex/gpt-5.1-codex/93548e0a/elastic_elasticsearch_pr4448/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

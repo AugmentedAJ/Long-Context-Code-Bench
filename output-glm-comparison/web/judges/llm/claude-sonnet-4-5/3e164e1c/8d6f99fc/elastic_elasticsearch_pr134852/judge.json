@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134852,
+  "base_commit": "5e48fd3da4bb9b5793e4292c5d604dd86dcf98d3",
+  "head_commit": "b970df0367193b33a4c34039593338886fc23bd8",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": 0.0,
+  "rationale": "The agent's diff is identical to the ground truth diff. Both change line 86 in ThreadPoolMergeExecutorServiceDiskSpaceTests.java from `randomIntBetween(2, 9)` to `randomIntBetween(2, 8)`, which correctly addresses the task requirement to fix the inclusive upper bound issue. The agent made no additional changes, no unsolicited documentation, and followed the exact same minimal approach as the ground truth. The fix is correct, complete, and follows best practices by making only the necessary change.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/server/src/test/java/org/elasticsearch/index/engine/ThreadPoolMergeExecutorServiceDiskSpaceTests.java b/server/src/test/java/org/elasticsearch/index/engine/ThreadPoolMergeExecutorServiceDiskSpaceTests.java\nindex cc8d56c2fb3..ffcd58a57c9 100644\n--- a/server/src/test/java/org/elasticsearch/index/engine/ThreadPoolMergeExecutorServiceDiskSpaceTests.java\n+++ b/server/src/test/java/org/elasticsearch/index/engine/ThreadPoolMergeExecutorServiceDiskSpaceTests.java\n@@ -83,7 +83,7 @@ public class ThreadPoolMergeExecutorServiceDiskSpaceTests extends ESTestCase {\n         // use 2 data paths\n         String[] paths = new String[] { path.resolve(aPathPart).toString(), path.resolve(bPathPart).toString() };\n         // some tests hold one merge thread blocked, and need at least one other runnable\n-        mergeExecutorThreadCount = randomIntBetween(2, 9);\n+        mergeExecutorThreadCount = randomIntBetween(2, 8);\n         Settings.Builder settingsBuilder = Settings.builder()\n             .put(Environment.PATH_HOME_SETTING.getKey(), path)\n             .putList(Environment.PATH_DATA_SETTING.getKey(), paths)"
+}

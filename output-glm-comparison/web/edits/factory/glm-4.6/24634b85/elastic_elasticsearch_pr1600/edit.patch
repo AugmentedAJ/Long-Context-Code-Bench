@@ -1,0 +1,47 @@
+diff --git a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+index 5a296cd..230371d 100644
+--- a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
++++ b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+@@ -52,6 +52,7 @@ import org.elasticsearch.index.get.GetResult;
+ import org.elasticsearch.index.mapper.internal.ParentFieldMapper;
+ import org.elasticsearch.index.mapper.internal.RoutingFieldMapper;
+ import org.elasticsearch.index.mapper.internal.SourceFieldMapper;
++import org.elasticsearch.index.mapper.internal.TTLFieldMapper;
+ import org.elasticsearch.index.mapper.internal.TimestampFieldMapper;
+ import org.elasticsearch.index.service.IndexService;
+ import org.elasticsearch.index.shard.IllegalIndexShardStateException;
+@@ -153,7 +154,7 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         IndexShard indexShard = indexService.shardSafe(request.shardId());
+ 
+         GetResult getResult = indexShard.getService().get(request.type(), request.id(),
+-                new String[]{SourceFieldMapper.NAME, RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TimestampFieldMapper.NAME}, true);
++                new String[]{SourceFieldMapper.NAME, RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TimestampFieldMapper.NAME, TTLFieldMapper.NAME}, true);
+ 
+         // no doc, what to do, what to do...
+         if (!getResult.exists()) {
+@@ -188,7 +189,16 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         // apply script to update the source
+         String routing = getResult.fields().containsKey(RoutingFieldMapper.NAME) ? getResult.field(RoutingFieldMapper.NAME).value().toString() : null;
+         String parent = getResult.fields().containsKey(ParentFieldMapper.NAME) ? getResult.field(ParentFieldMapper.NAME).value().toString() : null;
+-        // TODO ttl/timestamp
++        
++        // extract timestamp and ttl from existing document
++        String timestamp = null;
++        Long ttl = null;
++        if (getResult.fields().containsKey(TimestampFieldMapper.NAME)) {
++            timestamp = getResult.field(TimestampFieldMapper.NAME).value().toString();
++        }
++        // TTL field stores expiration timestamp, not duration, so we don't extract it
++        // The IndexRequest.ttl() expects a duration, and if not set, it will use default
++        // The stored expiration timestamp will be recalculated automatically when indexed
+ 
+         // TODO percolate?
+ 
+@@ -197,6 +207,7 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         if (operation == null || "index".equals(operation)) {
+             IndexRequest indexRequest = Requests.indexRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
+                     .source(source, sourceAndContent.v1())
++                    .timestamp(timestamp)
+                     .version(getResult.version()).replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel());
+             indexRequest.operationThreaded(false);
+             indexAction.execute(indexRequest, new ActionListener<IndexResponse>() {

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4238,
+  "base_commit": "8e17d636ef441a9be80977d34acfaabc12982eb7",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 125479,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java\nindex 8af6d85..477e8ea 100644\n--- a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java\n+++ b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/ThrottlingAllocationDecider.java\n@@ -82,7 +82,8 @@ public class ThrottlingAllocationDecider extends AllocationDecider {\n                 List<MutableShardRouting> shards = node.shards();\n                 for (int i = 0; i < shards.size(); i++) {\n                     MutableShardRouting shard = shards.get(i);\n-                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary()) {\n+                    // Don't count relocating primaries, they are counted in the general recovery section below\n+                    if (shard.state() == ShardRoutingState.INITIALIZING && shard.primary() && shard.relocatingNodeId() == null) {\n                         primariesInRecovery++;\n                     }\n                 }",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr4238/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

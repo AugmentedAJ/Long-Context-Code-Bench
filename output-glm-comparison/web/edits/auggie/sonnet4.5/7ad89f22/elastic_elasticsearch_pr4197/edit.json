@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4197,
+  "base_commit": "513611bd48e471a6c9594301149c390476a4bc0d",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 109102,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\nindex 0b59da7..135e8f8 100644\n--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\n+++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\n@@ -88,10 +88,21 @@ public class PutWarmerRequest extends AcknowledgedRequest<PutWarmerRequest> {\n \n     @Override\n     public ActionRequestValidationException validate() {\n-        ActionRequestValidationException validationException = searchRequest.validate();\n+        ActionRequestValidationException validationException = null;\n         if (name == null) {\n             validationException = addValidationError(\"name is missing\", validationException);\n         }\n+        if (searchRequest == null) {\n+            validationException = addValidationError(\"search request is missing\", validationException);\n+        } else {\n+            ActionRequestValidationException ex = searchRequest.validate();\n+            if (ex != null) {\n+                if (validationException == null) {\n+                    validationException = new ActionRequestValidationException();\n+                }\n+                validationException.addValidationErrors(ex.validationErrors());\n+            }\n+        }\n         return validationException;\n     }\n ",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr4197/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

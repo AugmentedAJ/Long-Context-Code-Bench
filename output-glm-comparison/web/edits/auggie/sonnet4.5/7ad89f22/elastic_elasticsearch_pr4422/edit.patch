@@ -1,0 +1,331 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+index 9814efc..84580a8 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+@@ -59,7 +59,7 @@ import static org.elasticsearch.common.unit.TimeValue.readTimeValue;
+  * @see org.elasticsearch.client.Requests#createIndexRequest(String)
+  * @see CreateIndexResponse
+  */
+-public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRequest> {
++public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> {
+ 
+     private String cause = "";
+ 
+@@ -71,8 +71,6 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+ 
+     private Map<String, IndexMetaData.Custom> customs = newHashMap();
+ 
+-    private TimeValue timeout = AcknowledgedRequest.DEFAULT_ACK_TIMEOUT;
+-
+     CreateIndexRequest() {
+     }
+ 
+@@ -338,38 +336,13 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+         return this.customs;
+     }
+ 
+-    /**
+-     * Timeout to wait for the index creation to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public TimeValue timeout() {
+-        return timeout;
+-    }
+-
+-    /**
+-     * Timeout to wait for the index creation to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public CreateIndexRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    /**
+-     * Timeout to wait for the index creation to be acknowledged by current cluster nodes. Defaults
+-     * to <tt>10s</tt>.
+-     */
+-    public CreateIndexRequest timeout(String timeout) {
+-        return timeout(TimeValue.parseTimeValue(timeout, null));
+-    }
+-
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+         cause = in.readString();
+         index = in.readString();
+         settings = readSettingsFromStream(in);
+-        timeout = readTimeValue(in);
++        readTimeout(in);
+         int size = in.readVInt();
+         for (int i = 0; i < size; i++) {
+             mappings.put(in.readString(), in.readString());
+@@ -388,7 +361,7 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+         out.writeString(cause);
+         out.writeString(index);
+         writeSettingsToStream(settings, out);
+-        timeout.writeTo(out);
++        writeTimeout(out);
+         out.writeVInt(mappings.size());
+         for (Map.Entry<String, String> entry : mappings.entrySet()) {
+             out.writeString(entry.getKey());
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+index 7052861..59fdd23 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexResponse.java
+@@ -19,7 +19,7 @@
+ 
+ package org.elasticsearch.action.admin.indices.create;
+ 
+-import org.elasticsearch.action.ActionResponse;
++import org.elasticsearch.action.support.master.AcknowledgedResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+@@ -28,34 +28,24 @@ import java.io.IOException;
+ /**
+  * A response for a create index action.
+  */
+-public class CreateIndexResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class CreateIndexResponse extends AcknowledgedResponse {
+ 
+     CreateIndexResponse() {
+     }
+ 
+     CreateIndexResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    /**
+-     * Has the index creation been acknowledged by all current cluster nodes within the
+-     * provided {@link CreateIndexRequest#timeout(org.elasticsearch.common.unit.TimeValue)}.
+-     */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
++        super(acknowledged);
+     }
+ 
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+-        acknowledged = in.readBoolean();
++        readAcknowledged(in);
+     }
+ 
+     @Override
+     public void writeTo(StreamOutput out) throws IOException {
+         super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        writeAcknowledged(out);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+index a394166..f3feaa0 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+@@ -30,15 +30,16 @@ import org.apache.lucene.util.IOUtils;
+ import org.elasticsearch.ElasticSearchException;
+ import org.elasticsearch.Version;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
++import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
+ import org.elasticsearch.cluster.ClusterService;
+ import org.elasticsearch.cluster.ClusterState;
+-import org.elasticsearch.cluster.TimeoutClusterStateUpdateTask;
+-import org.elasticsearch.cluster.action.index.NodeIndexCreatedAction;
+ import org.elasticsearch.cluster.block.ClusterBlock;
+ import org.elasticsearch.cluster.block.ClusterBlocks;
+ import org.elasticsearch.cluster.routing.RoutingTable;
++import org.elasticsearch.cluster.node.DiscoveryNode;
+ import org.elasticsearch.cluster.routing.allocation.AllocationService;
+ import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
++import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.Priority;
+ import org.elasticsearch.common.Strings;
+ import org.elasticsearch.common.component.AbstractComponent;
+@@ -69,11 +70,9 @@ import java.io.FileInputStream;
+ import java.io.IOException;
+ import java.io.InputStreamReader;
+ import java.util.*;
+-import java.util.concurrent.ScheduledFuture;
+ import java.util.concurrent.Semaphore;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicBoolean;
+-import java.util.concurrent.atomic.AtomicInteger;
+ 
+ import static com.google.common.collect.Maps.newHashMap;
+ import static org.elasticsearch.cluster.metadata.IndexMetaData.*;
+@@ -89,21 +88,19 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+     private final ClusterService clusterService;
+     private final IndicesService indicesService;
+     private final AllocationService allocationService;
+-    private final NodeIndexCreatedAction nodeIndexCreatedAction;
+     private final MetaDataService metaDataService;
+     private final Version version;
+     private final String riverIndexName;
+ 
+     @Inject
+     public MetaDataCreateIndexService(Settings settings, Environment environment, ThreadPool threadPool, ClusterService clusterService, IndicesService indicesService,
+-                                      AllocationService allocationService, NodeIndexCreatedAction nodeIndexCreatedAction, MetaDataService metaDataService, Version version, @RiverIndexName String riverIndexName) {
++                                      AllocationService allocationService, MetaDataService metaDataService, Version version, @RiverIndexName String riverIndexName) {
+         super(settings);
+         this.environment = environment;
+         this.threadPool = threadPool;
+         this.clusterService = clusterService;
+         this.indicesService = indicesService;
+         this.allocationService = allocationService;
+-        this.nodeIndexCreatedAction = nodeIndexCreatedAction;
+         this.metaDataService = metaDataService;
+         this.version = version;
+         this.riverIndexName = riverIndexName;
+@@ -174,7 +171,12 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+ 
+     private void createIndex(final Request request, final Listener userListener, Semaphore mdLock) {
+         final CreateIndexListener listener = new CreateIndexListener(mdLock, request, userListener);
+-        clusterService.submitStateUpdateTask("create-index [" + request.index + "], cause [" + request.cause + "]", Priority.URGENT, new TimeoutClusterStateUpdateTask() {
++        clusterService.submitStateUpdateTask("create-index [" + request.index + "], cause [" + request.cause + "]", Priority.URGENT, new AckedClusterStateUpdateTask() {
++
++            @Override
++            public TimeValue ackTimeout() {
++                return request.timeout;
++            }
+ 
+             @Override
+             public TimeValue timeout() {
+@@ -186,6 +188,23 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+                 listener.onFailure(t);
+             }
+ 
++            @Override
++            public boolean mustAck(DiscoveryNode discoveryNode) {
++                return true;
++            }
++
++            @Override
++            public void onAllNodesAcked(@Nullable Throwable t) {
++                listener.onResponse(new Response(true, indexMetaDataRef[0]));
++            }
++
++            @Override
++            public void onAckTimeout() {
++                listener.onResponse(new Response(false, indexMetaDataRef[0]));
++            }
++
++            private final IndexMetaData[] indexMetaDataRef = new IndexMetaData[1];
++
+             @Override
+             public ClusterState execute(ClusterState currentState) throws Exception {
+                 boolean indexCreated = false;
+@@ -360,30 +379,8 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+                         updatedState = ClusterState.builder(updatedState).routingResult(routingResult).build();
+                     }
+ 
+-                    // we wait for events from all nodes that the index has been added to the metadata
+-                    final AtomicInteger counter = new AtomicInteger(currentState.nodes().size());
+-
+-                    final NodeIndexCreatedAction.Listener nodeIndexCreatedListener = new NodeIndexCreatedAction.Listener() {
+-                        @Override
+-                        public void onNodeIndexCreated(String index, String nodeId) {
+-                            if (index.equals(request.index)) {
+-                                if (counter.decrementAndGet() == 0) {
+-                                    listener.onResponse(new Response(true, indexMetaData));
+-                                    nodeIndexCreatedAction.remove(this);
+-                                }
+-                            }
+-                        }
+-                    };
+-
+-                    nodeIndexCreatedAction.add(nodeIndexCreatedListener);
+-
+-                    listener.future = threadPool.schedule(request.timeout, ThreadPool.Names.SAME, new Runnable() {
+-                        @Override
+-                        public void run() {
+-                            listener.onResponse(new Response(false, indexMetaData));
+-                            nodeIndexCreatedAction.remove(nodeIndexCreatedListener);
+-                        }
+-                    });
++                    // Store the indexMetaData for use in acknowledgement callbacks
++                    indexMetaDataRef[0] = indexMetaData;
+ 
+                     return updatedState;
+                 } finally {
+@@ -406,7 +403,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         private final Semaphore mdLock;
+         private final Request request;
+         private final Listener listener;
+-        volatile ScheduledFuture future;
+ 
+         private CreateIndexListener(Semaphore mdLock, Request request, Listener listener) {
+             this.mdLock = mdLock;
+@@ -418,9 +414,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         public void onResponse(final Response response) {
+             if (notified.compareAndSet(false, true)) {
+                 mdLock.release();
+-                if (future != null) {
+-                    future.cancel(false);
+-                }
+                 listener.onResponse(response);
+             }
+         }
+@@ -429,9 +422,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+         public void onFailure(Throwable t) {
+             if (notified.compareAndSet(false, true)) {
+                 mdLock.release();
+-                if (future != null) {
+-                    future.cancel(false);
+-                }
+                 listener.onFailure(t);
+             }
+         }
+diff --git a/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java b/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
+index d559b94..14f2805 100644
+--- a/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
++++ b/src/main/java/org/elasticsearch/indices/cluster/IndicesClusterStateService.java
+@@ -28,7 +28,6 @@ import org.elasticsearch.ExceptionsHelper;
+ import org.elasticsearch.cluster.ClusterChangedEvent;
+ import org.elasticsearch.cluster.ClusterService;
+ import org.elasticsearch.cluster.ClusterStateListener;
+-import org.elasticsearch.cluster.action.index.NodeIndexCreatedAction;
+ import org.elasticsearch.cluster.action.index.NodeIndexDeletedAction;
+ import org.elasticsearch.cluster.action.index.NodeMappingRefreshAction;
+ import org.elasticsearch.cluster.action.shard.ShardStateAction;
+@@ -86,7 +85,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     private final ThreadPool threadPool;
+     private final RecoveryTarget recoveryTarget;
+     private final ShardStateAction shardStateAction;
+-    private final NodeIndexCreatedAction nodeIndexCreatedAction;
+     private final NodeIndexDeletedAction nodeIndexDeletedAction;
+     private final NodeMappingRefreshAction nodeMappingRefreshAction;
+ 
+@@ -117,7 +115,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     public IndicesClusterStateService(Settings settings, IndicesService indicesService, ClusterService clusterService,
+                                       ThreadPool threadPool, RecoveryTarget recoveryTarget,
+                                       ShardStateAction shardStateAction,
+-                                      NodeIndexCreatedAction nodeIndexCreatedAction, NodeIndexDeletedAction nodeIndexDeletedAction,
++                                      NodeIndexDeletedAction nodeIndexDeletedAction,
+                                       NodeMappingRefreshAction nodeMappingRefreshAction) {
+         super(settings);
+         this.indicesService = indicesService;
+@@ -125,7 +123,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+         this.threadPool = threadPool;
+         this.recoveryTarget = recoveryTarget;
+         this.shardStateAction = shardStateAction;
+-        this.nodeIndexCreatedAction = nodeIndexCreatedAction;
+         this.nodeIndexDeletedAction = nodeIndexDeletedAction;
+         this.nodeMappingRefreshAction = nodeMappingRefreshAction;
+ 
+@@ -193,13 +190,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
+     private void sendIndexLifecycleEvents(final ClusterChangedEvent event) {
+         String localNodeId = event.state().nodes().localNodeId();
+         assert localNodeId != null;
+-        for (String index : event.indicesCreated()) {
+-            try {
+-                nodeIndexCreatedAction.nodeIndexCreated(event.state(), index, localNodeId);
+-            } catch (Throwable e) {
+-                logger.debug("failed to send to master index {} created event", e, index);
+-            }
+-        }
+         for (String index : event.indicesDeleted()) {
+             try {
+                 nodeIndexDeletedAction.nodeIndexDeleted(event.state(), index, localNodeId);

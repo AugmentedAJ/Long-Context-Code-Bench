@@ -3,9 +3,19 @@
  */
 
 // API base path - auto-detect based on environment
-// Use /api when served by Node.js server, otherwise use parent directory for static hosting
-// (web files are in output/web/, data files are in output/)
-const API_BASE = window.location.port === '3000' ? '/api' : '..';
+// Use /api when served by Node.js server (port 3000)
+// Use empty string for static hosting from root (e.g., dist/)
+// Use '..' for static hosting from output/web/ subdirectory
+function detectApiBase() {
+    if (window.location.port === '3000') {
+        return '/api';  // Node.js server
+    }
+    // Check if index.json exists at root level (dist/ flat structure)
+    // vs in parent directory (output/web/ structure)
+    // For simplicity, assume flat structure for ports other than 3000
+    return '.';
+}
+const API_BASE = detectApiBase();
 
 // Global data cache
 const dataCache = {

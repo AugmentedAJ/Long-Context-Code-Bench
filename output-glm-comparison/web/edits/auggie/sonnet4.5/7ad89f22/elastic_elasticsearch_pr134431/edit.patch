@@ -1,0 +1,13 @@
+diff --git a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java
+index 3c5948d7..1c4b3639 100644
+--- a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java
++++ b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java
+@@ -377,7 +377,7 @@ public class PolicyManager {
+             return true;
+         }
+         if (isTrustedSystemClass(requestingClass)) {
+-            generalLogger.debug("Entitlement trivially allowed from system module [{}]", requestingClass.getModule().getName());
++            // Do not log trusted system classes to avoid ClassCircularityError
+             return true;
+         }
+         generalLogger.trace("Entitlement not trivially allowed");

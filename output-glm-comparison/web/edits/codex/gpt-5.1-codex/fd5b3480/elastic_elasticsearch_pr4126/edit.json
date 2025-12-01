@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4126,
+  "base_commit": "97bdc8f9c21b9f890b42c738905221241a3ceb82",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 103098,
+  "patch_unified": "diff --git a/TESTING.asciidoc b/TESTING.asciidoc\nindex a022f73..7310835 100644\n--- a/TESTING.asciidoc\n+++ b/TESTING.asciidoc\n@@ -7,6 +7,23 @@ Elasticsearch uses jUnit for testing, it also uses randomness in the\n tests, that can be set using a seed, the following is a cheatsheet of\n options for running the tests for ES.\n \n+== Test framework for plugins\n+\n+Third party plugins can reuse the Elasticsearch test framework classes.\n+The build now publishes a dedicated test framework jar that contains the\n+`org.elasticsearch.test` package. Add the following dependency to the\n+plugin's `pom.xml` to make those helpers available to your tests:\n+\n+-----------------------------\n+<dependency>\n+    <groupId>org.elasticsearch</groupId>\n+    <artifactId>elasticsearch</artifactId>\n+    <version>${elasticsearch.version}</version>\n+    <classifier>test-framework</classifier>\n+    <scope>test</scope>\n+</dependency>\n+-----------------------------\n+\n == Creating packages\n \n To create a distribution without running the tests, simply run the\ndiff --git a/pom.xml b/pom.xml\nindex dec5334..aab8f4f 100644\n--- a/pom.xml\n+++ b/pom.xml\n@@ -318,6 +318,26 @@\n                     <target>1.6</target>\n                 </configuration>\n             </plugin>\n+            <plugin>\n+                <groupId>org.apache.maven.plugins</groupId>\n+                <artifactId>maven-jar-plugin</artifactId>\n+                <version>2.4</version>\n+                <executions>\n+                    <execution>\n+                        <id>test-framework</id>\n+                        <phase>package</phase>\n+                        <goals>\n+                            <goal>test-jar</goal>\n+                        </goals>\n+                        <configuration>\n+                            <classifier>test-framework</classifier>\n+                            <includes>\n+                                <include>org/elasticsearch/test/**</include>\n+                            </includes>\n+                        </configuration>\n+                    </execution>\n+                </executions>\n+            </plugin>\n             <plugin>\n                 <groupId>com.carrotsearch.randomizedtesting</groupId>\n                 <artifactId>junit4-maven-plugin</artifactId>",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr4126/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

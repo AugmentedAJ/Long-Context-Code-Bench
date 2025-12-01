@@ -1,0 +1,100 @@
+diff --git a/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java b/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
+index 1293a69..46d6d91 100644
+--- a/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
++++ b/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
+@@ -281,6 +281,14 @@ public class BulkRequest extends ActionRequest<BulkRequest> {
+                         } else if ("percolate".equals(currentFieldName) || "_percolate".equals(currentFieldName)) {
+                             percolate = parser.textOrNull();
+                         }
++                    } else if (token == XContentParser.Token.START_ARRAY) {
++                        if ("_id".equals(currentFieldName)) {
++                            throw new IllegalArgumentException("_id field cannot be an array");
++                        }
++                    } else if (token == XContentParser.Token.START_OBJECT) {
++                        if ("_id".equals(currentFieldName)) {
++                            throw new IllegalArgumentException("_id field cannot be an object");
++                        }
+                     }
+                 }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java b/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
+index b087dc9..9f5dad4 100644
+--- a/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
++++ b/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
+@@ -261,12 +261,18 @@ public class MultiGetRequest extends ActionRequest<MultiGetRequest> {
+                                         routing = parser.text();
+                                     }
+                                 } else if (token == XContentParser.Token.START_ARRAY) {
+-                                    if ("fields".equals(currentFieldName)) {
++                                    if ("_id".equals(currentFieldName)) {
++                                        throw new ElasticSearchIllegalArgumentException("_id field cannot be an array");
++                                    } else if ("fields".equals(currentFieldName)) {
+                                         fields = new ArrayList<String>();
+                                         while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
+                                             fields.add(parser.text());
+                                         }
+                                     }
++                                } else if (token == XContentParser.Token.START_OBJECT) {
++                                    if ("_id".equals(currentFieldName)) {
++                                        throw new ElasticSearchIllegalArgumentException("_id field cannot be an object");
++                                    }
+                                 }
+                             }
+                             String[] aFields;
+diff --git a/src/main/java/org/elasticsearch/index/query/GeoShapeFilterParser.java b/src/main/java/org/elasticsearch/index/query/GeoShapeFilterParser.java
+index 846ac5e..fe061d1 100644
+--- a/src/main/java/org/elasticsearch/index/query/GeoShapeFilterParser.java
++++ b/src/main/java/org/elasticsearch/index/query/GeoShapeFilterParser.java
+@@ -125,6 +125,14 @@ public class GeoShapeFilterParser implements FilterParser {
+                                     } else if ("shape_field_name".equals(currentFieldName)) {
+                                         shapeFieldName = parser.text();
+                                     }
++                                } else if (token == XContentParser.Token.START_ARRAY) {
++                                    if ("id".equals(currentFieldName)) {
++                                        throw new QueryParsingException(parseContext.index(), "id field cannot be an array");
++                                    }
++                                } else if (token == XContentParser.Token.START_OBJECT) {
++                                    if ("id".equals(currentFieldName)) {
++                                        throw new QueryParsingException(parseContext.index(), "id field cannot be an object");
++                                    }
+                                 }
+                             }
+                             if (id == null) {
+diff --git a/src/main/java/org/elasticsearch/index/query/GeoShapeQueryParser.java b/src/main/java/org/elasticsearch/index/query/GeoShapeQueryParser.java
+index 1e12934..bd77f4e 100644
+--- a/src/main/java/org/elasticsearch/index/query/GeoShapeQueryParser.java
++++ b/src/main/java/org/elasticsearch/index/query/GeoShapeQueryParser.java
+@@ -101,6 +101,14 @@ public class GeoShapeQueryParser implements QueryParser {
+                                     } else if ("shape_field_name".equals(currentFieldName)) {
+                                         shapeFieldName = parser.text();
+                                     }
++                                } else if (token == XContentParser.Token.START_ARRAY) {
++                                    if ("id".equals(currentFieldName)) {
++                                        throw new QueryParsingException(parseContext.index(), "id field cannot be an array");
++                                    }
++                                } else if (token == XContentParser.Token.START_OBJECT) {
++                                    if ("id".equals(currentFieldName)) {
++                                        throw new QueryParsingException(parseContext.index(), "id field cannot be an object");
++                                    }
+                                 }
+                             }
+                             if (id == null) {
+diff --git a/src/main/java/org/elasticsearch/index/query/TermsFilterParser.java b/src/main/java/org/elasticsearch/index/query/TermsFilterParser.java
+index fe84751..0fa91e8 100644
+--- a/src/main/java/org/elasticsearch/index/query/TermsFilterParser.java
++++ b/src/main/java/org/elasticsearch/index/query/TermsFilterParser.java
+@@ -112,6 +112,14 @@ public class TermsFilterParser implements FilterParser {
+                         } else {
+                             throw new QueryParsingException(parseContext.index(), "[terms] filter does not support [" + currentFieldName + "] within lookup element");
+                         }
++                    } else if (token == XContentParser.Token.START_ARRAY) {
++                        if ("id".equals(currentFieldName)) {
++                            throw new QueryParsingException(parseContext.index(), "id field cannot be an array");
++                        }
++                    } else if (token == XContentParser.Token.START_OBJECT) {
++                        if ("id".equals(currentFieldName)) {
++                            throw new QueryParsingException(parseContext.index(), "id field cannot be an object");
++                        }
+                     }
+                 }
+                 if (lookupType == null) {

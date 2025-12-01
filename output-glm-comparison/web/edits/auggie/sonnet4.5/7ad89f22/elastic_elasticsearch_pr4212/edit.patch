@@ -1,0 +1,91 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+index 0f9d59d..2d332cd 100644
+--- a/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
++++ b/src/main/java/org/elasticsearch/repositories/RepositoriesService.java
+@@ -27,6 +27,8 @@ import org.elasticsearch.cluster.ack.ClusterStateUpdateResponse;
+ import org.elasticsearch.cluster.metadata.MetaData;
+ import org.elasticsearch.cluster.metadata.RepositoriesMetaData;
+ import org.elasticsearch.cluster.metadata.RepositoryMetaData;
++import org.elasticsearch.cluster.metadata.RestoreMetaData;
++import org.elasticsearch.cluster.metadata.SnapshotMetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNode;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.component.AbstractComponent;
+@@ -72,6 +74,37 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         }
+     }
+ 
++    /**
++     * Checks if a repository is currently in use by any snapshot or restore operations
++     *
++     * @param repositoryName repository name to check
++     * @param clusterState   current cluster state
++     * @return true if repository is in use, false otherwise
++     */
++    private boolean isRepositoryInUse(String repositoryName, ClusterState clusterState) {
++        // Check if repository is used by any snapshot operations
++        SnapshotMetaData snapshots = clusterState.metaData().custom(SnapshotMetaData.TYPE);
++        if (snapshots != null) {
++            for (SnapshotMetaData.Entry entry : snapshots.entries()) {
++                if (repositoryName.equals(entry.snapshotId().getRepository())) {
++                    return true;
++                }
++            }
++        }
++
++        // Check if repository is used by any restore operations
++        RestoreMetaData restores = clusterState.metaData().custom(RestoreMetaData.TYPE);
++        if (restores != null) {
++            for (RestoreMetaData.Entry entry : restores.entries()) {
++                if (repositoryName.equals(entry.snapshotId().getRepository())) {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
+     /**
+      * Registers new repository in the cluster
+      * <p/>
+@@ -87,14 +120,24 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         clusterService.submitStateUpdateTask(request.cause, new AckedClusterStateUpdateTask() {
+             @Override
+             public ClusterState execute(ClusterState currentState) {
++                // Check if repository is currently in use
++                MetaData metaData = currentState.metaData();
++                RepositoriesMetaData repositories = metaData.custom(RepositoriesMetaData.TYPE);
++                if (repositories != null && repositories.repository(request.name) != null) {
++                    // Repository exists, check if it's in use before allowing modification
++                    if (isRepositoryInUse(request.name, currentState)) {
++                        throw new RepositoryInUseException(request.name,
++                            "cannot modify repository that is currently used by snapshot or restore operations");
++                    }
++                }
++
+                 // Trying to create the new repository on master to make sure it works
+                 if (!registerRepository(newRepositoryMetaData)) {
+                     // The new repository has the same settings as the old one - ignore
+                     return currentState;
+                 }
+-                MetaData metaData = currentState.metaData();
+                 MetaData.Builder mdBuilder = MetaData.builder(currentState.metaData());
+-                RepositoriesMetaData repositories = metaData.custom(RepositoriesMetaData.TYPE);
++                repositories = metaData.custom(RepositoriesMetaData.TYPE);
+                 if (repositories == null) {
+                     logger.info("put repository [{}]", request.name);
+                     repositories = new RepositoriesMetaData(new RepositoryMetaData(request.name, request.type, request.settings));
+@@ -172,6 +215,12 @@ public class RepositoriesService extends AbstractComponent implements ClusterSta
+         clusterService.submitStateUpdateTask(request.cause, new AckedClusterStateUpdateTask() {
+             @Override
+             public ClusterState execute(ClusterState currentState) {
++                // Check if repository is currently in use
++                if (isRepositoryInUse(request.name, currentState)) {
++                    throw new RepositoryInUseException(request.name,
++                        "cannot delete repository that is currently used by snapshot or restore operations");
++                }
++
+                 MetaData metaData = currentState.metaData();
+                 MetaData.Builder mdBuilder = MetaData.builder(currentState.metaData());
+                 RepositoriesMetaData repositories = metaData.custom(RepositoriesMetaData.TYPE);

@@ -1,0 +1,23 @@
+{
+  "run_id": "3e164e1c",
+  "total_samples": 100,
+  "successful_samples": 100,
+  "failed_samples": 0,
+  "skipped_samples": 0,
+  "success_rate": 1.0,
+  "win_rate": 0.27,
+  "mean_correctness": -0.3915,
+  "mean_completeness": -0.3625,
+  "mean_code_reuse": -0.2375,
+  "mean_best_practices": -0.283,
+  "mean_unsolicited_docs": 0.471,
+  "mean_aggregate": -0.1607,
+  "std_aggregate": 0.34405559510819256,
+  "mean_elapsed_ms": 146357.68,
+  "tasks_per_hour": 24.597274294044563,
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "test_label": "v1-agent-comparison",
+  "runner": "factory",
+  "model": "glm-4.6"
+}

@@ -1,0 +1,68 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/BaseAliasesRequestBuilder.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/BaseAliasesRequestBuilder.java
+index e6f0872..b8bf2b9 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/BaseAliasesRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/BaseAliasesRequestBuilder.java
+@@ -33,6 +33,10 @@ public abstract class BaseAliasesRequestBuilder<Response extends ActionResponse,
+         super((InternalIndicesAdminClient) client, new GetAliasesRequest(aliases));
+     }
+ 
++    public BaseAliasesRequestBuilder(IndicesAdminClient client) {
++        super((InternalIndicesAdminClient) client, new GetAliasesRequest());
++    }
++
+     @SuppressWarnings("unchecked")
+     public Builder setAliases(String... aliases) {
+         request.aliases(aliases);
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+index 157df71..63e412b 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+@@ -78,11 +78,7 @@ public class GetAliasesRequest extends MasterNodeOperationRequest<GetAliasesRequ
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+-        if (aliases.length == 0) {
+-            return addValidationError("No alias specified", null);
+-        } else {
+-            return null;
+-        }
++        return null;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequestBuilder.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequestBuilder.java
+index 38f7d26..387b223 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequestBuilder.java
+@@ -30,6 +30,10 @@ public class GetAliasesRequestBuilder extends BaseAliasesRequestBuilder<GetAlias
+         super(client, aliases);
+     }
+ 
++    public GetAliasesRequestBuilder(IndicesAdminClient client) {
++        super(client);
++    }
++
+     @Override
+     protected void doExecute(ActionListener<GetAliasesResponse> listener) {
+         ((IndicesAdminClient) client).getAliases(request, listener);
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaData.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaData.java
+index 7c6ff48..e6793b2 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaData.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaData.java
+@@ -274,6 +274,7 @@ public class MetaData implements Iterable<IndexMetaData> {
+             return ImmutableOpenMap.of();
+         }
+ 
++        boolean matchAllAliases = aliases.length == 0;
+         ImmutableOpenMap.Builder<String, ImmutableList<AliasMetaData>> mapBuilder = ImmutableOpenMap.builder();
+         Iterable<String> intersection = HppcMaps.intersection(ObjectOpenHashSet.from(concreteIndices), indices.keys());
+         for (String index : intersection) {
+@@ -281,7 +282,7 @@ public class MetaData implements Iterable<IndexMetaData> {
+             List<AliasMetaData> filteredValues = Lists.newArrayList();
+             for (ObjectCursor<AliasMetaData> cursor : indexMetaData.getAliases().values()) {
+                 AliasMetaData value = cursor.value;
+-                if (Regex.simpleMatch(aliases, value.alias())) {
++                if (matchAllAliases || Regex.simpleMatch(aliases, value.alias())) {
+                     filteredValues.add(value);
+                 }
+             }

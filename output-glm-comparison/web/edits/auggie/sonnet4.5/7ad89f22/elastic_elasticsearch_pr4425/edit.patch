@@ -1,0 +1,165 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/create/CreateSnapshotRequest.java b/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/create/CreateSnapshotRequest.java
+index 6d24d9d..cf636ab 100644
+--- a/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/create/CreateSnapshotRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/create/CreateSnapshotRequest.java
+@@ -30,6 +30,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.settings.ImmutableSettings;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.settings.loader.SettingsLoader;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+ import org.elasticsearch.common.xcontent.XContentType;
+@@ -283,13 +284,7 @@ public class CreateSnapshotRequest extends MasterNodeOperationRequest<CreateSnap
+      * @return this request
+      */
+     public CreateSnapshotRequest settings(Map<String, Object> source) {
+-        try {
+-            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+-            builder.map(source);
+-            settings(builder.string());
+-        } catch (IOException e) {
+-            throw new ElasticSearchGenerationException("Failed to generate [" + source + "]", e);
+-        }
++        this.settings = ImmutableSettings.settingsBuilder().put(SettingsLoader.Helper.loadNestedFromMap(source)).build();
+         return this;
+     }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/restore/RestoreSnapshotRequest.java b/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/restore/RestoreSnapshotRequest.java
+index 696bcd1..2b07252 100644
+--- a/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/restore/RestoreSnapshotRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/restore/RestoreSnapshotRequest.java
+@@ -30,6 +30,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.settings.ImmutableSettings;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.settings.loader.SettingsLoader;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+ import org.elasticsearch.common.xcontent.XContentType;
+@@ -317,13 +318,7 @@ public class RestoreSnapshotRequest extends MasterNodeOperationRequest<RestoreSn
+      * @return this request
+      */
+     public RestoreSnapshotRequest settings(Map<String, Object> source) {
+-        try {
+-            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+-            builder.map(source);
+-            settings(builder.string());
+-        } catch (IOException e) {
+-            throw new ElasticSearchGenerationException("Failed to generate [" + source + "]", e);
+-        }
++        this.settings = ImmutableSettings.settingsBuilder().put(SettingsLoader.Helper.loadNestedFromMap(source)).build();
+         return this;
+     }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+index 9814efc..cef2032 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/create/CreateIndexRequest.java
+@@ -35,6 +35,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.settings.ImmutableSettings;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.settings.loader.SettingsLoader;
+ import org.elasticsearch.common.unit.TimeValue;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+@@ -174,13 +175,7 @@ public class CreateIndexRequest extends MasterNodeOperationRequest<CreateIndexRe
+      * The settings to crete the index with (either json/yaml/properties format)
+      */
+     public CreateIndexRequest settings(Map source) {
+-        try {
+-            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+-            builder.map(source);
+-            settings(builder.string());
+-        } catch (IOException e) {
+-            throw new ElasticSearchGenerationException("Failed to generate [" + source + "]", e);
+-        }
++        this.settings = ImmutableSettings.settingsBuilder().put(SettingsLoader.Helper.loadNestedFromMap(source)).build();
+         return this;
+     }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/settings/UpdateSettingsRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/settings/UpdateSettingsRequest.java
+index d32459c..e976864 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/settings/UpdateSettingsRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/settings/UpdateSettingsRequest.java
+@@ -27,6 +27,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.settings.ImmutableSettings;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.settings.loader.SettingsLoader;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+ import org.elasticsearch.common.xcontent.XContentType;
+@@ -120,13 +121,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
+      */
+     @SuppressWarnings("unchecked")
+     public UpdateSettingsRequest settings(Map source) {
+-        try {
+-            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+-            builder.map(source);
+-            settings(builder.string());
+-        } catch (IOException e) {
+-            throw new ElasticSearchGenerationException("Failed to generate [" + source + "]", e);
+-        }
++        this.settings = ImmutableSettings.settingsBuilder().put(SettingsLoader.Helper.loadNestedFromMap(source)).build();
+         return this;
+     }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/template/put/PutIndexTemplateRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/template/put/PutIndexTemplateRequest.java
+index ea50b30..5af9cbb 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/template/put/PutIndexTemplateRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/template/put/PutIndexTemplateRequest.java
+@@ -33,6 +33,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ import org.elasticsearch.common.settings.ImmutableSettings;
+ import org.elasticsearch.common.settings.Settings;
++import org.elasticsearch.common.settings.loader.SettingsLoader;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+ import org.elasticsearch.common.xcontent.XContentType;
+@@ -165,13 +166,7 @@ public class PutIndexTemplateRequest extends MasterNodeOperationRequest<PutIndex
+      * The settings to crete the index template with (either json/yaml/properties format).
+      */
+     public PutIndexTemplateRequest settings(Map<String, Object> source) {
+-        try {
+-            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+-            builder.map(source);
+-            settings(builder.string());
+-        } catch (IOException e) {
+-            throw new ElasticSearchGenerationException("Failed to generate [" + source + "]", e);
+-        }
++        this.settings = ImmutableSettings.settingsBuilder().put(SettingsLoader.Helper.loadNestedFromMap(source)).build();
+         return this;
+     }
+ 
+diff --git a/src/test/java/org/elasticsearch/indices/template/IndexTemplateFileLoadingTests.java b/src/test/java/org/elasticsearch/indices/template/IndexTemplateFileLoadingTests.java
+index 606d78d..cc758dd 100644
+--- a/src/test/java/org/elasticsearch/indices/template/IndexTemplateFileLoadingTests.java
++++ b/src/test/java/org/elasticsearch/indices/template/IndexTemplateFileLoadingTests.java
+@@ -59,6 +59,10 @@ public class IndexTemplateFileLoadingTests extends ElasticsearchIntegrationTest
+             File dst = new File(templatesDir, "template.json");
+             String template = Streams.copyToStringFromClasspath("/org/elasticsearch/indices/template/template.json");
+             Files.write(template, dst, Charsets.UTF_8);
++
++            File dst2 = new File(templatesDir, "template_without_prefix.json");
++            String template2 = Streams.copyToStringFromClasspath("/org/elasticsearch/indices/template/template_without_prefix.json");
++            Files.write(template2, dst2, Charsets.UTF_8);
+         } catch (Exception e) {
+             throw new RuntimeException(e);
+         }
+@@ -75,4 +79,14 @@ public class IndexTemplateFileLoadingTests extends ElasticsearchIntegrationTest
+         assertThat(stateResponse.getState().getMetaData().indices().get("foobar").getNumberOfShards(), is(10));
+         assertThat(stateResponse.getState().getMetaData().indices().get("foobar").getNumberOfReplicas(), is(0));
+     }
++
++    @Test
++    public void testThatLoadingTemplateWithoutIndexPrefixFromFileWorks() throws Exception {
++        createIndex("barbaz");
++        ensureYellow(); // ensuring yellow so the test fails faster if the template cannot be loaded
++
++        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setFilterIndices("barbaz").get();
++        assertThat(stateResponse.getState().getMetaData().indices().get("barbaz").getNumberOfShards(), is(5));
++        assertThat(stateResponse.getState().getMetaData().indices().get("barbaz").getNumberOfReplicas(), is(1));
++    }
+ }

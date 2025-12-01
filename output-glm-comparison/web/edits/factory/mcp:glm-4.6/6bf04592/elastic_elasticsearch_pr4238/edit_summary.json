@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4238,
+  "base_commit": "8e17d636ef441a9be80977d34acfaabc12982eb7",
+  "runner": "factory",
+  "model": "mcp:glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 529813,
+  "logs_path": "factory/mcp:glm-4.6/6bf04592/elastic_elasticsearch_pr4238/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "6bf04592",
+  "test_label": "v1-mcp",
+  "patch_file": "edit.patch"
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 181176,
+  "patch_unified": "diff --git a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\nindex 9d176b9f..a89c4c1e 100644\n--- a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n+++ b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n@@ -22,8 +22,6 @@ import java.util.StringJoiner;\n  */\n public abstract class Function extends Expression {\n \n-    private final String functionName = getClass().getSimpleName().toUpperCase(Locale.ROOT);\n-\n     // TODO: Functions supporting distinct should add a dedicated constructor Location, List<Expression>, boolean\n     protected Function(Source source, List<Expression> children) {\n         super(source, children);\n@@ -34,7 +32,7 @@ public abstract class Function extends Expression {\n     }\n \n     public String functionName() {\n-        return functionName;\n+        return getClass().getSimpleName().toUpperCase(Locale.ROOT);\n     }\n \n     @Override\ndiff --git a/x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/expression/function/Function.java b/x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/expression/function/Function.java\nindex db5520c7..c808e83a 100644\n--- a/x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/expression/function/Function.java\n+++ b/x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/expression/function/Function.java\n@@ -25,8 +25,6 @@ import java.util.StringJoiner;\n  */\n public abstract class Function extends Expression {\n \n-    private final String functionName = getClass().getSimpleName().toUpperCase(Locale.ROOT);\n-\n     private Pipe lazyPipe = null;\n \n     // TODO: Functions supporting distinct should add a dedicated constructor Location, List<Expression>, boolean\n@@ -39,7 +37,7 @@ public abstract class Function extends Expression {\n     }\n \n     public String functionName() {\n-        return functionName;\n+        return getClass().getSimpleName().toUpperCase(Locale.ROOT);\n     }\n \n     @Override",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134395/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

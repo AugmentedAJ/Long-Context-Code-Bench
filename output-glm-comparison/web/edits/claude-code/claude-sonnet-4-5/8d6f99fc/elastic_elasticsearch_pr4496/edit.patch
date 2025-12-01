@@ -1,0 +1,61 @@
+diff --git a/src/main/java/org/elasticsearch/common/joda/DateMathParser.java b/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
+index 3e9fec3..12176ce 100644
+--- a/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
++++ b/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
+@@ -198,7 +198,20 @@ public class DateMathParser {
+ 
+     private long parseStringValue(String value) {
+         try {
+-            return dateTimeFormatter.parser().parseMillis(value);
++            // Use 1970-01-01 as the base for partial dates to be consistent with parseRoundCeilStringValue
++            // This ensures partial dates without year default to 1970 instead of 2000
++            MutableDateTime dateTime = new MutableDateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC);
++            int location = dateTimeFormatter.parser().parseInto(dateTime, value, 0);
++            // if we parsed the entire string value, we are good
++            if (location == value.length()) {
++                return dateTime.getMillis();
++            }
++            // if we did not manage to parse, or the year is unreasonably high, try parsing as a number
++            if (location <= 0 || dateTime.getYear() > 5000) {
++                long time = Long.parseLong(value);
++                return timeUnit.toMillis(time);
++            }
++            return dateTime.getMillis();
+         } catch (RuntimeException e) {
+             try {
+                 long time = Long.parseLong(value);
+diff --git a/src/main/java/org/elasticsearch/index/mapper/core/DateFieldMapper.java b/src/main/java/org/elasticsearch/index/mapper/core/DateFieldMapper.java
+index 74e6d9c..269aafa 100644
+--- a/src/main/java/org/elasticsearch/index/mapper/core/DateFieldMapper.java
++++ b/src/main/java/org/elasticsearch/index/mapper/core/DateFieldMapper.java
+@@ -51,6 +51,8 @@ import org.elasticsearch.index.mapper.core.LongFieldMapper.CustomLongNumericFiel
+ import org.elasticsearch.index.query.QueryParseContext;
+ import org.elasticsearch.index.search.NumericRangeFieldDataFilter;
+ import org.elasticsearch.index.similarity.SimilarityProvider;
++import org.joda.time.DateTimeZone;
++import org.joda.time.MutableDateTime;
+ 
+ import java.io.IOException;
+ import java.util.List;
+@@ -490,7 +492,20 @@ public class DateFieldMapper extends NumberFieldMapper<Long> {
+ 
+     private long parseStringValue(String value) {
+         try {
+-            return dateTimeFormatter.parser().parseMillis(value);
++            // Use 1970-01-01 as the base for partial dates to ensure consistency
++            // This ensures partial dates without year default to 1970 instead of 2000
++            MutableDateTime dateTime = new MutableDateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC);
++            int location = dateTimeFormatter.parser().parseInto(dateTime, value, 0);
++            // if we parsed the entire string value, we are good
++            if (location == value.length()) {
++                return dateTime.getMillis();
++            }
++            // if we did not manage to parse, or the year is unreasonably high, try parsing as a number
++            if (location <= 0 || dateTime.getYear() > 5000) {
++                long time = Long.parseLong(value);
++                return timeUnit.toMillis(time);
++            }
++            return dateTime.getMillis();
+         } catch (RuntimeException e) {
+             try {
+                 long time = Long.parseLong(value);

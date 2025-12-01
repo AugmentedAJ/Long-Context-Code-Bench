@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "head_commit": "f1f4bbab46a6f06890d09c8c354f3a4926b6ae2b",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 1.0,
+    "completeness": 1.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.6,
+  "rationale": "The agent's changes are functionally correct and achieve the requested optimization of removing the functionName member variable and computing it on the fly. The agent went beyond the ground truth by applying the same refactoring to a second Function class in the ql module (org.elasticsearch.xpack.ql.expression.function.Function), which is architecturally consistent and beneficial since both classes had identical patterns. The ground truth only modified the esql-core Function class, but the agent identified and fixed the same memory inefficiency in the parallel ql implementation. This is a legitimate improvement rather than scope creep, as it addresses the same issue in a related codebase component. The implementation is identical in approach (removing field, computing in getter), follows the same best practices, and adds no unsolicited documentation. Minor whitespace difference (one blank line) is negligible.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\nindex 9d176b9f8c6..86c14f10992 100644\n--- a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n+++ b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n@@ -21,9 +21,6 @@ import java.util.StringJoiner;\n  * {@code EVAL}) or aggregation functions ({@code STATS}).\n  */\n public abstract class Function extends Expression {\n-\n-    private final String functionName = getClass().getSimpleName().toUpperCase(Locale.ROOT);\n-\n     // TODO: Functions supporting distinct should add a dedicated constructor Location, List<Expression>, boolean\n     protected Function(Source source, List<Expression> children) {\n         super(source, children);\n@@ -34,7 +31,7 @@ public abstract class Function extends Expression {\n     }\n \n     public String functionName() {\n-        return functionName;\n+        return getClass().getSimpleName().toUpperCase(Locale.ROOT);\n     }\n \n     @Override"
+}

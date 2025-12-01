@@ -11,7 +11,7 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
-- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~40K files per codebase)
+- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~20K files per codebase)
 - 📊 **New v1 Dataset**: 100 Elasticsearch PRs aligned with the public prompt dataset
 - 🎯 **Pre-synthesized prompts**: LLM-generated natural task instructions (standard for v0 and v1 results)
 - 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, Factory, Codex, Aider, etc.)
@@ -97,7 +97,7 @@ export AUGMENT_API_TOKEN=your_augment_token
 # For Claude Code (if not using OAuth)
 export ANTHROPIC_API_KEY=your_key
 
-# For LLM judge (optional)
+# For judge model (optional)
 export OPENAI_API_KEY=your_key
 ```
 
@@ -211,7 +211,7 @@ long-context-bench edit data/samples/v1 \
 
 ### Step 2: Judge All Edits
 
-Run the LLM judge on all edit runs. Use `--concurrency` for parallel judging:
+Run the judge on all edit runs. Use `--concurrency` for parallel judging:
 
 ```bash
 long-context-bench judge \
@@ -280,14 +280,14 @@ Rank multiple agents across standardized benchmarks:
 2. **Generate leaderboard**: Use `compare --format leaderboard` to rank all agents by performance
 ### Agents-as-judge head-to-head evaluation
 
-In addition to scalar LLM-judge scores, Long-Context-Bench supports
+In addition to scalar judge scores, Long-Context-Bench supports
 **agents acting as judges over each other**.
 
 The `head-to-head-pr` command:
 - Finds all agent submissions (edits) for a given PR
 - Uses each agent as a judge over every other agent's patch
-- Reuses scalar scores from a prior LLM judge run when available
-- Does **not** make any new LLM-as-judge calls in this stage
+- Reuses scalar scores from a prior judge run when available
+- Does **not** make any new judge API calls in this stage
 
 Example: run head-to-head for a single Elasticsearch PR where Auggie,
 Claude Code, and Factory have all produced edits:
@@ -657,16 +657,16 @@ long-context-bench edit --runner auggie --model gpt-4 output/samples/v0
 # Returns: Edit run ID: bbbb2222
 
 # Evaluate both
-long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model anthropic/claude-3-5-sonnet-20241022
+long-context-bench judge --edit-run-ids aaaa1111,bbbb2222 --judge-model claude-sonnet-4-5
 ```
 
-**Re-evaluate with Different Judge:**
+**Re-evaluate with Different Judge Model:**
 ```bash
-# Initial evaluation with Claude
-long-context-bench judge --edit-run-ids aaaa1111 --judge-model anthropic/claude-3-5-sonnet-20241022
+# Evaluate with Claude Sonnet 4.5
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model claude-sonnet-4-5
 
-# Re-evaluate with GPT-4
-long-context-bench judge --edit-run-ids aaaa1111 --judge-model gpt-4
+# Evaluate with a different Claude model
+long-context-bench judge --edit-run-ids aaaa1111 --judge-model sonnet
 ```
 
 ## Evaluation Metrics
@@ -701,31 +701,24 @@ Each sample is scored on five metrics:
 
 **Note:** Unsolicited Documentation is a **penalty metric** — higher values indicate the agent added unwanted documentation, which is undesirable.
 
-### LLM Judge
+### Judge Model
 
-The benchmark uses an LLM (via LiteLLM) to evaluate diffs with detailed reasoning:
+The benchmark uses Claude Code CLI to evaluate diffs with detailed reasoning:
 - Nuanced evaluation of code quality
 - Provides rationale for scores
-- Supports any model via LiteLLM (OpenAI, Anthropic, etc.)
-- Consistent settings (temperature=0.0, seed=42)
+- Uses Claude Code CLI (`claude` command) for all judging
+- Consistent settings (temperature=0.0, deterministic output)
 
 ```bash
-# Using Claude (via Anthropic)
-export ANTHROPIC_API_KEY=your_key
+# Judge using Claude Code CLI (requires `claude` CLI installed)
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022
+  --judge-model claude-sonnet-4-5
 
-# Using OpenAI
-export OPENAI_API_KEY=your_key
+# Using model aliases
 long-context-bench judge \
   --edit-run-ids a1b2c3d4 \
-  --judge-model gpt-4o-mini
-
-# Using any LiteLLM-supported model
-long-context-bench judge \
-  --edit-run-ids a1b2c3d4 \
-  --judge-model bedrock/anthropic.claude-v2
+  --judge-model sonnet
 ```
 
 ### Cross-Agent Analysis
@@ -744,27 +737,19 @@ Compare multiple agents' solutions for the same PR to understand different appro
 
 ```bash
 # Basic cross-agent analysis with comparative analysis
-export ANTHROPIC_API_KEY=your_key
+# Analyze PR with comparative analysis using Claude Code CLI
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --comparative
 
 # Analyze specific PR without comparative analysis
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --no-comparative
-
-# Using OpenAI for comparative analysis
-export OPENAI_API_KEY=your_key
-long-context-bench analyze-pr \
-  --pr-number 114869 \
-  --test-label v0 \
-  --judge-model gpt-4o \
-  --comparative
 ```
 
 #### Options
@@ -815,11 +800,10 @@ Results are saved to `output/cross_agent_analysis/pr{number}_{run_id}.json`:
 
 ```bash
 # Compare all agents on PR 114869 from v0 test run
-export ANTHROPIC_API_KEY=your_key
 long-context-bench analyze-pr \
   --pr-number 114869 \
   --test-label v0 \
-  --judge-model anthropic/claude-3-5-sonnet-20241022 \
+  --judge-model claude-sonnet-4-5 \
   --comparative
 
 # Output shows:
@@ -984,7 +968,7 @@ The generic runner passes task instructions via stdin.
 
 ### Judge Options
 
-- `--judge-model`: LLM judge model (optional, skips judge stage if not provided)
+- `--judge-model`: Judge model (optional, skips judge stage if not provided)
 
 ## Viewing Results
 
@@ -1020,7 +1004,7 @@ The web app provides:
 - **Leaderboard**: Agents ranked by **Win Rate** (primary metric)
 - **Metric Comparison**: Visual chart comparing all metrics across agents
 - **PR Details**: Click any PR to see side-by-side agent comparisons with:
-  - Summary and rationale from the LLM judge
+  - Summary and rationale from the judge
   - Agent diff vs human diff
   - Complete agent execution logs
 
@@ -1144,7 +1128,7 @@ The v0 dataset evaluates agents on **recreating a PR given its description**:
 
 This tests an agent's ability to:
 1. Understand a developer's intended changes from a natural task description
-2. Navigate and modify a massive codebase (~40K files)
+2. Navigate and modify a massive codebase (~20K files)
 3. Produce changes that match the actual implementation
 
 ### Dataset Curation

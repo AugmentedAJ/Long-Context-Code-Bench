@@ -1,0 +1,18 @@
+diff --git a/docs/community/clients.asciidoc b/docs/community/clients.asciidoc
+index af37153..f3fdaf5 100644
+--- a/docs/community/clients.asciidoc
++++ b/docs/community/clients.asciidoc
+@@ -71,6 +71,8 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/ruby-api/curr
+ [[community-javascript]]
+ === Javascript
+ 
++See the http://www.elasticsearch.org/guide/en/elasticsearch/client/javascript-api/current/index.html[official Elasticsearch JavaScript client].
++
+ * https://github.com/fullscale/elastic.js[Elastic.js]:
+   A JavaScript implementation of the ElasticSearch Query DSL and Core API.
+ 
+@@ -179,4 +181,3 @@ See the http://www.elasticsearch.org/guide/en/elasticsearch/client/ruby-api/curr
+ 
+ * https://github.com/jasonfill/ColdFusion-ElasticSearch-Client[ColdFusion-ElasticSearch-Client]
+   Cold Fusion client for Elasticsearch
+-

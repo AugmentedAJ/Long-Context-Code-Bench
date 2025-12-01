@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134428,
+  "base_commit": "1a9ff77ba7349cbca05ae0a11c66a337bfe2b24d",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 25807,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/parser/LogicalPlanBuilder.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/parser/LogicalPlanBuilder.java\nindex 0ddf8a39..b9e3eef7 100644\n--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/parser/LogicalPlanBuilder.java\n+++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/parser/LogicalPlanBuilder.java\n@@ -752,7 +752,7 @@ public class LogicalPlanBuilder extends ExpressionBuilder {\n         }\n \n         return input -> {\n-            if (EsqlCapabilities.Cap.ENABLE_LOOKUP_JOIN_ON_REMOTE.isEnabled() == false) {\n+            if (EsqlCapabilities.Cap.ENABLE_FORK_FOR_REMOTE_INDICES.isEnabled() == false) {\n                 checkForRemoteClusters(input, source(ctx), \"FORK\");\n             }\n             List<LogicalPlan> subPlans = subQueries.stream().map(planFactory -> planFactory.apply(input)).toList();",
+  "logs_path": "codex/gpt-5.1-codex/bdf2fcfe/elastic_elasticsearch_pr134428/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

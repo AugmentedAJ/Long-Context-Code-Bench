@@ -1,0 +1,241 @@
+diff --git a/server/src/main/java/org/elasticsearch/search/SearchService.java b/server/src/main/java/org/elasticsearch/search/SearchService.java
+index 9a101d83..963b8694 100644
+--- a/server/src/main/java/org/elasticsearch/search/SearchService.java
++++ b/server/src/main/java/org/elasticsearch/search/SearchService.java
+@@ -588,6 +588,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+      * @param shardId        id of the shard being searched
+      * @param taskId         id of the task being executed
+      * @param threadPool     with context where to write the new header
++     * @param lifecycleState the lifecycle state of the SearchService
+      * @return the wrapped action listener
+      */
+     static <T> ActionListener<T> wrapListenerForErrorHandling(
+@@ -596,7 +597,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+         String nodeId,
+         ShardId shardId,
+         long taskId,
+-        ThreadPool threadPool
++        ThreadPool threadPool,
++        Lifecycle.State lifecycleState
+     ) {
+         final boolean header;
+         if (version.onOrAfter(ERROR_TRACE_IN_TRANSPORT_HEADER) && threadPool.getThreadContext() != null) {
+@@ -612,7 +614,12 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+                 taskId
+             );
+             // Keep this logic aligned with that of SUPPRESSED_ERROR_LOGGER in RestResponse
+-            if (ExceptionsHelper.status(e).getStatus() < 500 || ExceptionsHelper.isNodeOrShardUnavailableTypeException(e)) {
++            // When the service is stopped or closed, don't log 500 errors as warnings to avoid alerts in serverless
++            final boolean serviceStoppedOrClosed = lifecycleState == Lifecycle.State.STOPPED
++                || lifecycleState == Lifecycle.State.CLOSED;
++            if (ExceptionsHelper.status(e).getStatus() < 500
++                || ExceptionsHelper.isNodeOrShardUnavailableTypeException(e)
++                || serviceStoppedOrClosed) {
+                 logger.debug(messageSupplier, e);
+             } else {
+                 logger.warn(messageSupplier, e);
+@@ -643,7 +650,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             request.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            lifecycleState()
+         );
+         final IndexShard shard = getShard(request);
+         rewriteAndFetchShardRequest(shard, request, listener.delegateFailure((l, rewritten) -> {
+@@ -705,7 +713,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+                 clusterService.localNode().getId(),
+                 request.shardId(),
+                 task.getId(),
+-                threadPool
++                threadPool,
++                lifecycleState()
+             ).delegateFailure((l, orig) -> {
+                 // check if we can shortcut the query phase entirely.
+                 if (orig.canReturnNullResponseIfMatchNoDocs()) {
+@@ -953,7 +962,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             shardSearchRequest.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            lifecycleState()
+         );
+         final Releasable markAsUsed = readerContext.markAsUsed(getKeepAlive(shardSearchRequest));
+         runAsync(getExecutor(readerContext.indexShard()), () -> {
+@@ -1010,7 +1020,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             readerContext.indexShard().shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            lifecycleState()
+         );
+         final Releasable markAsUsed;
+         try {
+@@ -1072,7 +1083,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
+             clusterService.localNode().getId(),
+             shardSearchRequest.shardId(),
+             task.getId(),
+-            threadPool
++            threadPool,
++            lifecycleState()
+         );
+         final Releasable markAsUsed = readerContext.markAsUsed(getKeepAlive(shardSearchRequest));
+         rewriteAndFetchShardRequest(readerContext.indexShard(), shardSearchRequest, listener.delegateFailure((l, rewritten) -> {
+diff --git a/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java b/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
+index 29380a05..9935c347 100644
+--- a/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
++++ b/server/src/test/java/org/elasticsearch/search/SearchServiceTests.java
+@@ -20,6 +20,7 @@ import org.elasticsearch.action.ActionListener;
+ import org.elasticsearch.action.OriginalIndices;
+ import org.elasticsearch.action.search.SearchRequest;
+ import org.elasticsearch.cluster.metadata.IndexMetadata;
++import org.elasticsearch.common.component.Lifecycle;
+ import org.elasticsearch.common.regex.Regex;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.util.BigArrays;
+@@ -160,7 +161,15 @@ public class SearchServiceTests extends IndexShardTestCase {
+         e.fillInStackTrace();
+         assertThat(e.getStackTrace().length, is(not(0)));
+         listener.onFailure(e);
+-        listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), "node", shardId, 123L, threadPool);
++        listener = wrapListenerForErrorHandling(
++            listener,
++            TransportVersion.current(),
++            "node",
++            shardId,
++            123L,
++            threadPool,
++            Lifecycle.State.STARTED
++        );
+         isWrapped.set(true);
+         listener.onFailure(e);
+     }
+@@ -198,7 +207,15 @@ public class SearchServiceTests extends IndexShardTestCase {
+                 }
+             };
+             IllegalArgumentException e = new IllegalArgumentException(exceptionMessage); // 400-level exception
+-            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool);
++            listener = wrapListenerForErrorHandling(
++                listener,
++                TransportVersion.current(),
++                nodeId,
++                shardId,
++                taskId,
++                threadPool,
++                Lifecycle.State.STARTED
++            );
+             listener.onFailure(e);
+         }
+     }
+@@ -235,7 +252,107 @@ public class SearchServiceTests extends IndexShardTestCase {
+                 }
+             };
+             IllegalStateException e = new IllegalStateException(exceptionMessage); // 500-level exception
+-            listener = wrapListenerForErrorHandling(listener, TransportVersion.current(), nodeId, shardId, taskId, threadPool);
++            listener = wrapListenerForErrorHandling(
++                listener,
++                TransportVersion.current(),
++                nodeId,
++                shardId,
++                taskId,
++                threadPool,
++                Lifecycle.State.STARTED
++            );
++            listener.onFailure(e);
++        }
++    }
++
++    public void testWrapListenerForErrorHandlingWhenServiceStopped() {
++        final String nodeId = "node";
++        final String index = "index";
++        ShardId shardId = new ShardId(index, index, 0);
++        final long taskId = 123L;
++
++        try (var mockLog = MockLog.capture(SearchService.class)) {
++            Configurator.setLevel(SearchService.class, Level.DEBUG);
++            final String exceptionMessage = "test exception message";
++            mockLog.addExpectation(
++                new MockLog.ExceptionSeenEventExpectation(
++                    format("\"[%s]%s: failed to execute search request for task [%d]\" and an exception logged", nodeId, shardId, taskId),
++                    SearchService.class.getCanonicalName(),
++                    Level.DEBUG, // When service is stopped, 500 errors should be logged at DEBUG level, not WARN
++                    format("[%s]%s: failed to execute search request for task [%d]", nodeId, shardId, taskId),
++                    IllegalStateException.class,
++                    exceptionMessage
++                )
++            );
++
++            // Tests the listener logs at DEBUG level when service is stopped
++            ActionListener<SearchPhaseResult> listener = new ActionListener<>() {
++                @Override
++                public void onResponse(SearchPhaseResult searchPhaseResult) {
++                    // noop - we only care about failure scenarios
++                }
++
++                @Override
++                public void onFailure(Exception e) {
++                    mockLog.assertAllExpectationsMatched();
++                }
++            };
++            IllegalStateException e = new IllegalStateException(exceptionMessage); // 500-level exception
++            listener = wrapListenerForErrorHandling(
++                listener,
++                TransportVersion.current(),
++                nodeId,
++                shardId,
++                taskId,
++                threadPool,
++                Lifecycle.State.STOPPED
++            );
++            listener.onFailure(e);
++        }
++    }
++
++    public void testWrapListenerForErrorHandlingWhenServiceClosed() {
++        final String nodeId = "node";
++        final String index = "index";
++        ShardId shardId = new ShardId(index, index, 0);
++        final long taskId = 123L;
++
++        try (var mockLog = MockLog.capture(SearchService.class)) {
++            Configurator.setLevel(SearchService.class, Level.DEBUG);
++            final String exceptionMessage = "test exception message";
++            mockLog.addExpectation(
++                new MockLog.ExceptionSeenEventExpectation(
++                    format("\"[%s]%s: failed to execute search request for task [%d]\" and an exception logged", nodeId, shardId, taskId),
++                    SearchService.class.getCanonicalName(),
++                    Level.DEBUG, // When service is closed, 500 errors should be logged at DEBUG level, not WARN
++                    format("[%s]%s: failed to execute search request for task [%d]", nodeId, shardId, taskId),
++                    IllegalStateException.class,
++                    exceptionMessage
++                )
++            );
++
++            // Tests the listener logs at DEBUG level when service is closed
++            ActionListener<SearchPhaseResult> listener = new ActionListener<>() {
++                @Override
++                public void onResponse(SearchPhaseResult searchPhaseResult) {
++                    // noop - we only care about failure scenarios
++                }
++
++                @Override
++                public void onFailure(Exception e) {
++                    mockLog.assertAllExpectationsMatched();
++                }
++            };
++            IllegalStateException e = new IllegalStateException(exceptionMessage); // 500-level exception
++            listener = wrapListenerForErrorHandling(
++                listener,
++                TransportVersion.current(),
++                nodeId,
++                shardId,
++                taskId,
++                threadPool,
++                Lifecycle.State.CLOSED
++            );
+             listener.onFailure(e);
+         }
+     }

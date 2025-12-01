@@ -1,0 +1,13 @@
+{
+  "harness_version": "0.1.0",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "edit_run_ids": [
+    "6bf04592"
+  ],
+  "os": "Darwin",
+  "python_version": "3.11.6",
+  "timestamp": "2025-11-27T00:36:58.458096",
+  "judge_run_id": "609ef74e",
+  "test_label": null
+}

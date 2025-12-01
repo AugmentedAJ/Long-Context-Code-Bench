@@ -1,0 +1,87 @@
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
+index 65f4caeb..72453970 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
+@@ -20,8 +20,11 @@ record TransportVersionDefinition(String name, List<TransportVersionId> ids) {
+         String name = filename.substring(0, filename.length() - 4);
+         List<TransportVersionId> ids = new ArrayList<>();
+ 
+-        if (contents.isEmpty() == false) {
+-            for (String rawId : contents.split(",")) {
++        // Strip comments (lines starting with #)
++        String cleanedContents = stripComments(contents);
++
++        if (cleanedContents.isEmpty() == false) {
++            for (String rawId : cleanedContents.split(",")) {
+                 try {
+                     ids.add(TransportVersionId.fromString(rawId));
+                 } catch (NumberFormatException e) {
+@@ -32,4 +35,18 @@ record TransportVersionDefinition(String name, List<TransportVersionId> ids) {
+ 
+         return new TransportVersionDefinition(name, ids);
+     }
++
++    private static String stripComments(String contents) {
++        StringBuilder result = new StringBuilder();
++        for (String line : contents.split("\n")) {
++            String trimmed = line.trim();
++            if (trimmed.isEmpty() == false && trimmed.startsWith("#") == false) {
++                if (result.length() > 0) {
++                    result.append('\n');
++                }
++                result.append(line);
++            }
++        }
++        return result.toString();
++    }
+ }
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionReference.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionReference.java
+index eabdf837..f9be8daf 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionReference.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionReference.java
+@@ -32,6 +32,11 @@ record TransportVersionReference(String name, String location) {
+         assert file.toString().endsWith(".csv") : file + " does not end in .csv";
+         List<TransportVersionReference> results = new ArrayList<>();
+         for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
++            // Skip empty lines and comments (lines starting with #)
++            String trimmed = line.trim();
++            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
++                continue;
++            }
+             String[] parts = line.split(",", 2);
+             if (parts.length != 2) {
+                 throw new IOException("Invalid transport version data file [" + file + "]: " + line);
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
+index d3b91464..3cd90b42 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
+@@ -23,11 +23,28 @@ record TransportVersionUpperBound(String name, String definitionName, TransportV
+         int slashIndex = filename.lastIndexOf('/');
+         String branch = filename.substring(slashIndex == -1 ? 0 : (slashIndex + 1), filename.length() - 4);
+ 
+-        String[] parts = contents.split(",");
++        // Strip comments (lines starting with #)
++        String cleanedContents = stripComments(contents);
++
++        String[] parts = cleanedContents.split(",");
+         if (parts.length != 2) {
+             throw new IllegalStateException("Invalid transport version upper bound file [" + file + "]: " + contents);
+         }
+ 
+         return new TransportVersionUpperBound(branch, parts[0], TransportVersionId.fromString(parts[1]));
+     }
++
++    private static String stripComments(String contents) {
++        StringBuilder result = new StringBuilder();
++        for (String line : contents.split("\n")) {
++            String trimmed = line.trim();
++            if (trimmed.isEmpty() == false && trimmed.startsWith("#") == false) {
++                if (result.length() > 0) {
++                    result.append('\n');
++                }
++                result.append(line);
++            }
++        }
++        return result.toString();
++    }
+ }

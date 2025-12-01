@@ -1,0 +1,91 @@
+diff --git a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
+index 20057d1..bc940f9 100644
+--- a/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/admin/cluster/node/info/RestNodesInfoAction.java
+@@ -102,6 +102,8 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         nodesInfoRequest.http(request.paramAsBoolean("http", nodesInfoRequest.http()));
+         nodesInfoRequest.plugin(request.paramAsBoolean("plugin", nodesInfoRequest.plugin()));
+ 
++        nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
++
+         executeNodeRequest(request, channel, nodesInfoRequest);
+     }
+ 
+@@ -134,11 +136,12 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         });
+     }
+ 
+-    class RestSettingsHandler implements RestHandler {
++        class RestSettingsHandler implements RestHandler {
+         @Override
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().settings(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -148,6 +151,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().os(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -157,6 +161,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().process(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -166,6 +171,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().jvm(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -175,6 +181,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().threadPool(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -184,6 +191,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().network(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -193,6 +201,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().transport(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -202,6 +211,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().http(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }
+@@ -211,6 +221,7 @@ public class RestNodesInfoAction extends BaseRestHandler {
+         public void handleRequest(final RestRequest request, final RestChannel channel) {
+             NodesInfoRequest nodesInfoRequest = new NodesInfoRequest(RestActions.splitNodes(request.param("nodeId")));
+             nodesInfoRequest.clear().plugin(true);
++            nodesInfoRequest.timeout(request.paramAsTime("timeout", null));
+             executeNodeRequest(request, channel, nodesInfoRequest);
+         }
+     }

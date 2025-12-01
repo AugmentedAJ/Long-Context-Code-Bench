@@ -1,0 +1,160 @@
+diff --git a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+index 5a296cd..35d730b 100644
+--- a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
++++ b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+@@ -52,6 +52,7 @@ import org.elasticsearch.index.get.GetResult;
+ import org.elasticsearch.index.mapper.internal.ParentFieldMapper;
+ import org.elasticsearch.index.mapper.internal.RoutingFieldMapper;
+ import org.elasticsearch.index.mapper.internal.SourceFieldMapper;
++import org.elasticsearch.index.mapper.internal.TTLFieldMapper;
+ import org.elasticsearch.index.mapper.internal.TimestampFieldMapper;
+ import org.elasticsearch.index.service.IndexService;
+ import org.elasticsearch.index.shard.IllegalIndexShardStateException;
+@@ -188,15 +189,33 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         // apply script to update the source
+         String routing = getResult.fields().containsKey(RoutingFieldMapper.NAME) ? getResult.field(RoutingFieldMapper.NAME).value().toString() : null;
+         String parent = getResult.fields().containsKey(ParentFieldMapper.NAME) ? getResult.field(ParentFieldMapper.NAME).value().toString() : null;
+-        // TODO ttl/timestamp
++        
++        // Extract timestamp and TTL from existing document
++        String timestamp = null;
++        if (getResult.fields().containsKey(TimestampFieldMapper.NAME)) {
++            timestamp = getResult.field(TimestampFieldMapper.NAME).value().toString();
++        }
++        
++        long ttl = -1;
++        if (getResult.fields().containsKey(TTLFieldMapper.NAME)) {
++            // TTL field stores the expiration timestamp, not the TTL itself
++            Long expiration = (Long) getResult.field(TTLFieldMapper.NAME).value();
++            long documentTimestamp = getResult.timestamp();
++            ttl = expiration - documentTimestamp;
++        }
+ 
+         // TODO percolate?
+ 
+         // TODO: external version type, does it make sense here? does not seem like it...
+ 
+         if (operation == null || "index".equals(operation)) {
++            // Use timestamp/TTL from request if provided, otherwise use existing values
++            String finalTimestamp = request.timestamp() != null ? request.timestamp() : timestamp;
++            long finalTTL = request.ttl() != -1 ? request.ttl() : ttl;
++            
+             IndexRequest indexRequest = Requests.indexRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
+                     .source(source, sourceAndContent.v1())
++                    .timestamp(finalTimestamp).ttl(finalTTL)
+                     .version(getResult.version()).replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel());
+             indexRequest.operationThreaded(false);
+             indexAction.execute(indexRequest, new ActionListener<IndexResponse>() {
+diff --git a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+index 05e39ce..39676fa 100644
+--- a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
++++ b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+@@ -44,6 +44,8 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+     private String routing;
+ 
+     String script;
++    private String timestamp;
++    private long ttl = -1;
+     @Nullable
+     String scriptLang;
+     @Nullable
+@@ -149,6 +151,44 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         return this.routing;
+     }
+ 
++    /**
++     * Sets the timestamp either as millis since the epoch, or, in the configured date format.
++     */
++    public UpdateRequest timestamp(String timestamp) {
++        this.timestamp = timestamp;
++        return this;
++    }
++
++    /**
++     * The timestamp to use.
++     */
++    public String timestamp() {
++        return this.timestamp;
++    }
++
++    /**
++     * Sets the relative ttl value. It musts be > 0 as it makes little sense otherwise. Setting it
++     * to <tt>null</tt> will reset to have no ttl.
++     */
++    public UpdateRequest ttl(Long ttl) {
++        if (ttl == null) {
++            this.ttl = -1;
++            return this;
++        }
++        if (ttl <= 0) {
++            throw new ElasticSearchIllegalArgumentException("TTL value must be > 0. Illegal value provided [" + ttl + "]");
++        }
++        this.ttl = ttl;
++        return this;
++    }
++
++    /**
++     * The ttl value.
++     */
++    public long ttl() {
++        return this.ttl;
++    }
++
+     int shardId() {
+         return this.shardId;
+     }
+@@ -297,6 +337,10 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         }
+         scriptParams = in.readMap();
+         retryOnConflict = in.readVInt();
++        if (in.readBoolean()) {
++            timestamp = in.readUTF();
++        }
++        ttl = in.readLong();
+     }
+ 
+     @Override
+@@ -321,5 +365,12 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         }
+         out.writeMap(scriptParams);
+         out.writeVInt(retryOnConflict);
++        if (timestamp == null) {
++            out.writeBoolean(false);
++        } else {
++            out.writeBoolean(true);
++            out.writeUTF(timestamp);
++        }
++        out.writeLong(ttl);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+index e6bef60..3867902 100644
+--- a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+@@ -57,6 +57,8 @@ public class RestUpdateAction extends BaseRestHandler {
+         updateRequest.routing(request.param("routing"));
+         updateRequest.parent(request.param("parent")); // order is important, set it after routing, so it will set the routing
+         updateRequest.timeout(request.paramAsTime("timeout", updateRequest.timeout()));
++        updateRequest.timestamp(request.param("timestamp"));
++        updateRequest.ttl(request.paramAsLong("ttl", -1));
+         String replicationType = request.param("replication");
+         if (replicationType != null) {
+             updateRequest.replicationType(ReplicationType.fromString(replicationType));
+@@ -92,6 +94,17 @@ public class RestUpdateAction extends BaseRestHandler {
+                     if (content.containsKey("params")) {
+                         updateRequest.scriptParams((Map<String, Object>) content.get("params"));
+                     }
++                    if (content.containsKey("timestamp")) {
++                        updateRequest.timestamp(content.get("timestamp").toString());
++                    }
++                    if (content.containsKey("ttl")) {
++                        Object ttlValue = content.get("ttl");
++                        if (ttlValue instanceof Number) {
++                            updateRequest.ttl(((Number) ttlValue).longValue());
++                        } else if (ttlValue instanceof String) {
++                            updateRequest.ttl(Long.parseLong(ttlValue.toString()));
++                        }
++                    }
+                 } catch (Exception e) {
+                     try {
+                         channel.sendResponse(new XContentThrowableRestResponse(request, e));

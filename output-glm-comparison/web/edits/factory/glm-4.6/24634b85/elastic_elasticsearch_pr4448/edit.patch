@@ -1,0 +1,139 @@
+diff --git a/bin/elasticsearch b/bin/elasticsearch
+index 753aa8e..41a09bc 100755
+--- a/bin/elasticsearch
++++ b/bin/elasticsearch
+@@ -151,45 +151,96 @@ launch_service()
+ }
+ 
+ # Parse any command line options.
+-args=`getopt vdhp:D:X: "$@"`
+-eval set -- "$args"
+-
+-while true; do
+-    case $1 in
+-        -v)
+-            "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
+-                    org.elasticsearch.Version
+-            exit 0
+-        ;;
+-        -p)
+-            pidfile="$2"
+-            shift 2
+-        ;;
+-        -d)
+-            daemonized="yes"
+-            shift
+-        ;;
+-        -h)
+-            echo "Usage: $0 [-d] [-h] [-p pidfile]"
+-            exit 0
+-        ;;
+-        -D)
+-            properties="$properties -D$2"
+-            shift 2
+-        ;;
+-        -X)
+-            properties="$properties -X$2"
+-            shift 2
+-        ;;
+-        --)
+-            shift
+-            break
+-        ;;
+-        *)
+-            echo "Error parsing argument $1!" >&2
++# First, separate -D style options from -- style options
++dash_d_args=""
++dash_dash_args=""
++remaining_args=""
++
++for arg in "$@"; do
++    if [[ "$arg" =~ ^-D ]]; then
++        dash_d_args="$dash_d_args $arg"
++    elif [[ "$arg" =~ ^-- ]]; then
++        dash_dash_args="$dash_dash_args $arg"
++    else
++        remaining_args="$remaining_args $arg"
++    fi
++done
++
++# Parse the known options with getopt
++if [ -n "$remaining_args" ] || [ -n "$dash_d_args" ]; then
++    # Extract -D arguments for getopt processing
++    d_args=""
++    for arg in $dash_d_args; do
++        if [[ "$arg" =~ ^-D.+= ]]; then
++            d_args="$d_args -D${arg#-D}"
++        fi
++    done
++    
++    if [ -n "$d_args" ] || [ -n "$remaining_args" ]; then
++        args=`getopt vdhp:D:X: $remaining_args $d_args 2>/dev/null`
++        if [ $? != 0 ]; then
++            echo "Error parsing command line arguments" >&2
+             exit 1
+-        ;;
+-    esac
++        fi
++        eval set -- "$args"
++        
++        while true; do
++            case $1 in
++                -v)
++                    "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
++                            org.elasticsearch.Version
++                    exit 0
++                ;;
++                -p)
++                    pidfile="$2"
++                    shift 2
++                ;;
++                -d)
++                    daemonized="yes"
++                    shift
++                ;;
++                -h)
++                    echo "Usage: $0 [-d] [-h] [-p pidfile] [-Dproperty=value] [--property.name=value]"
++                    echo "  -d                    Daemonize, start in the background"
++                    echo "  -h                    Show this help message"
++                    echo "  -p pidfile            Log the pid to a file"
++                    echo "  -Dproperty=value      Set Java system property"
++                    echo "  --property.name=value Set Elasticsearch property (converted to -Des.property.name=value)"
++                    exit 0
++                ;;
++                -D)
++                    properties="$properties -D$2"
++                    shift 2
++                ;;
++                -X)
++                    properties="$properties -X$2"
++                    shift 2
++                ;;
++                --)
++                    shift
++                    break
++                ;;
++                *)
++                    echo "Error parsing argument $1!" >&2
++                    exit 1
++                ;;
++            esac
++        done
++    fi
++fi
++
++# Process --style arguments
++for arg in $dash_dash_args; do
++    if [[ "$arg" =~ ^--([^.]+)(\..+)?=.+$ ]]; then
++        # This is a --property.name=value style argument
++        # Convert it to -Des.property.name=value
++        property="${arg#--}"
++        properties="$properties -Des.$property"
++    elif [[ "$arg" =~ ^--.+$ ]]; then
++        # This is a -- argument without a value (invalid format)
++        echo "Error: Long-style arguments must be in the format --property.name=value. Got: $arg" >&2
++        exit 1
++    fi
+ done
+ 
+ # Start up the service

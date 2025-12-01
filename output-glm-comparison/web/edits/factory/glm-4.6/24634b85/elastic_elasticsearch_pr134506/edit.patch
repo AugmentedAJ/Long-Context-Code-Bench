@@ -1,0 +1,212 @@
+diff --git a/server/src/main/java/org/elasticsearch/TransportVersion.java b/server/src/main/java/org/elasticsearch/TransportVersion.java
+index f130f7d6..4e412620 100644
+--- a/server/src/main/java/org/elasticsearch/TransportVersion.java
++++ b/server/src/main/java/org/elasticsearch/TransportVersion.java
+@@ -239,11 +239,113 @@ public record TransportVersion(String name, int id, TransportVersion nextPatchVe
+     public static TransportVersion fromName(String name) {
+         TransportVersion known = VersionsHolder.ALL_VERSIONS_BY_NAME.get(name);
+         if (known == null) {
+-            throw new IllegalStateException("unknown transport version [" + name + "]");
++            throw new IllegalStateException(createUnknownVersionErrorMessage(name));
+         }
+         return known;
+     }
+ 
++    /**
++     * Creates a helpful error message for unknown transport versions by suggesting similar versions.
++     */
++    private static String createUnknownVersionErrorMessage(String name) {
++        List<String> suggestions = findSimilarVersionNames(name);
++        
++        StringBuilder errorMsg = new StringBuilder("unknown transport version [")
++            .append(name)
++            .append("]");
++            
++        if (!suggestions.isEmpty()) {
++            errorMsg.append(". Did you mean ");
++            if (suggestions.size() == 1) {
++                errorMsg.append("[").append(suggestions.get(0)).append("]?");
++            } else {
++                errorMsg.append("one of: ");
++                for (int i = 0; i < suggestions.size(); i++) {
++                    if (i > 0) {
++                        errorMsg.append(", ");
++                    }
++                    if (i == suggestions.size() - 1) {
++                        errorMsg.append("or ");
++                    }
++                    errorMsg.append("[").append(suggestions.get(i)).append("]");
++                }
++                errorMsg.append("?");
++            }
++        }
++        
++        return errorMsg.toString();
++    }
++
++    /**
++     * Finds version names that are similar to the given name using Levenshtein distance.
++     * Returns up to 3 most similar version names.
++     */
++    private static List<String> findSimilarVersionNames(String name) {
++        if (name == null || name.trim().isEmpty()) {
++            return List.of();
++        }
++        
++        String targetName = name.trim().toLowerCase();
++        return VersionsHolder.ALL_VERSIONS_BY_NAME.keySet().stream()
++            .filter(knownName -> !knownName.equalsIgnoreCase(targetName))
++            .map(knownName -> new VersionSuggestion(knownName, calculateSimilarity(targetName, knownName.toLowerCase())))
++            .filter(suggestion -> suggestion.similarity > 0.5) // Only include reasonably similar names
++            .sorted((a, b) -> Double.compare(b.similarity, a.similarity))
++            .limit(3)
++            .map(suggestion -> suggestion.name)
++            .toList();
++    }
++
++    /**
++     * Calculates similarity between two strings using a simplified Levenshtein distance.
++     * Returns a value between 0.0 (no similarity) and 1.0 (exact match).
++     */
++    private static double calculateSimilarity(String s1, String s2) {
++        if (s1.equals(s2)) {
++            return 1.0;
++        }
++        
++        int maxLength = Math.max(s1.length(), s2.length());
++        if (maxLength == 0) {
++            return 0.0;
++        }
++        
++        int distance = levenshteinDistance(s1, s2);
++        return 1.0 - ((double) distance / maxLength);
++    }
++
++    /**
++     * Calculates the Levenshtein distance between two strings.
++     */
++    private static int levenshteinDistance(String s1, String s2) {
++        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
++        
++        for (int i = 0; i <= s1.length(); i++) {
++            dp[i][0] = i;
++        }
++        
++        for (int j = 0; j <= s2.length(); j++) {
++            dp[0][j] = j;
++        }
++        
++        for (int i = 1; i <= s1.length(); i++) {
++            for (int j = 1; j <= s2.length(); j++) {
++                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
++                dp[i][j] = Math.min(
++                    Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
++                    dp[i - 1][j - 1] + cost
++                );
++            }
++        }
++        
++        return dp[s1.length()][s2.length()];
++    }
++
++    /**
++     * Helper class to hold version name suggestions with similarity scores.
++     */
++    private static record VersionSuggestion(String name, double similarity) {}
++
+     public static void writeVersion(TransportVersion version, StreamOutput out) throws IOException {
+         out.writeVInt(version.id);
+     }
+diff --git a/server/src/test/java/org/elasticsearch/TransportVersionTests.java b/server/src/test/java/org/elasticsearch/TransportVersionTests.java
+index e51ca0c5..6af124cd 100644
+--- a/server/src/test/java/org/elasticsearch/TransportVersionTests.java
++++ b/server/src/test/java/org/elasticsearch/TransportVersionTests.java
+@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.greaterThan;
+ import static org.hamcrest.Matchers.is;
+ import static org.hamcrest.Matchers.lessThan;
+ import static org.hamcrest.Matchers.sameInstance;
++import static org.hamcrest.Matchers.startsWith;
+ 
+ public class TransportVersionTests extends ESTestCase {
+ 
+@@ -391,4 +392,80 @@ public class TransportVersionTests extends ESTestCase {
+         );
+         assertThat(new TransportVersion(null, 1000000, null).supports(test3), is(true));
+     }
++
++    public void testUnknownVersionErrorMessageWithSuggestions() {
++        // Test with a version name that might have a typo
++        IllegalStateException exception1 = expectThrows(IllegalStateException.class, 
++            () -> TransportVersion.fromName("transpor_version"));
++        assertThat(exception1.getMessage(), containsString("unknown transport version [transpor_version]"));
++        
++        // The error message should contain suggestions if there are similar versions
++        // Note: This test might not find exact matches depending on the available versions
++        // but verifies the structure of the error message
++        if (exception1.getMessage().contains("Did you mean")) {
++            assertThat(exception1.getMessage(), containsString("Did you mean"));
++            // Should be properly formatted with brackets around suggestions
++            assertThat(exception1.getMessage(), containsString("["));
++            assertThat(exception1.getMessage(), containsString("]"));
++        }
++        
++        // Test with a completely different string
++        IllegalStateException exception2 = expectThrows(IllegalStateException.class, 
++            () -> TransportVersion.fromName("completely_random_version_name"));
++        assertThat(exception2.getMessage(), containsString("unknown transport version [completely_random_version_name]"));
++        // Probably won't have suggestions for this completely different name
++        
++        // Test with empty string
++        IllegalStateException exception3 = expectThrows(IllegalStateException.class, 
++            () -> TransportVersion.fromName(""));
++        assertThat(exception3.getMessage(), containsString("unknown transport version []"));
++        
++        // Test with null
++        IllegalStateException exception4 = expectThrows(IllegalStateException.class, 
++            () -> TransportVersion.fromName(null));
++        assertThat(exception4.getMessage(), containsString("unknown transport version [null]"));
++    }
++
++    public void testVersionSuggestionAlgorithm() {
++        // We can't directly test the private methods, but we can verify the functionality
++        // through the public interface by checking error messages
++        
++        // Test with a name that's likely to have similar versions (if they exist in the codebase)
++        try {
++            TransportVersion.fromName("version");
++            // If this succeeds, it means "version" is a valid transport version name
++            // which is fine, the test just passes
++        } catch (IllegalStateException e) {
++            // Check if the error message is properly formatted
++            assertThat(e.getMessage(), startsWith("unknown transport version [version]"));
++            
++            // If there are suggestions, verify they're properly formatted
++            if (e.getMessage().contains("Did you mean")) {
++                assertThat(e.getMessage(), containsString("["));
++                assertThat(e.getMessage(), containsString("]"));
++                
++                // Should end with a question mark
++                assertThat(e.getMessage(), endsWith("?"));
++                
++                // Should not contain duplicate suggestions
++                String message = e.getMessage();
++                int firstBracket = message.indexOf('[');
++                String suggestionsPart = message.substring(firstBracket);
++                
++                // Count occurrences of each suggestion pattern to check for duplicates
++                String[] suggestions = suggestionsPart.split("\\[|\\]|, | or ");
++                for (int i = 1; i < suggestions.length; i += 2) { // Skip empty strings and delimiters
++                    String suggestion = suggestions[i].trim();
++                    int occurrences = 0;
++                    for (int j = 1; j < suggestions.length; j += 2) {
++                        if (suggestions[j].trim().equals(suggestion)) {
++                            occurrences++;
++                        }
++                    }
++                    // Each suggestion should appear exactly once
++                    assertThat("Duplicate suggestion found: " + suggestion, occurrences, is(1));
++                }
++            }
++        }
++    }
+ }

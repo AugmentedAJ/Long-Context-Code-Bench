@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134843,
+  "base_commit": "966c08642bb13d9c43fa991b74c20545e8d5b7ae",
+  "head_commit": "76622a6bcd158ede0c79a9e454a5e7407e0662e4",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.2,
+  "rationale": "The agent's diff is functionally identical to the ground truth. Both replace the hardcoded Unix path '/unknown/path' with a system-agnostic path created via createTempDir().resolve(). The only difference is the variable naming: the agent uses 'invalidPath' while ground truth uses 'unknownFile'. Both names are semantically appropriate for a non-existent file path used in a validation test. The implementation correctly addresses the task requirement to make the test system-agnostic, properly updates all three references (two .put() calls and one assertion message), and follows the same approach as the ground truth. No unsolicited documentation was added. This represents human-level quality with a trivial stylistic difference that has no functional impact.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/security/src/internalClusterTest/java/org/elasticsearch/xpack/security/transport/CrossClusterSigningConfigReloaderIntegTests.java b/x-pack/plugin/security/src/internalClusterTest/java/org/elasticsearch/xpack/security/transport/CrossClusterSigningConfigReloaderIntegTests.java\nindex f3d57d08175..bf489ff5c1a 100644\n--- a/x-pack/plugin/security/src/internalClusterTest/java/org/elasticsearch/xpack/security/transport/CrossClusterSigningConfigReloaderIntegTests.java\n+++ b/x-pack/plugin/security/src/internalClusterTest/java/org/elasticsearch/xpack/security/transport/CrossClusterSigningConfigReloaderIntegTests.java\n@@ -200,15 +200,16 @@ public class CrossClusterSigningConfigReloaderIntegTests extends SecurityIntegTe\n     }\n \n     public void testValidationFailsWhenUpdateWithInvalidPath() throws Exception {\n+        Path unknownFile = createTempDir().resolve(\"unknown_file\");\n         var exception = assertThrows(\n             IllegalArgumentException.class,\n             () -> updateClusterSettings(\n                 Settings.builder()\n-                    .put(SIGNING_CERT_PATH.getConcreteSettingForNamespace(\"test\").getKey(), \"/unknown/path\")\n-                    .put(SIGNING_KEY_PATH.getConcreteSettingForNamespace(\"test\").getKey(), \"/unknown/path\")\n+                    .put(SIGNING_CERT_PATH.getConcreteSettingForNamespace(\"test\").getKey(), unknownFile)\n+                    .put(SIGNING_KEY_PATH.getConcreteSettingForNamespace(\"test\").getKey(), unknownFile)\n             )\n         );\n-        assertThat(exception.getMessage(), equalTo(\"File [/unknown/path] configured for remote cluster [test] does no exist\"));\n+        assertThat(exception.getMessage(), equalTo(\"File [\" + unknownFile + \"] configured for remote cluster [test] does no exist\"));\n     }\n \n     private void addAndRemoveClusterConfigsRuntime("
+}

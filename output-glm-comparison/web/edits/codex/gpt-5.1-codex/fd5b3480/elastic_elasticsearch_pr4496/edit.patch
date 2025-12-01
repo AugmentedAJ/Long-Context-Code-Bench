@@ -1,0 +1,55 @@
+diff --git a/src/main/java/org/elasticsearch/common/joda/DateMathParser.java b/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
+index 3e9fec3..2dde91f 100644
+--- a/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
++++ b/src/main/java/org/elasticsearch/common/joda/DateMathParser.java
+@@ -198,7 +198,20 @@ public class DateMathParser {
+ 
+     private long parseStringValue(String value) {
+         try {
+-            return dateTimeFormatter.parser().parseMillis(value);
++            MutableDateTime dateTime = new MutableDateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC);
++            int location = dateTimeFormatter.parser().parseInto(dateTime, value, 0);
++            if (location == value.length()) {
++                return dateTime.getMillis();
++            }
++            if (location <= 0 || dateTime.getYear() > 5000) {
++                try {
++                    long time = Long.parseLong(value);
++                    return timeUnit.toMillis(time);
++                } catch (NumberFormatException e1) {
++                    throw new ElasticSearchParseException("failed to parse date field [" + value + "], tried both date format [" + dateTimeFormatter.format() + "], and timestamp number");
++                }
++            }
++            return dateTime.getMillis();
+         } catch (RuntimeException e) {
+             try {
+                 long time = Long.parseLong(value);
+diff --git a/src/test/java/org/elasticsearch/common/joda/DateMathParserTests.java b/src/test/java/org/elasticsearch/common/joda/DateMathParserTests.java
+index 0a0418a..bd436df 100644
+--- a/src/test/java/org/elasticsearch/common/joda/DateMathParserTests.java
++++ b/src/test/java/org/elasticsearch/common/joda/DateMathParserTests.java
+@@ -1,6 +1,8 @@
+ package org.elasticsearch.common.joda;
+ 
+ import org.elasticsearch.test.ElasticsearchTestCase;
++import org.joda.time.DateTime;
++import org.joda.time.DateTimeZone;
+ import org.junit.Test;
+ 
+ import java.util.concurrent.TimeUnit;
+@@ -44,4 +46,15 @@ public class DateMathParserTests extends ElasticsearchTestCase {
+         assertThat(parser.parse("2013-03-03||/y", 0), equalTo(parser.parse("2013-01-01", 0)));
+         assertThat(parser.parseRoundCeil("2013-03-03||/y", 0), equalTo(parser.parse("2014-01-01", 0)));
+     }
++
++    @Test
++    public void partialDateDefaultsTo1970() {
++        DateMathParser monthDayParser = new DateMathParser(Joda.forPattern("yyyy/MM/dd||MM/dd"), TimeUnit.MILLISECONDS);
++        long expectedMonthDay = new DateTime(1970, 3, 5, 0, 0, 0, 0, DateTimeZone.UTC).getMillis();
++        assertThat(monthDayParser.parse("03/05", 0), equalTo(expectedMonthDay));
++
++        DateMathParser timeParser = new DateMathParser(Joda.forPattern("HH:mm:ss"), TimeUnit.MILLISECONDS);
++        long expectedTime = new DateTime(1970, 1, 1, 10, 12, 55, 0, DateTimeZone.UTC).getMillis();
++        assertThat(timeParser.parse("10:12:55", 0), equalTo(expectedTime));
++    }
+ }

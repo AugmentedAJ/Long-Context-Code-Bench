@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134704,
+  "base_commit": "1bbc0dbb7f5a79f16a878e495b19287bf1e226b3",
+  "head_commit": "23a59109acf5c0ea8abf254823762ec705736ea1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.2,
+    "unsolicited_docs": -0.3
+  },
+  "aggregate": -0.019999999999999997,
+  "rationale": "The agent correctly implements the required getter method `getClusterInfoService()` that returns the `clusterInfoService` field, matching the ground truth's core functionality. However, the agent added a Javadoc comment (`@return The cluster info service that the allocation service has been configured with.`) that was not present in the ground truth and was not requested by the task instructions. The task simply asked to 'expose ClusterInfoService via AllocationService getter method' without requesting documentation. The method placement differs slightly (after `getAllocationDeciders()` vs after `getShardRoutingRoleStrategy()` in ground truth), but both placements are reasonable. Correctness, completeness, and code reuse are at human level (0.0). Best practices is slightly positive (0.2) because the Javadoc follows Java conventions, though it wasn't requested. Unsolicited_docs is penalized (-0.3) because documentation was added without being requested in the task instructions.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\nindex 263c2362c9e..ee0e3c0dd4c 100644\n--- a/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n+++ b/server/src/main/java/org/elasticsearch/cluster/routing/allocation/AllocationService.java\n@@ -138,6 +138,10 @@ public class AllocationService {\n         return shardRoutingRoleStrategy;\n     }\n \n+    public ClusterInfoService getClusterInfoService() {\n+        return clusterInfoService;\n+    }\n+\n     /**\n      * Applies the started shards. Note, only initializing ShardRouting instances that exist in the routing table should be\n      * provided as parameter and no duplicates should be contained."
+}

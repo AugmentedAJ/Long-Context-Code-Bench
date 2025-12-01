@@ -1,0 +1,121 @@
+diff --git a/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java b/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
+index 3bc2fde3..1eea9b0a 100644
+--- a/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
++++ b/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
+@@ -24,6 +24,7 @@ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.concurrent.TimeUnit;
+ 
++import static org.elasticsearch.test.ESTestCase.assertBusy;
+ import static org.hamcrest.Matchers.equalTo;
+ 
+ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRestartIndexCompatibilityTestCase {
+@@ -74,16 +75,27 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+         }
+ 
+         if (isFullyUpgradedTo(VERSION_MINUS_1)) {
+-            // check .async-search index is readable
+-            assertThat(indexVersion(asyncSearchIndex, true), equalTo(VERSION_MINUS_2));
++            // check .async-search index is readable - add retry for cluster startup stability
++            assertBusy(() -> {
++                try {
++                    assertThat(indexVersion(asyncSearchIndex, true), equalTo(VERSION_MINUS_2));
++                } catch (Exception e) {
++                    throw new AssertionError("System index not yet available after upgrade", e);
++                }
++            }, 30, TimeUnit.SECONDS);
+             assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
+ 
+-            // migrate system indices
+-            Request migrateRequest = new Request("POST", "/_migration/system_features");
+-            assertThat(
+-                ObjectPath.createFromResponse(client().performRequest(migrateRequest)).evaluate("features.0.feature_name"),
+-                equalTo("async_search")
+-            );
++            // migrate system indices - add retry for request stability
++            assertBusy(() -> {
++                try {
++                    Request migrateRequest = new Request("POST", "/_migration/system_features");
++                    ObjectPath migrateResp = ObjectPath.createFromResponse(client().performRequest(migrateRequest));
++                    assertThat(migrateResp.evaluate("features.0.feature_name"), equalTo("async_search"));
++                } catch (Exception e) {
++                    throw new AssertionError("System feature migration request failed", e);
++                }
++            }, 30, TimeUnit.SECONDS);
++            
+             assertBusy(() -> {
+                 Request checkMigrateProgress = new Request("GET", "/_migration/system_features");
+                 Response resp = null;
+@@ -98,7 +110,7 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+                 }
+             }, 30, TimeUnit.SECONDS);
+ 
+-            // check search results from n-2 search are still readable
++            // check search results from n-2 search are still readable after migration
+             assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
+ 
+             // perform new async search and check its readable
+@@ -111,7 +123,15 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+         }
+ 
+         if (isFullyUpgradedTo(VERSION_CURRENT)) {
+-            assertThat(indexVersion(index, true), equalTo(VERSION_MINUS_2));
++            // Add retry for final cluster upgrade stability
++            assertBusy(() -> {
++                try {
++                    assertThat(indexVersion(index, true), equalTo(VERSION_MINUS_2));
++                } catch (Exception e) {
++                    throw new AssertionError("Index not yet available after final upgrade", e);
++                }
++            }, 30, TimeUnit.SECONDS);
++            
+             assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
+             assertAsyncSearchHitCount(async_search_ids.get("n-1_id"), numDocs);
+ 
+@@ -123,18 +143,41 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+ 
+     }
+ 
+-    private static String searchAsyncAndStoreId(Request asyncSearchRequest, String asyncIdName) throws IOException {
++    private static String searchAsyncAndStoreId(Request asyncSearchRequest, String asyncIdName) throws Exception {
++        // Submit the async search and get the ID
+         ObjectPath resp = ObjectPath.createFromResponse(client().performRequest(asyncSearchRequest));
+         String asyncId = resp.evaluate("id");
+         assertNotNull(asyncId);
+         async_search_ids.put(asyncIdName, asyncId);
++        
++        // Wait a moment for the async search to be fully indexed in the system index
++        // This prevents race conditions where the async search document isn't immediately available
++        assertBusy(() -> {
++            try {
++                var asyncGet = new Request("GET", "/_async_search/" + asyncId);
++                ObjectPath checkResp = ObjectPath.createFromResponse(client().performRequest(asyncGet));
++                // Just check that we can retrieve the response - the actual hit count assertion will happen separately
++                assertNotNull(checkResp.evaluate("id"));
++            } catch (IOException e) {
++                // Wrap as AssertionError for assertBusy to retry
++                throw new AssertionError("Async search not yet available for id: " + asyncId, e);
++            }
++        }, 10, TimeUnit.SECONDS);
++        
+         return asyncId;
+     }
+ 
+-    private static void assertAsyncSearchHitCount(String asyncId, int numDocs) throws IOException {
+-        var asyncGet = new Request("GET", "/_async_search/" + asyncId);
+-        ObjectPath resp = ObjectPath.createFromResponse(client().performRequest(asyncGet));
+-        assertEquals(Integer.valueOf(numDocs), resp.evaluate("response.hits.total.value"));
++    private static void assertAsyncSearchHitCount(String asyncId, int numDocs) throws Exception {
++        assertBusy(() -> {
++            try {
++                var asyncGet = new Request("GET", "/_async_search/" + asyncId);
++                ObjectPath resp = ObjectPath.createFromResponse(client().performRequest(asyncGet));
++                assertEquals(Integer.valueOf(numDocs), resp.evaluate("response.hits.total.value"));
++            } catch (IOException e) {
++                // Wrap IOException as AssertionError for assertBusy to retry
++                throw new AssertionError("Failed to assert async search hit count for id: " + asyncId, e);
++            }
++        }, 30, TimeUnit.SECONDS);
+     }
+ 
+     /**

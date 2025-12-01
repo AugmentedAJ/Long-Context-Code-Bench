@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4597,
+  "base_commit": "2a73cf4f823e113926232864b8c7468f9103f88a",
+  "head_commit": "611dd0a3962fbb2b17dffbcbc17433f47cc07968",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": -0.3,
+    "unsolicited_docs": -0.5
+  },
+  "aggregate": -0.16,
+  "rationale": "The agent correctly implements the Haversine formula with mathematically equivalent results to the ground truth. Both implementations use the same core formula: haversine(d/R) = haversine(lat2-lat1) + cos(lat1)*cos(lat2)*haversine(lon2-lon1), though expressed differently. The ground truth uses a more compact mathematical transformation (h1, h2, h notation), while the agent uses the traditional textbook Haversine with deltaLat/2 and deltaLon/2 sines, then atan2 for the final arc calculation. Both are correct and produce identical results. However, the agent added significant unsolicited documentation (3 lines of javadoc comments explaining the Haversine formula) when the task only asked to 'fix the ARC distance calculation' without requesting documentation updates. The ground truth made no comment changes. The agent also introduced more intermediate variables (lat1, lat2, deltaLat, deltaLon) and inline comments, making the code more verbose than the ground truth's compact approach. While the added comments may be helpful, they were not requested and violate the instruction to avoid over-engineering.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\nindex 6e49621d57f..0cad9dd3376 100644\n--- a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\n+++ b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java\n@@ -79,18 +79,12 @@ public enum GeoDistance {\n     ARC() {\n         @Override\n         public double calculate(double sourceLatitude, double sourceLongitude, double targetLatitude, double targetLongitude, DistanceUnit unit) {\n-            double longitudeDifference = targetLongitude - sourceLongitude;\n-            double a = Math.toRadians(90D - sourceLatitude);\n-            double c = Math.toRadians(90D - targetLatitude);\n-            double factor = (Math.cos(a) * Math.cos(c)) + (Math.sin(a) * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));\n-\n-            if (factor < -1D) {\n-                return unit.fromMeters(Math.PI * GeoUtils.EARTH_MEAN_RADIUS);\n-            } else if (factor >= 1D) {\n-                return 0;\n-            } else {\n-                return unit.fromMeters(Math.acos(factor) * GeoUtils.EARTH_MEAN_RADIUS);\n-            }\n+            double x1 = sourceLatitude * Math.PI / 180D;\n+            double x2 = targetLatitude * Math.PI / 180D;\n+            double h1 = (1D - Math.cos(x1 - x2)) / 2D;\n+            double h2 = (1D - Math.cos((sourceLongitude - targetLongitude) * Math.PI / 180D)) / 2D;\n+            double h = h1 + Math.cos(x1) * Math.cos(x2) * h2;\n+            return unit.fromMeters(GeoUtils.EARTH_MEAN_RADIUS * 2D * Math.asin(Math.min(1, Math.sqrt(h))));\n         }\n \n         @Override"
+}

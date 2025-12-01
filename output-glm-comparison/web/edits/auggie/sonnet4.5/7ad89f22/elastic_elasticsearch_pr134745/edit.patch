@@ -1,0 +1,13 @@
+diff --git a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml
+index af00d922..a9e94c3b 100644
+--- a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml
++++ b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/esql/60_usage.yml
+@@ -226,7 +226,7 @@ setup:
+   - gt: {esql.functions.to_long: $functions_to_long}
+   - match: {esql.functions.coalesce: $functions_coalesce}
+   - gt: {esql.functions.categorize: $functions_categorize}
+-  - length: {esql.functions: 150} # check the "sister" test above for a likely update to the same esql.functions length check
++  - length: {esql.functions: 151} # check the "sister" test above for a likely update to the same esql.functions length check
+ 
+ ---
+ took:

@@ -1,0 +1,133 @@
+diff --git a/src/main/java/org/elasticsearch/transport/netty/NettyTransport.java b/src/main/java/org/elasticsearch/transport/netty/NettyTransport.java
+index 9764831..c610515 100644
+--- a/src/main/java/org/elasticsearch/transport/netty/NettyTransport.java
++++ b/src/main/java/org/elasticsearch/transport/netty/NettyTransport.java
+@@ -586,52 +586,64 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
+         if (node == null) {
+             throw new ConnectTransportException(null, "can't connect to a null node");
+         }
+-        globalLock.readLock().lock();
+-        try {
++        final Object nodeMutex = connectLock(node.id());
++        synchronized (nodeMutex) {
+             if (!lifecycle.started()) {
+                 throw new ElasticSearchIllegalStateException("can't add nodes to a stopped transport");
+             }
+-            synchronized (connectLock(node.id())) {
++
++            globalLock.readLock().lock();
++            try {
+                 if (!lifecycle.started()) {
+                     throw new ElasticSearchIllegalStateException("can't add nodes to a stopped transport");
+                 }
+-                try {
+-                    NodeChannels nodeChannels = connectedNodes.get(node);
+-                    if (nodeChannels != null) {
+-                        return;
+-                    }
+-
+-                    if (light) {
+-                        nodeChannels = connectToChannelsLight(node);
+-                    } else {
+-                        nodeChannels = new NodeChannels(new Channel[connectionsPerNodeLow], new Channel[connectionsPerNodeMed], new Channel[connectionsPerNodeHigh], new Channel[connectionsPerNodePing]);
+-                        try {
+-                            connectToChannels(nodeChannels, node);
+-                        } catch (Exception e) {
+-                            nodeChannels.close();
+-                            throw e;
+-                        }
+-                    }
++                NodeChannels existing = connectedNodes.get(node);
++                if (existing != null) {
++                    return;
++                }
++            } finally {
++                globalLock.readLock().unlock();
++            }
+ 
+-                    NodeChannels existing = connectedNodes.putIfAbsent(node, nodeChannels);
+-                    if (existing != null) {
+-                        // we are already connected to a node, close this ones
++            NodeChannels nodeChannels;
++            try {
++                if (light) {
++                    nodeChannels = connectToChannelsLight(node);
++                } else {
++                    nodeChannels = new NodeChannels(new Channel[connectionsPerNodeLow], new Channel[connectionsPerNodeMed], new Channel[connectionsPerNodeHigh], new Channel[connectionsPerNodePing]);
++                    try {
++                        connectToChannels(nodeChannels, node);
++                    } catch (Exception e) {
+                         nodeChannels.close();
+-                    } else {
+-                        if (logger.isDebugEnabled()) {
+-                            logger.debug("connected to node [{}]", node);
+-                        }
+-                        transportServiceAdapter.raiseNodeConnected(node);
++                        throw e;
+                     }
++                }
++            } catch (ConnectTransportException e) {
++                throw e;
++            } catch (Exception e) {
++                throw new ConnectTransportException(node, "General node connection failure", e);
++            }
+ 
+-                } catch (ConnectTransportException e) {
+-                    throw e;
+-                } catch (Exception e) {
+-                    throw new ConnectTransportException(node, "General node connection failure", e);
++            globalLock.readLock().lock();
++            try {
++                if (!lifecycle.started()) {
++                    nodeChannels.close();
++                    throw new ElasticSearchIllegalStateException("can't add nodes to a stopped transport");
++                }
++                NodeChannels existing = connectedNodes.putIfAbsent(node, nodeChannels);
++                if (existing != null) {
++                    // we are already connected to a node, close this ones
++                    nodeChannels.close();
++                } else {
++                    if (logger.isDebugEnabled()) {
++                        logger.debug("connected to node [{}]", node);
++                    }
++                    transportServiceAdapter.raiseNodeConnected(node);
+                 }
++
++            } finally {
++                globalLock.readLock().unlock();
+             }
+-        } finally {
+-            globalLock.readLock().unlock();
+         }
+     }
+ 
+@@ -750,15 +762,21 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
+ 
+     @Override
+     public void disconnectFromNode(DiscoveryNode node) {
++        NodeChannels nodeChannels = null;
+         synchronized (connectLock(node.id())) {
+-            NodeChannels nodeChannels = connectedNodes.remove(node);
+-            if (nodeChannels != null) {
+-                try {
+-                    nodeChannels.close();
+-                } finally {
+-                    logger.debug("disconnected from [{}]", node);
+-                    transportServiceAdapter.raiseNodeDisconnected(node);
+-                }
++            globalLock.readLock().lock();
++            try {
++                nodeChannels = connectedNodes.remove(node);
++            } finally {
++                globalLock.readLock().unlock();
++            }
++        }
++        if (nodeChannels != null) {
++            try {
++                nodeChannels.close();
++            } finally {
++                logger.debug("disconnected from [{}]", node);
++                transportServiceAdapter.raiseNodeDisconnected(node);
+             }
+         }
+     }

@@ -1,0 +1,65 @@
+diff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/optimizer/rules/logical/local/IgnoreNullMetricsTests.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/optimizer/rules/logical/local/IgnoreNullMetricsTests.java
+index 5faa73b3..3ca5cddb 100644
+--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/optimizer/rules/logical/local/IgnoreNullMetricsTests.java
++++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/optimizer/rules/logical/local/IgnoreNullMetricsTests.java
+@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.esql.optimizer.rules.logical.local;
+ import org.elasticsearch.index.IndexMode;
+ import org.elasticsearch.test.ESTestCase;
+ import org.elasticsearch.xpack.esql.EsqlTestUtils;
++import org.elasticsearch.xpack.esql.action.EsqlCapabilities;
+ import org.elasticsearch.xpack.esql.analysis.Analyzer;
+ import org.elasticsearch.xpack.esql.analysis.AnalyzerContext;
+ import org.elasticsearch.xpack.esql.analysis.AnalyzerTestUtils;
+@@ -45,6 +46,7 @@ import static org.elasticsearch.xpack.esql.EsqlTestUtils.as;
+ import static org.elasticsearch.xpack.esql.EsqlTestUtils.emptyInferenceResolution;
+ import static org.elasticsearch.xpack.esql.EsqlTestUtils.unboundLogicalOptimizerContext;
+ import static org.elasticsearch.xpack.esql.analysis.AnalyzerTestUtils.defaultLookupResolution;
++import static org.junit.Assume.assumeTrue;
+ 
+ /**
+  * Tests for the {@link IgnoreNullMetrics} transformation rule.  Like most rule tests, this runs the entire analysis chain.
+@@ -114,7 +116,12 @@ public class IgnoreNullMetricsTests extends ESTestCase {
+         return localPlan(plan(query), TEST_SEARCH_STATS);
+     }
+ 
++    private static void assumeMetricsCommandEnabled() {
++        assumeTrue("requires metrics command", EsqlCapabilities.Cap.METRICS_COMMAND.isEnabled());
++    }
++
+     public void testSimple() {
++        assumeMetricsCommandEnabled();
+         LogicalPlan actual = localPlan("""
+             TS test
+             | STATS max(max_over_time(metric_1))
+@@ -144,6 +151,7 @@ public class IgnoreNullMetricsTests extends ESTestCase {
+     }
+ 
+     public void testDimensionsAreNotFiltered() {
++        assumeMetricsCommandEnabled();
+ 
+         LogicalPlan actual = localPlan("""
+             TS test
+@@ -161,6 +169,7 @@ public class IgnoreNullMetricsTests extends ESTestCase {
+     }
+ 
+     public void testFiltersAreJoinedWithOr() {
++        assumeMetricsCommandEnabled();
+ 
+         LogicalPlan actual = localPlan("""
+             TS test
+@@ -195,6 +204,7 @@ public class IgnoreNullMetricsTests extends ESTestCase {
+     }
+ 
+     public void testSkipCoalescedMetrics() {
++        assumeMetricsCommandEnabled();
+         // Note: this test is passing because the reference attribute metric_2 in the stats block does not inherit the
+         // metric property from the original field.
+         LogicalPlan actual = localPlan("""
+@@ -218,6 +228,7 @@ public class IgnoreNullMetricsTests extends ESTestCase {
+      * check that stats blocks after the first are not sourced for adding metrics to the filter
+      */
+     public void testMultipleStats() {
++        assumeMetricsCommandEnabled();
+         LogicalPlan actual = localPlan("""
+             TS test
+             | STATS m = max(max_over_time(metric_1))

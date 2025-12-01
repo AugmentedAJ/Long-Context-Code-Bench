@@ -1,0 +1,55 @@
+diff --git a/server/src/main/java/org/elasticsearch/TransportVersion.java b/server/src/main/java/org/elasticsearch/TransportVersion.java
+index f130f7d6..783798c6 100644
+--- a/server/src/main/java/org/elasticsearch/TransportVersion.java
++++ b/server/src/main/java/org/elasticsearch/TransportVersion.java
+@@ -12,6 +12,7 @@ package org.elasticsearch;
+ import org.elasticsearch.common.VersionId;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
++import org.elasticsearch.common.xcontent.SuggestingErrorOnUnknown;
+ import org.elasticsearch.internal.VersionExtension;
+ import org.elasticsearch.plugins.ExtensionLoader;
+ 
+@@ -239,7 +240,8 @@ public record TransportVersion(String name, int id, TransportVersion nextPatchVe
+     public static TransportVersion fromName(String name) {
+         TransportVersion known = VersionsHolder.ALL_VERSIONS_BY_NAME.get(name);
+         if (known == null) {
+-            throw new IllegalStateException("unknown transport version [" + name + "]");
++            String suggestion = SuggestingErrorOnUnknown.suggest(name, VersionsHolder.ALL_VERSIONS_BY_NAME.keySet());
++            throw new IllegalStateException("unknown transport version [" + name + "]" + suggestion);
+         }
+         return known;
+     }
+diff --git a/server/src/test/java/org/elasticsearch/TransportVersionTests.java b/server/src/test/java/org/elasticsearch/TransportVersionTests.java
+index e51ca0c5..8205d033 100644
+--- a/server/src/test/java/org/elasticsearch/TransportVersionTests.java
++++ b/server/src/test/java/org/elasticsearch/TransportVersionTests.java
+@@ -128,6 +128,28 @@ public class TransportVersionTests extends ESTestCase {
+         }
+     }
+ 
++    public void testFromNameSuggestsSimilarTransportVersionNames() {
++        TransportVersion namedVersion = TransportVersion.getAllVersions()
++            .stream()
++            .filter(tv -> tv.name() != null)
++            .findFirst()
++            .orElseThrow();
++        String typo = namedVersion.name() + "x";
++
++        IllegalStateException e = expectThrows(IllegalStateException.class, () -> TransportVersion.fromName(typo));
++        assertThat(e.getMessage(), containsString("unknown transport version [" + typo + "]"));
++        assertThat(e.getMessage(), containsString("did you mean [" + namedVersion.name() + "]?"));
++    }
++
++    public void testFromNameWithoutSuggestion() {
++        String unknown = randomAlphaOfLengthBetween(10, 15);
++        while (TransportVersion.getAllVersions().stream().anyMatch(tv -> unknown.equals(tv.name()))) {
++            unknown = randomAlphaOfLengthBetween(10, 15);
++        }
++        IllegalStateException e = expectThrows(IllegalStateException.class, () -> TransportVersion.fromName(unknown));
++        assertEquals("unknown transport version [" + unknown + "]", e.getMessage());
++    }
++
+     public void testMin() {
+         assertEquals(
+             TransportVersionUtils.getPreviousVersion(),

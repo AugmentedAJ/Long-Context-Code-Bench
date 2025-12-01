@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134729,
+  "base_commit": "d70e2bd0d84d610b8ad101288141196261ad7628",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 63239,
+  "patch_unified": "diff --git a/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java b/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\nindex d15016ee..e3c65f15 100644\n--- a/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\n+++ b/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\n@@ -42,11 +42,18 @@ public class InferenceRestIT extends ESClientYamlSuiteTestCase {\n     public InferenceRestIT(final ClientYamlTestCandidate testCandidate) {\n         super(testCandidate);\n         String testPath = testCandidate.getTestPath();\n-        if (testPath.startsWith(\"inference/70_text_similarity_rank_retriever\") && testPath.toLowerCase(Locale.ROOT).contains(\"snippet\")) {\n+        if (\n+            testPath.startsWith(\"inference/70_text_similarity_rank_retriever\")\n+                && containsSnippetOrChunkRescorer(testPath.toLowerCase(Locale.ROOT))\n+        ) {\n             assumeTrue(\"Rerank snippets does not work in release builds\", Build.current().isSnapshot());\n         }\n     }\n \n+    private static boolean containsSnippetOrChunkRescorer(String testPath) {\n+        return testPath.contains(\"snippet\") || testPath.contains(\"chunk_rescorer\");\n+    }\n+\n     @Override\n     protected Settings restClientSettings() {\n         var baseSettings = super.restClientSettings();",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr134729/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

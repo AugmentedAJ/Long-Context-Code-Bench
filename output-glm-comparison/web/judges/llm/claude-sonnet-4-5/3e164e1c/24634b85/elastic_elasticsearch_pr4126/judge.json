@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4126,
+  "base_commit": "97bdc8f9c21b9f890b42c738905221241a3ceb82",
+  "head_commit": "a824f69d21c709bcd578981a78a592200c999dbc",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.3,
+    "completeness": 0.2,
+    "code_reuse": -0.2,
+    "best_practices": -0.4,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.06000000000000001,
+  "rationale": "The agent added the maven-jar-plugin with test-jar goal (correct core requirement), but introduced several problematic changes. Ground truth uses version 2.3.2 with simple includes; agent uses 2.4 with complex includes/excludes that are overly specific and brittle (hardcoding subpackages like test/engine, test/store, etc., and attempting to include Lucene test classes that shouldn't be packaged). Agent added unnecessary dependencies with 'provided' scope (hamcrest-all, lucene-test-framework, junit4-maven-plugin) - these should already be transitive test dependencies, not declared as provided. Agent changed Java compiler version from 1.6 to 1.8 without justification (not requested). Agent added maven-javadoc-plugin and maven-source-plugin test-jar executions (not requested). The ground truth's simple approach with just 'org/elasticsearch/test/**/*' is more maintainable and correct than the agent's verbose configuration. The core functionality (test-jar goal) is present but the implementation is overcomplicated and includes unrelated changes.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/pom.xml b/pom.xml\nindex dec5334e526..518164547b6 100644\n--- a/pom.xml\n+++ b/pom.xml\n@@ -975,6 +975,23 @@\n                     </arguments>\n                 </configuration>\n             </plugin>\n+            <plugin>\n+                <groupId>org.apache.maven.plugins</groupId>\n+                <artifactId>maven-jar-plugin</artifactId>\n+                <version>2.3.2</version>\n+                <executions>\n+                    <execution>\n+                        <goals>\n+                            <goal>test-jar</goal>\n+                        </goals>\n+                    </execution>\n+                </executions>\n+                <configuration>\n+                    <includes>\n+                        <include>org/elasticsearch/test/**/*</include>\n+                    </includes>\n+                </configuration>\n+            </plugin>\n         </plugins>\n         <pluginManagement>\n             <plugins>"
+}

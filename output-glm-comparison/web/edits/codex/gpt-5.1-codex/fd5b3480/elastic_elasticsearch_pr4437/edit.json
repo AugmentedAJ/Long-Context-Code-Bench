@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4437,
+  "base_commit": "95ca06cf0945233686e92ccdb3354522ff05863c",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 305204,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java\nindex 53a669c..7bc2efc 100644\n--- a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java\n+++ b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java\n@@ -23,6 +23,8 @@ import com.google.common.collect.ImmutableList;\n import com.google.common.collect.ImmutableMap;\n import com.google.common.collect.Maps;\n import org.elasticsearch.ElasticSearchException;\n+import org.elasticsearch.ElasticSearchIllegalArgumentException;\n+import org.elasticsearch.ElasticSearchIllegalStateException;\n import org.elasticsearch.ElasticSearchParseException;\n import org.elasticsearch.cluster.metadata.IndexMetaData;\n import org.elasticsearch.cluster.metadata.MetaData;\n@@ -187,6 +189,31 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep\n         return null;\n     }\n \n+    /**\n+     * Returns the current base path within the blob store. Repository implementations can use this path\n+     * to create additional containers or resolve resources relative to the repository root.\n+     */\n+    protected final BlobPath basePath() {\n+        return basePath;\n+    }\n+\n+    /**\n+     * Updates the base path used by this repository. This method is intended to be invoked by repository implementations\n+     * during construction in order to customize the location within the underlying blob store where snapshot data is kept.\n+     * The base path cannot be changed once the repository has been started.\n+     *\n+     * @param basePath new base path\n+     */\n+    protected final void setBasePath(BlobPath basePath) {\n+        if (basePath == null) {\n+            throw new ElasticSearchIllegalArgumentException(\"base path cannot be null\");\n+        }\n+        if (lifecycle.started()) {\n+            throw new ElasticSearchIllegalStateException(\"cannot set base path after repository has been started\");\n+        }\n+        this.basePath = basePath;\n+    }\n+\n     /**\n      * {@inheritDoc}\n      */",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr4437/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

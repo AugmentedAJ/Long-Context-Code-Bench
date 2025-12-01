@@ -1,0 +1,204 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
+index 83be17e..2559284 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerRequest.java
+@@ -21,7 +21,7 @@ package org.elasticsearch.action.admin.indices.warmer.delete;
+ 
+ import org.elasticsearch.Version;
+ import org.elasticsearch.action.ActionRequestValidationException;
+-import org.elasticsearch.action.support.master.AcknowledgedRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.Strings;
+@@ -37,15 +37,12 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
+ /**
+  * A request to delete an index warmer.
+  */
+-public class DeleteWarmerRequest extends MasterNodeOperationRequest<DeleteWarmerRequest>
+-        implements AcknowledgedRequest<DeleteWarmerRequest> {
++public class DeleteWarmerRequest extends AbstractAcknowledgedRequest<DeleteWarmerRequest> {
+ 
+     private String name;
+ 
+     private String[] indices = Strings.EMPTY_ARRAY;
+ 
+-    private TimeValue timeout = timeValueSeconds(10);
+-
+     DeleteWarmerRequest() {
+     }
+ 
+@@ -96,23 +93,6 @@ public class DeleteWarmerRequest extends MasterNodeOperationRequest<DeleteWarmer
+         return indices;
+     }
+ 
+-    @Override
+-    public DeleteWarmerRequest timeout(String timeout) {
+-        this.timeout = TimeValue.parseTimeValue(timeout, this.timeout);
+-        return this;
+-    }
+-
+-    @Override
+-    public DeleteWarmerRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    @Override
+-    public TimeValue timeout() {
+-        return timeout;
+-    }
+-
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
+index 0d8b70e..72ab0b0 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/delete/DeleteWarmerResponse.java
+@@ -20,7 +20,7 @@
+ package org.elasticsearch.action.admin.indices.warmer.delete;
+ 
+ import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.action.support.master.AcknowledgedResponse;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+@@ -29,30 +29,12 @@ import java.io.IOException;
+ /**
+  * A response for a delete warmer.
+  */
+-public class DeleteWarmerResponse extends ActionResponse implements AcknowledgedResponse {
+-
+-    private boolean acknowledged;
++public class DeleteWarmerResponse extends AbstractAcknowledgedResponse {
+ 
+     DeleteWarmerResponse() {
+     }
+ 
+     DeleteWarmerResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        super(acknowledged);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+index 5d5872f..d8801d0 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+@@ -23,7 +23,7 @@ import org.elasticsearch.Version;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.search.SearchRequest;
+ import org.elasticsearch.action.search.SearchRequestBuilder;
+-import org.elasticsearch.action.support.master.AcknowledgedRequest;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedRequest;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.common.io.stream.StreamInput;
+@@ -39,15 +39,12 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
+ /**
+  * A request to put a search warmer.
+  */
+-public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerRequest>
+-        implements AcknowledgedRequest<PutWarmerRequest> {
++public class PutWarmerRequest extends AbstractAcknowledgedRequest<PutWarmerRequest> {
+ 
+     private String name;
+ 
+     private SearchRequest searchRequest;
+ 
+-    private TimeValue timeout = timeValueSeconds(10);
+-
+     PutWarmerRequest() {
+ 
+     }
+@@ -94,22 +91,6 @@ public class PutWarmerRequest extends MasterNodeOperationRequest<PutWarmerReques
+         return this.searchRequest;
+     }
+ 
+-    @Override
+-    public PutWarmerRequest timeout(String timeout) {
+-        return this;
+-    }
+-
+-    @Override
+-    public PutWarmerRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    @Override
+-    public TimeValue timeout() {
+-        return timeout;
+-    }
+-
+     @Override
+     public ActionRequestValidationException validate() {
+         ActionRequestValidationException validationException = searchRequest.validate();
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
+index c7daac7..9075547 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerResponse.java
+@@ -20,7 +20,7 @@
+ package org.elasticsearch.action.admin.indices.warmer.put;
+ 
+ import org.elasticsearch.action.ActionResponse;
+-import org.elasticsearch.action.support.master.AcknowledgedResponse;
++import org.elasticsearch.action.support.master.AbstractAcknowledgedResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+@@ -29,34 +29,13 @@ import java.io.IOException;
+ /**
+  * The response of put warmer operation.
+  */
+-public class PutWarmerResponse extends ActionResponse implements AcknowledgedResponse {
+-
+-    private boolean acknowledged;
++public class PutWarmerResponse extends AbstractAcknowledgedResponse {
+ 
+     PutWarmerResponse() {
+ 
+     }
+ 
+     PutWarmerResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    /**
+-     * Has the put warmer been ack'ed.
+-     */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
+-    }
+-
+-    @Override
+-    public void readFrom(StreamInput in) throws IOException {
+-        super.readFrom(in);
+-        acknowledged = in.readBoolean();
+-    }
+-
+-    @Override
+-    public void writeTo(StreamOutput out) throws IOException {
+-        super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        super(acknowledged);
+     }
+ }
+\ No newline at end of file

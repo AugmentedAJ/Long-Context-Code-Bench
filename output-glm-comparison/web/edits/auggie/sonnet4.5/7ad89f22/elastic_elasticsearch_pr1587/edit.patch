@@ -1,0 +1,230 @@
+diff --git a/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java b/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
+index 89f4ab7..f432632 100644
+--- a/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
++++ b/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
+@@ -19,10 +19,14 @@
+ 
+ package org.elasticsearch.test.integration.ttl;
+ 
++import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
++import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
+ import org.elasticsearch.action.get.GetResponse;
++import org.elasticsearch.action.search.SearchResponse;
+ import org.elasticsearch.client.Client;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.xcontent.XContentFactory;
++import org.elasticsearch.index.query.QueryBuilders;
+ import org.elasticsearch.test.integration.AbstractNodesTests;
+ import org.testng.annotations.AfterClass;
+ import org.testng.annotations.BeforeClass;
+@@ -119,4 +123,210 @@ public class SimpleTTLTests extends AbstractNodesTests {
+         getResponse = client.prepareGet("test", "type1", "1").setFields("_ttl").setRealtime(false).execute().actionGet();
+         assertThat(getResponse.exists(), equalTo(false));
+     }
++
++    @Test
++    public void testTTLWithRouting() throws Exception {
++        client.admin().indices().prepareDelete().execute().actionGet();
++
++        // Create index with multiple shards to ensure routing distributes documents
++        client.admin().indices().prepareCreate("test")
++                .setSettings(settingsBuilder()
++                        .put("index.number_of_shards", 5)
++                        .put("index.number_of_replicas", 1))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++        client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++
++        long providedTTLValue = 3000;
++        logger.info("--> indexing with routing");
++
++        // Index documents with different routing values to distribute across shards
++        client.prepareIndex("test", "type1", "1").setRouting("routing_1").setSource("field1", "value1").setTTL(providedTTLValue).setRefresh(true).execute().actionGet();
++        client.prepareIndex("test", "type1", "2").setRouting("routing_2").setSource("field1", "value2").setTTL(providedTTLValue).setRefresh(true).execute().actionGet();
++        client.prepareIndex("test", "type1", "3").setRouting("routing_3").setSource("field1", "value3").setTTL(providedTTLValue).setRefresh(true).execute().actionGet();
++
++        long now = System.currentTimeMillis();
++
++        logger.info("--> checking ttl with routing");
++        // Verify documents exist with routing
++        GetResponse getResponse = client.prepareGet("test", "type1", "1").setRouting("routing_1").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(true));
++        long ttl0 = ((Number) getResponse.field("_ttl").value()).longValue();
++        assertThat(ttl0, greaterThan(0L));
++        assertThat(ttl0, lessThan(providedTTLValue));
++
++        getResponse = client.prepareGet("test", "type1", "2").setRouting("routing_2").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(true));
++        ttl0 = ((Number) getResponse.field("_ttl").value()).longValue();
++        assertThat(ttl0, greaterThan(0L));
++        assertThat(ttl0, lessThan(providedTTLValue));
++
++        getResponse = client.prepareGet("test", "type1", "3").setRouting("routing_3").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(true));
++        ttl0 = ((Number) getResponse.field("_ttl").value()).longValue();
++        assertThat(ttl0, greaterThan(0L));
++        assertThat(ttl0, lessThan(providedTTLValue));
++
++        logger.info("--> checking purger with routing");
++        // Wait for documents to expire
++        long shouldBeExpiredDate = now + providedTTLValue + purgeInterval + 2000;
++        long now1 = System.currentTimeMillis();
++        if (shouldBeExpiredDate - now1 > 0) {
++            Thread.sleep(shouldBeExpiredDate - now1);
++        }
++
++        // Verify all documents with routing have been purged
++        getResponse = client.prepareGet("test", "type1", "1").setRouting("routing_1").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(false));
++
++        getResponse = client.prepareGet("test", "type1", "2").setRouting("routing_2").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(false));
++
++        getResponse = client.prepareGet("test", "type1", "3").setRouting("routing_3").setFields("_ttl").setRealtime(true).execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(false));
++    }
++
++    @Test
++    public void testTTLWithMultipleRoutingValues() throws Exception {
++        client.admin().indices().prepareDelete().execute().actionGet();
++
++        // Create index with multiple shards
++        client.admin().indices().prepareCreate("test")
++                .setSettings(settingsBuilder()
++                        .put("index.number_of_shards", 5)
++                        .put("index.number_of_replicas", 1))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++
++        ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++        assertThat(healthResponse.getStatus(), equalTo(ClusterHealthStatus.GREEN));
++
++        long providedTTLValue = 3000;
++        logger.info("--> indexing multiple documents with different routing values");
++
++        // Index multiple documents with various routing values to ensure distribution across shards
++        for (int i = 0; i < 10; i++) {
++            client.prepareIndex("test", "type1", "doc_" + i)
++                    .setRouting("routing_" + (i % 5))
++                    .setSource("field1", "value" + i)
++                    .setTTL(providedTTLValue)
++                    .execute().actionGet();
++        }
++
++        client.admin().indices().prepareRefresh("test").execute().actionGet();
++        long now = System.currentTimeMillis();
++
++        logger.info("--> verifying all documents exist");
++        // Verify all documents exist
++        SearchResponse searchResponse = client.prepareSearch("test")
++                .setQuery(QueryBuilders.matchAllQuery())
++                .execute().actionGet();
++        assertThat(searchResponse.getHits().getTotalHits(), equalTo(10L));
++
++        logger.info("--> waiting for TTL expiration");
++        // Wait for documents to expire
++        long shouldBeExpiredDate = now + providedTTLValue + purgeInterval + 2000;
++        long now1 = System.currentTimeMillis();
++        if (shouldBeExpiredDate - now1 > 0) {
++            Thread.sleep(shouldBeExpiredDate - now1);
++        }
++
++        logger.info("--> verifying all documents have been purged");
++        // Verify all documents have been purged regardless of routing
++        searchResponse = client.prepareSearch("test")
++                .setQuery(QueryBuilders.matchAllQuery())
++                .execute().actionGet();
++        assertThat(searchResponse.getHits().getTotalHits(), equalTo(0L));
++
++        // Verify individual documents with routing are gone
++        for (int i = 0; i < 10; i++) {
++            GetResponse getResponse = client.prepareGet("test", "type1", "doc_" + i)
++                    .setRouting("routing_" + (i % 5))
++                    .execute().actionGet();
++            assertThat(getResponse.exists(), equalTo(false));
++        }
++    }
++
++    @Test
++    public void testTTLWithRoutingOnSpecificShards() throws Exception {
++        client.admin().indices().prepareDelete().execute().actionGet();
++
++        // Create index with multiple shards
++        client.admin().indices().prepareCreate("test")
++                .setSettings(settingsBuilder()
++                        .put("index.number_of_shards", 3)
++                        .put("index.number_of_replicas", 1))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++
++        client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++
++        long shortTTL = 2000;
++        long longTTL = 10000;
++
++        logger.info("--> indexing documents with different TTL values and routing");
++        // Index documents with short TTL on one routing value
++        client.prepareIndex("test", "type1", "short_1").setRouting("short_routing").setSource("field1", "short1").setTTL(shortTTL).execute().actionGet();
++        client.prepareIndex("test", "type1", "short_2").setRouting("short_routing").setSource("field1", "short2").setTTL(shortTTL).execute().actionGet();
++
++        // Index documents with long TTL on different routing value
++        client.prepareIndex("test", "type1", "long_1").setRouting("long_routing").setSource("field1", "long1").setTTL(longTTL).execute().actionGet();
++        client.prepareIndex("test", "type1", "long_2").setRouting("long_routing").setSource("field1", "long2").setTTL(longTTL).execute().actionGet();
++
++        client.admin().indices().prepareRefresh("test").execute().actionGet();
++        long now = System.currentTimeMillis();
++
++        logger.info("--> verifying all documents exist");
++        SearchResponse searchResponse = client.prepareSearch("test")
++                .setQuery(QueryBuilders.matchAllQuery())
++                .execute().actionGet();
++        assertThat(searchResponse.getHits().getTotalHits(), equalTo(4L));
++
++        logger.info("--> waiting for short TTL documents to expire");
++        // Wait for short TTL documents to expire
++        long shouldBeExpiredDate = now + shortTTL + purgeInterval + 2000;
++        long now1 = System.currentTimeMillis();
++        if (shouldBeExpiredDate - now1 > 0) {
++            Thread.sleep(shouldBeExpiredDate - now1);
++        }
++
++        logger.info("--> verifying short TTL documents are purged but long TTL documents remain");
++        // Verify short TTL documents are gone
++        GetResponse getResponse = client.prepareGet("test", "type1", "short_1").setRouting("short_routing").execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(false));
++
++        getResponse = client.prepareGet("test", "type1", "short_2").setRouting("short_routing").execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(false));
++
++        // Verify long TTL documents still exist
++        getResponse = client.prepareGet("test", "type1", "long_1").setRouting("long_routing").execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(true));
++
++        getResponse = client.prepareGet("test", "type1", "long_2").setRouting("long_routing").execute().actionGet();
++        assertThat(getResponse.exists(), equalTo(true));
++
++        // Verify count
++        searchResponse = client.prepareSearch("test")
++                .setQuery(QueryBuilders.matchAllQuery())
++                .execute().actionGet();
++        assertThat(searchResponse.getHits().getTotalHits(), equalTo(2L));
++    }
+ }

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4462,
+  "base_commit": "1ede9a5730e7b1a76c37d2623999740352e10fec",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 25992,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java\nindex 157df71..63e412b 100644\n--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java\n+++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java\n@@ -78,11 +78,7 @@ public class GetAliasesRequest extends MasterNodeOperationRequest<GetAliasesRequ\n \n     @Override\n     public ActionRequestValidationException validate() {\n-        if (aliases.length == 0) {\n-            return addValidationError(\"No alias specified\", null);\n-        } else {\n-            return null;\n-        }\n+        return null;\n     }\n \n     @Override",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr4462/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

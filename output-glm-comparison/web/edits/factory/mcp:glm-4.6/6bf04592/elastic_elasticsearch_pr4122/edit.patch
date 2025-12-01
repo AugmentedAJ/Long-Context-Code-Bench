@@ -1,0 +1,141 @@
+diff --git a/pom.xml b/pom.xml
+index dec5334..1b2df87 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -314,8 +314,8 @@
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <version>2.3.2</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                 </configuration>
+             </plugin>
+             <plugin>
+@@ -904,7 +904,7 @@
+                     <execution>
+                         <id>check-forbidden-apis</id>
+                         <configuration>
+-                            <targetVersion>1.6</targetVersion>
++                            <targetVersion>1.8</targetVersion>
+                             <!-- disallow undocumented classes like sun.misc.Unsafe: -->
+                             <internalRuntimeForbidden>true</internalRuntimeForbidden>
+                             <!-- if the used Java version is too new, don't fail, just do nothing: -->
+@@ -937,7 +937,7 @@
+                     <execution>
+                         <id>check-forbidden-test-apis</id>
+                         <configuration>
+-                            <targetVersion>1.6</targetVersion>
++                            <targetVersion>1.8</targetVersion>
+                             <!-- disallow undocumented classes like sun.misc.Unsafe: -->
+                             <internalRuntimeForbidden>true</internalRuntimeForbidden>
+                             <!-- if the used Java version is too new, don't fail, just do nothing: -->
+diff --git a/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
+index 796cf88..21dcc01 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
+@@ -48,7 +48,7 @@ import java.util.*;
+ 
+ public class PostingsHighlighter implements Highlighter {
+ 
+-    private static final String CACHE_KEY = "highlight-postings";
++    private static final String CACHE_KEY_BASE = "highlight-postings";
+ 
+     @Override
+     public String[] names() {
+@@ -67,19 +67,25 @@ public class PostingsHighlighter implements Highlighter {
+         SearchContext context = highlighterContext.context;
+         FetchSubPhase.HitContext hitContext = highlighterContext.hitContext;
+ 
+-        if (!hitContext.cache().containsKey(CACHE_KEY)) {
++        // Create a unique cache key based on the highlight query
++        String cacheKey = CACHE_KEY_BASE;
++        if (highlighterContext.highlightQuery != null) {
++            cacheKey += "_" + highlighterContext.highlightQuery.hashCode();
++        }
++        
++        if (!hitContext.cache().containsKey(cacheKey)) {
+             //get the non rewritten query and rewrite it
+             Query query;
+             try {
+-                query = rewrite(context, hitContext.topLevelReader());
++                query = rewrite(context, hitContext.topLevelReader(), highlighterContext.highlightQuery);
+             } catch (IOException e) {
+                 throw new FetchPhaseExecutionException(context, "Failed to highlight field [" + highlighterContext.fieldName + "]", e);
+             }
+             SortedSet<Term> queryTerms = extractTerms(query);
+-            hitContext.cache().put(CACHE_KEY, new HighlighterEntry(queryTerms));
++            hitContext.cache().put(cacheKey, new HighlighterEntry(queryTerms));
+         }
+ 
+-        HighlighterEntry highlighterEntry = (HighlighterEntry) hitContext.cache().get(CACHE_KEY);
++        HighlighterEntry highlighterEntry = (HighlighterEntry) hitContext.cache().get(cacheKey);
+         MapperHighlighterEntry mapperHighlighterEntry = highlighterEntry.mappers.get(fieldMapper);
+ 
+         if (mapperHighlighterEntry == null) {
+@@ -146,11 +152,11 @@ public class PostingsHighlighter implements Highlighter {
+         return null;
+     }
+ 
+-    private static Query rewrite(SearchContext searchContext, IndexReader reader) throws IOException {
++    private static Query rewrite(SearchContext searchContext, IndexReader reader, Query highlightQuery) throws IOException {
+         //rewrite is expensive: if the query was already rewritten we try not to rewrite
+         boolean mustRewrite = !searchContext.queryRewritten();
+ 
+-        Query original = searchContext.parsedQuery().query();
++        Query original = highlightQuery != null ? highlightQuery : searchContext.parsedQuery().query();
+ 
+         MultiTermQuery originalMultiTermQuery = null;
+         MultiTermQuery.RewriteMethod originalRewriteMethod = null;
+diff --git a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+index f0356d0..15585b5 100644
+--- a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
++++ b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+@@ -2240,6 +2240,46 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+         assertHighlight(searchResponse, 0, "field1", 0, 1, equalTo("<em>First</em> sentence. Second sentence."));
+     }
+ 
++    @Test
++    public void testPostingsHighlighterWithExternalQuery() throws Exception {
++        assertAcked(client().admin().indices().prepareCreate("test").addMapping("type1", "text", "type=string,index_options=offsets"));
++        ensureGreen();
++        
++        client().prepareIndex("test", "type1", "1")
++            .setSource("text", "some stuff stuff stuff stuff stuff to highlight against the stuff phrase")
++            .get();
++        refresh();
++        
++        // Test with a search query that matches "stuff" but use an external highlight query that matches "stuff phrase"
++        HighlightBuilder.Field field = new HighlightBuilder.Field("text")
++            .fragmentSize(20)
++            .numOfFragments(1)
++            .highlighterType("postings")
++            .highlightQuery(matchPhraseQuery("text", "stuff phrase"));
++            
++        SearchRequestBuilder search = client().prepareSearch("test")
++            .setQuery(matchQuery("text", "stuff"))
++            .addHighlightedField(field);
++            
++        SearchResponse response = search.get();
++        assertHitCount(response, 1l);
++        
++        // The highlight should be based on the external query "stuff phrase" not the search query "stuff"
++        assertHighlight(response, 0, "text", 0, containsString("stuff phrase"));
++        
++        // Test with external query set at the search context level instead of field level
++        search = client().prepareSearch("test")
++            .setQuery(matchQuery("text", "stuff"))
++            .setHighlighterQuery(matchPhraseQuery("text", "stuff phrase"))
++            .addHighlightedField("text");
++            
++        response = search.get();
++        assertHitCount(response, 1l);
++        
++        // The highlight should be based on the external query "stuff phrase" not the search query "stuff"
++        assertHighlight(response, 0, "text", 0, containsString("stuff phrase"));
++    }
++
+     @Test
+     public void testPlainHighlighterCustomIndexName() {
+         assertAcked(client().admin().indices().prepareCreate("test")

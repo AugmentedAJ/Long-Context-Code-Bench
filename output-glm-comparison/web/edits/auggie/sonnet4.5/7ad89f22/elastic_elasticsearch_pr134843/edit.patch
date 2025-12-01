@@ -1,0 +1,53 @@
+diff --git a/x-pack/plugin/security/src/test/java/org/elasticsearch/xpack/security/transport/CrossClusterApiKeySignerTests.java b/x-pack/plugin/security/src/test/java/org/elasticsearch/xpack/security/transport/CrossClusterApiKeySignerTests.java
+index abde62f4..27422769 100644
+--- a/x-pack/plugin/security/src/test/java/org/elasticsearch/xpack/security/transport/CrossClusterApiKeySignerTests.java
++++ b/x-pack/plugin/security/src/test/java/org/elasticsearch/xpack/security/transport/CrossClusterApiKeySignerTests.java
+@@ -13,6 +13,12 @@ import org.elasticsearch.env.TestEnvironment;
+ import org.elasticsearch.node.Node;
+ import org.elasticsearch.test.ESTestCase;
+ 
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.OutputStream;
++import java.nio.file.Files;
++import java.nio.file.Path;
++
+ import static org.hamcrest.Matchers.equalTo;
+ 
+ public class CrossClusterApiKeySignerTests extends ESTestCase {
+@@ -66,10 +72,31 @@ public class CrossClusterApiKeySignerTests extends ESTestCase {
+     }
+ 
+     private void addKeyStorePathToBuilder(String remoteCluster, Settings.Builder builder) {
++        Path tempDir = createTempDir();
++        Path keystorePath = copyKeystoreToTempDir(tempDir);
+         builder.put("cluster.remote." + remoteCluster + ".signing.keystore.type", inFipsJvm() ? "BCFKS" : "PKCS12")
+-            .put(
+-                "cluster.remote." + remoteCluster + ".signing.keystore.path",
+-                getDataPath("/org/elasticsearch/xpack/security/signature/signing." + (inFipsJvm() ? "bcfks" : "jks"))
+-            );
++            .put("cluster.remote." + remoteCluster + ".signing.keystore.path", keystorePath);
++    }
++
++    private Path copyKeystoreToTempDir(Path tempDir) {
++        String keystoreFileName = "signing." + (inFipsJvm() ? "bcfks" : "jks");
++        String resourcePath = "/org/elasticsearch/xpack/security/signature/" + keystoreFileName;
++        Path keystorePath = tempDir.resolve(keystoreFileName);
++        try (
++            InputStream is = CrossClusterApiKeySignerTests.class.getResourceAsStream(resourcePath);
++            OutputStream os = Files.newOutputStream(keystorePath)
++        ) {
++            if (is == null) {
++                throw new IllegalStateException("Cannot find resource: " + resourcePath);
++            }
++            byte[] buffer = new byte[4096];
++            int readBytes;
++            while ((readBytes = is.read(buffer)) > 0) {
++                os.write(buffer, 0, readBytes);
++            }
++        } catch (IOException e) {
++            throw new RuntimeException("Failed to copy keystore from resources", e);
++        }
++        return keystorePath;
+     }
+ }

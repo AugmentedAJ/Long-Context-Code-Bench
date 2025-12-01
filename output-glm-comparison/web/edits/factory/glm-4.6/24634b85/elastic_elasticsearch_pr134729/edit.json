@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134729,
+  "base_commit": "d70e2bd0d84d610b8ad101288141196261ad7628",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 226580,
+  "patch_unified": "diff --git a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java\nindex f6b5a876..22e96fe7 100644\n--- a/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java\n+++ b/x-pack/plugin/inference/src/main/java/org/elasticsearch/xpack/inference/InferenceFeatures.java\n@@ -85,12 +85,10 @@ public class InferenceFeatures implements FeatureSpecification {\n                 SEMANTIC_TEXT_SPARSE_VECTOR_INDEX_OPTIONS,\n                 SEMANTIC_TEXT_FIELDS_CHUNKS_FORMAT,\n                 SemanticQueryBuilder.SEMANTIC_QUERY_MULTIPLE_INFERENCE_IDS,\n-                SemanticQueryBuilder.SEMANTIC_QUERY_FILTER_FIELD_CAPS_FIX\n+                SemanticQueryBuilder.SEMANTIC_QUERY_FILTER_FIELD_CAPS_FIX,\n+                TEXT_SIMILARITY_RERANKER_SNIPPETS\n             )\n         );\n-        if (RERANK_SNIPPETS.isEnabled()) {\n-            testFeatures.add(TEXT_SIMILARITY_RERANKER_SNIPPETS);\n-        }\n         return testFeatures;\n     }\n }",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134729/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

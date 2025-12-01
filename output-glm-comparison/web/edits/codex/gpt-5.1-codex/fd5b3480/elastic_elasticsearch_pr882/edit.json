@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 882,
+  "base_commit": "f3e032315fff2ee900be3c24535c30a1b908ca50",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 18267,
+  "patch_unified": "diff --git a/README.textile b/README.textile\nindex f4c12ea..962ef2f 100644\n--- a/README.textile\n+++ b/README.textile\n@@ -32,7 +32,7 @@ ElasticSearch is a distributed RESTful search engine built for the cloud. Featur\n \n h2. Getting Started\n \n-Fist of all, DON'T PANIC. It will take 5 minutes to get the gist of what ElasticSearch is all about.\n+First of all, DON'T PANIC. It will take 5 minutes to get the gist of what ElasticSearch is all about.\n \n h3. Installation\n \n@@ -220,4 +220,4 @@ distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT\n WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n License for the specific language governing permissions and limitations under\n the License.\n-</pre>\n\\ No newline at end of file\n+</pre>",
+  "logs_path": "codex/gpt-5.1-codex/93548e0a/elastic_elasticsearch_pr882/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

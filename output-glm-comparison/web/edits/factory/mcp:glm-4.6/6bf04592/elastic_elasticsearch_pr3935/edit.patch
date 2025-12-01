@@ -1,0 +1,53 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/AwarenessAllocationDecider.java b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/AwarenessAllocationDecider.java
+index 21ab3bb..f2e35fa 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/AwarenessAllocationDecider.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/allocation/decider/AwarenessAllocationDecider.java
+@@ -89,6 +89,11 @@ public class AwarenessAllocationDecider extends AllocationDecider {
+         public void onRefreshSettings(Settings settings) {
+             String[] awarenessAttributes = settings.getAsArray(CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTES, null);
+             if (awarenessAttributes != null) {
++                // Check if this is a reset request (empty string)
++                String rawValue = settings.get(CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTES);
++                if (rawValue != null && rawValue.trim().isEmpty()) {
++                    awarenessAttributes = new String[0];  // Empty array for reset
++                }
+                 logger.info("updating [cluster.routing.allocation.awareness.attributes] from [{}] to [{}]", AwarenessAllocationDecider.this.awarenessAttributes, awarenessAttributes);
+                 AwarenessAllocationDecider.this.awarenessAttributes = awarenessAttributes;
+             }
+@@ -97,6 +102,11 @@ public class AwarenessAllocationDecider extends AllocationDecider {
+             if (!forceGroups.isEmpty()) {
+                 for (Map.Entry<String, Settings> entry : forceGroups.entrySet()) {
+                     String[] aValues = entry.getValue().getAsArray("values");
++                    // Check if this is a reset request (empty string)
++                    String rawValue = entry.getValue().get("values");
++                    if (rawValue != null && rawValue.trim().isEmpty()) {
++                        aValues = new String[0];  // Empty array for reset
++                    }
+                     if (aValues.length > 0) {
+                         forcedAwarenessAttributes.put(entry.getKey(), aValues);
+                     }
+@@ -129,12 +139,23 @@ public class AwarenessAllocationDecider extends AllocationDecider {
+     @Inject
+     public AwarenessAllocationDecider(Settings settings, NodeSettingsService nodeSettingsService) {
+         super(settings);
+-        this.awarenessAttributes = settings.getAsArray(CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTES);
++        String[] awarenessAttributes = settings.getAsArray(CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTES);
++        // Check if this is a reset request (empty string)
++        String rawValue = settings.get(CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTES);
++        if (rawValue != null && rawValue.trim().isEmpty()) {
++            awarenessAttributes = new String[0];  // Empty array for reset
++        }
++        this.awarenessAttributes = awarenessAttributes;
+ 
+         forcedAwarenessAttributes = Maps.newHashMap();
+         Map<String, Settings> forceGroups = settings.getGroups(CLUSTER_ROUTING_ALLOCATION_AWARENESS_FORCE_GROUP);
+         for (Map.Entry<String, Settings> entry : forceGroups.entrySet()) {
+             String[] aValues = entry.getValue().getAsArray("values");
++            // Check if this is a reset request (empty string)
++            String rawValue = entry.getValue().get("values");
++            if (rawValue != null && rawValue.trim().isEmpty()) {
++                aValues = new String[0];  // Empty array for reset
++            }
+             if (aValues.length > 0) {
+                 forcedAwarenessAttributes.put(entry.getKey(), aValues);
+             }

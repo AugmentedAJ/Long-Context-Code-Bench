@@ -1,0 +1,67 @@
+diff --git a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+index 0ded558..03ff470 100644
+--- a/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
++++ b/src/main/java/org/elasticsearch/common/geo/GeoDistance.java
+@@ -75,18 +75,11 @@ public enum GeoDistance {
+     ARC() {
+         @Override
+         public double calculate(double sourceLatitude, double sourceLongitude, double targetLatitude, double targetLongitude, DistanceUnit unit) {
+-            double longitudeDifference = targetLongitude - sourceLongitude;
+-            double a = Math.toRadians(90D - sourceLatitude);
+-            double c = Math.toRadians(90D - targetLatitude);
+-            double factor = (Math.cos(a) * Math.cos(c)) + (Math.sin(a) * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));
+-
+-            if (factor < -1D) {
+-                return Math.PI * unit.getEarthRadius();
+-            } else if (factor >= 1D) {
+-                return 0;
+-            } else {
+-                return Math.acos(factor) * unit.getEarthRadius();
+-            }
++            // Use SloppyMath.haversinMeters for more accurate and efficient haversine calculation
++            double distanceInMeters = SloppyMath.haversinMeters(sourceLatitude, sourceLongitude, targetLatitude, targetLongitude);
++            
++            // Convert from meters to the target unit using the built-in converter
++            return DistanceUnit.convert(distanceInMeters, DistanceUnit.METERS, unit);
+         }
+ 
+         @Override
+@@ -294,6 +287,7 @@ public enum GeoDistance {
+         private final double sourceLatitude;
+         private final double sourceLongitude;
+         private final double earthRadius;
++        private final DistanceUnit unit;
+ 
+         private final double a;
+         private final double sinA;
+@@ -303,6 +297,7 @@ public enum GeoDistance {
+             this.sourceLatitude = sourceLatitude;
+             this.sourceLongitude = sourceLongitude;
+             this.earthRadius = unit.getEarthRadius();
++            this.unit = unit;
+             this.a = Math.toRadians(90D - sourceLatitude);
+             this.sinA = Math.sin(a);
+             this.cosA = Math.cos(a);
+@@ -310,17 +305,11 @@ public enum GeoDistance {
+ 
+         @Override
+         public double calculate(double targetLatitude, double targetLongitude) {
+-            double longitudeDifference = targetLongitude - sourceLongitude;
+-            double c = Math.toRadians(90D - targetLatitude);
+-            double factor = (cosA * Math.cos(c)) + (sinA * Math.sin(c) * Math.cos(Math.toRadians(longitudeDifference)));
+-
+-            if (factor < -1D) {
+-                return Math.PI * earthRadius;
+-            } else if (factor >= 1D) {
+-                return 0;
+-            } else {
+-                return Math.acos(factor) * earthRadius;
+-            }
++            // Use SloppyMath.haversinMeters for more accurate and efficient haversine calculation
++            double distanceInMeters = SloppyMath.haversinMeters(sourceLatitude, sourceLongitude, targetLatitude, targetLongitude);
++            
++            // Convert from meters to the target unit
++            return DistanceUnit.convert(distanceInMeters, DistanceUnit.METERS, unit);
+         }
+     }
+ }

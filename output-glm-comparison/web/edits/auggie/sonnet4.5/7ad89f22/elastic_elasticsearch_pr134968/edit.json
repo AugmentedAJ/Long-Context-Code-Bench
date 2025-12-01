@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134968,
+  "base_commit": "2ab71babbc961f70b434f7bd5f8cb935f283fc0e",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 65871,
+  "patch_unified": "diff --git a/.buildkite/scripts/update-transport-versions.sh b/.buildkite/scripts/update-transport-versions.sh\nindex c3ae067f..439d237e 100755\n--- a/.buildkite/scripts/update-transport-versions.sh\n+++ b/.buildkite/scripts/update-transport-versions.sh\n@@ -36,11 +36,21 @@ if git diff --exit-code; then\n   exit 0\n fi\n \n+# Check if there are any non-transport changes\n+if git diff --exit-code -- ':!server/src/main/resources/transport/'; then\n+  echo \"Only transport version changes detected, proceeding with auto-commit\"\n+else\n+  echo \"Non-transport changes detected, skipping auto-commit\"\n+  echo \"The following non-transport files have changes:\"\n+  git diff --name-only -- ':!server/src/main/resources/transport/'\n+  exit 0\n+fi\n+\n git config --global user.name elasticsearchmachine\n git config --global user.email 'infra-root+elasticsearchmachine@elastic.co'\n \n gh pr checkout \"${BUILDKITE_PULL_REQUEST}\"\n-git add -A .\n+git add server/src/main/resources/transport/\n git commit -m \"$NEW_COMMIT_MESSAGE\"\n git push\n ",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr134968/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

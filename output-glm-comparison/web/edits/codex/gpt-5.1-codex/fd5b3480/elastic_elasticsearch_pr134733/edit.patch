@@ -1,0 +1,114 @@
+diff --git a/build-tools-internal/src/integTest/groovy/org/elasticsearch/gradle/internal/transport/TransportVersionValidationFuncTest.groovy b/build-tools-internal/src/integTest/groovy/org/elasticsearch/gradle/internal/transport/TransportVersionValidationFuncTest.groovy
+index 36be4c4d..5e10e553 100644
+--- a/build-tools-internal/src/integTest/groovy/org/elasticsearch/gradle/internal/transport/TransportVersionValidationFuncTest.groovy
++++ b/build-tools-internal/src/integTest/groovy/org/elasticsearch/gradle/internal/transport/TransportVersionValidationFuncTest.groovy
+@@ -252,4 +252,29 @@ class TransportVersionValidationFuncTest extends AbstractTransportVersionFuncTes
+             "[myserver/src/main/resources/transport/definitions/referable/initial_10.0.0.csv] " +
+             "has the highest transport version id [10000000] but is not present in any upper bounds files")
+     }
++
++    def "definition files support comments"() {
++        given:
++        def definitionFile = file("myserver/src/main/resources/transport/definitions/referable/existing_92.csv")
++        definitionFile.text = """# comment about definitions
++8123000,8012001 # inline note
++# trailing comment line
++""".stripIndent()
++        when:
++        def result = gradleRunner(":myserver:validateTransportVersionResources").build()
++        then:
++        result.task(":myserver:validateTransportVersionResources").outcome == TaskOutcome.SUCCESS
++    }
++
++    def "upper bound files support comments"() {
++        given:
++        def upperBoundFile = file("myserver/src/main/resources/transport/upper_bounds/9.2.csv")
++        upperBoundFile.text = """# comment about upper bound
++existing_92,8123000 # inline note
++""".stripIndent()
++        when:
++        def result = gradleRunner(":myserver:validateTransportVersionResources").build()
++        then:
++        result.task(":myserver:validateTransportVersionResources").outcome == TaskOutcome.SUCCESS
++    }
+ }
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
+index 65f4caeb..51700071 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionDefinition.java
+@@ -21,15 +21,30 @@ record TransportVersionDefinition(String name, List<TransportVersionId> ids) {
+         List<TransportVersionId> ids = new ArrayList<>();
+ 
+         if (contents.isEmpty() == false) {
+-            for (String rawId : contents.split(",")) {
+-                try {
+-                    ids.add(TransportVersionId.fromString(rawId));
+-                } catch (NumberFormatException e) {
+-                    throw new IllegalStateException("Failed to parse id " + rawId + " in " + file, e);
++            for (String line : contents.split("\\R")) {
++                String sanitizedLine = stripComment(line).trim();
++                if (sanitizedLine.isEmpty()) {
++                    continue;
++                }
++                for (String rawId : sanitizedLine.split(",")) {
++                    String trimmedId = rawId.trim();
++                    if (trimmedId.isEmpty()) {
++                        continue;
++                    }
++                    try {
++                        ids.add(TransportVersionId.fromString(trimmedId));
++                    } catch (NumberFormatException e) {
++                        throw new IllegalStateException("Failed to parse id " + trimmedId + " in " + file, e);
++                    }
+                 }
+             }
+         }
+ 
+         return new TransportVersionDefinition(name, ids);
+     }
++
++    private static String stripComment(String line) {
++        int commentIndex = line.indexOf('#');
++        return commentIndex >= 0 ? line.substring(0, commentIndex) : line;
++    }
+ }
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
+index d3b91464..176a5d13 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/transport/TransportVersionUpperBound.java
+@@ -10,6 +10,7 @@
+ package org.elasticsearch.gradle.internal.transport;
+ 
+ import java.nio.file.Path;
++import java.util.List;
+ 
+ /**
+  * An object to represent the loaded version of a transport version upper bound.
+@@ -23,11 +24,26 @@ record TransportVersionUpperBound(String name, String definitionName, TransportV
+         int slashIndex = filename.lastIndexOf('/');
+         String branch = filename.substring(slashIndex == -1 ? 0 : (slashIndex + 1), filename.length() - 4);
+ 
+-        String[] parts = contents.split(",");
++        List<String> valueLines = contents.lines()
++            .map(TransportVersionUpperBound::stripComment)
++            .map(String::trim)
++            .filter(line -> line.isEmpty() == false)
++            .toList();
++
++        if (valueLines.size() != 1) {
++            throw new IllegalStateException("Invalid transport version upper bound file [" + file + "]: " + contents);
++        }
++
++        String[] parts = valueLines.get(0).split(",");
+         if (parts.length != 2) {
+             throw new IllegalStateException("Invalid transport version upper bound file [" + file + "]: " + contents);
+         }
+ 
+         return new TransportVersionUpperBound(branch, parts[0], TransportVersionId.fromString(parts[1]));
+     }
++
++    private static String stripComment(String line) {
++        int commentIndex = line.indexOf('#');
++        return commentIndex >= 0 ? line.substring(0, commentIndex) : line;
++    }
+ }

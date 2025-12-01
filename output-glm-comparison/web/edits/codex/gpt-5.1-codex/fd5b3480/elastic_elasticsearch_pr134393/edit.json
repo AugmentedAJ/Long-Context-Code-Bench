@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134393,
+  "base_commit": "7d0ee1a56dbe93fafb200da390fbdc491dae81dd",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 178268,
+  "patch_unified": "diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java\nindex dddb41e9..6efe7016 100644\n--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java\n+++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java\n@@ -322,6 +322,12 @@ public class ComputeService {\n             .groupIndices(SearchRequest.DEFAULT_INDICES_OPTIONS, PlannerUtils.planConcreteIndices(physicalPlan).toArray(String[]::new));\n         QueryPragmas queryPragmas = configuration.pragmas();\n         Runnable cancelQueryOnFailure = cancelQueryOnFailure(rootTask);\n+        /*\n+         * Grab the output attributes here, so we can pass them to\n+         * the listener without holding on to a reference to the\n+         * entire plan.\n+         */\n+        List<Attribute> outputAttributes = physicalPlan.output();\n         if (dataNodePlan == null) {\n             if (clusterToConcreteIndices.values().stream().allMatch(v -> v.indices().length == 0) == false) {\n                 String error = \"expected no concrete indices without data node plan; got \" + clusterToConcreteIndices;\n@@ -347,7 +353,7 @@ public class ComputeService {\n                     cancelQueryOnFailure,\n                     listener.map(completionInfo -> {\n                         updateExecutionInfoAfterCoordinatorOnlyQuery(execInfo);\n-                        return new Result(physicalPlan.output(), collectedPages, completionInfo, execInfo);\n+                        return new Result(outputAttributes, collectedPages, completionInfo, execInfo);\n                     })\n                 )\n             ) {\n@@ -366,12 +372,6 @@ public class ComputeService {\n             .groupIndices(SearchRequest.DEFAULT_INDICES_OPTIONS, PlannerUtils.planOriginalIndices(physicalPlan));\n         var localOriginalIndices = clusterToOriginalIndices.remove(LOCAL_CLUSTER);\n         var localConcreteIndices = clusterToConcreteIndices.remove(LOCAL_CLUSTER);\n-        /*\n-         * Grab the output attributes here, so we can pass them to\n-         * the listener without holding on to a reference to the\n-         * entire plan.\n-         */\n-        List<Attribute> outputAttributes = physicalPlan.output();\n         var exchangeSource = new ExchangeSourceHandler(\n             queryPragmas.exchangeBufferSize(),\n             transportService.getThreadPool().executor(ThreadPool.Names.SEARCH)",
+  "logs_path": "codex/gpt-5.1-codex/b8978668/elastic_elasticsearch_pr134393/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

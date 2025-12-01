@@ -1,0 +1,52 @@
+diff --git a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
+index b8fb83a..a0b8946 100644
+--- a/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
++++ b/src/main/java/org/elasticsearch/action/bulk/BulkProcessor.java
+@@ -283,25 +283,31 @@ public class BulkProcessor {
+                 return;
+             }
+             listener.beforeBulk(executionId, bulkRequest);
+-            client.bulk(bulkRequest, new ActionListener<BulkResponse>() {
+-                @Override
+-                public void onResponse(BulkResponse response) {
+-                    try {
+-                        listener.afterBulk(executionId, bulkRequest, response);
+-                    } finally {
+-                        semaphore.release();
++            try {
++                client.bulk(bulkRequest, new ActionListener<BulkResponse>() {
++                    @Override
++                    public void onResponse(BulkResponse response) {
++                        try {
++                            listener.afterBulk(executionId, bulkRequest, response);
++                        } finally {
++                            semaphore.release();
++                        }
+                     }
+-                }
+ 
+-                @Override
+-                public void onFailure(Throwable e) {
+-                    try {
+-                        listener.afterBulk(executionId, bulkRequest, e);
+-                    } finally {
+-                        semaphore.release();
++                    @Override
++                    public void onFailure(Throwable e) {
++                        try {
++                            listener.afterBulk(executionId, bulkRequest, e);
++                        } finally {
++                            semaphore.release();
++                        }
+                     }
+-                }
+-            });
++                });
++            } catch (Exception e) {
++                // If client.bulk throws synchronously, release the semaphore and notify listener
++                semaphore.release();
++                listener.afterBulk(executionId, bulkRequest, e);
++            }
+         }
+     }
+ 

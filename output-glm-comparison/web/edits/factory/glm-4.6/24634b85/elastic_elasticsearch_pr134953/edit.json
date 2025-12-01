@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134953,
+  "base_commit": "106b3012c7faf9c693dc3ef103ee05bf243b71e4",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 103065,
+  "patch_unified": "diff --git a/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java b/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java\nindex 15306f65..e755b62c 100644\n--- a/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java\n+++ b/x-pack/plugin/migrate/src/main/java/org/elasticsearch/xpack/migrate/rest/RestCreateIndexFromSourceAction.java\n@@ -10,6 +10,9 @@ package org.elasticsearch.xpack.migrate.rest;\n import org.elasticsearch.client.internal.node.NodeClient;\n import org.elasticsearch.rest.BaseRestHandler;\n import org.elasticsearch.rest.RestRequest;\n+import org.elasticsearch.rest.RestHandler;\n+import org.elasticsearch.rest.ServerlessScope;\n+import org.elasticsearch.rest.Scope;\n import org.elasticsearch.rest.action.RestToXContentListener;\n import org.elasticsearch.xpack.migrate.action.CreateIndexFromSourceAction;\n \n@@ -19,6 +22,7 @@ import java.util.List;\n import static org.elasticsearch.rest.RestRequest.Method.POST;\n import static org.elasticsearch.rest.RestRequest.Method.PUT;\n \n+@ServerlessScope(Scope.PUBLIC)\n public class RestCreateIndexFromSourceAction extends BaseRestHandler {\n \n     @Override",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr134953/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

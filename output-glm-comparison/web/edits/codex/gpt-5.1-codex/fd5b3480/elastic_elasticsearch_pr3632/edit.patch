@@ -1,0 +1,381 @@
+diff --git a/docs/reference/search/request/highlighting.asciidoc b/docs/reference/search/request/highlighting.asciidoc
+index 43d5817..e2031cb 100644
+--- a/docs/reference/search/request/highlighting.asciidoc
++++ b/docs/reference/search/request/highlighting.asciidoc
+@@ -200,6 +200,39 @@ be highlighted only if a query matched that field. `false` means that
+ terms are highlighted on all requested fields regardless if the query
+ matches specifically on them.
+ 
++[[highlight-query]]
++==== Highlight Query
++
++By default the highlighters derive their terms from the main search
++query. In some cases it is desirable to provide a separate query that
++is only used for highlighting, for example when using
++<<search-request-rescore,rescore>> queries or when you need to sort
++highlighted fragments based on a different set of terms. A custom query
++can be provided either globally for all highlight fields or per field
++using the `highlight_query` option.
++
++[source,js]
++--------------------------------------------------
++{
++    "query" : {...},
++    "highlight" : {
++        "highlight_query" : {
++            "match" : { "content" : "elastic" }
++        },
++        "fields" : {
++            "content" : {},
++            "title" : {
++                "highlight_query" : { "match" : { "title" : "search" } }
++            }
++        }
++    }
++}
++--------------------------------------------------
++
++In the example above, the `content` field is highlighted using the
++global highlight query, while the `title` field overrides it with its
++own query.
++
+ [[boundary-characters]]
+ ==== Boundary Characters
+ 
+diff --git a/src/main/java/org/elasticsearch/action/search/SearchRequestBuilder.java b/src/main/java/org/elasticsearch/action/search/SearchRequestBuilder.java
+index 5bc80e2..846928c 100644
+--- a/src/main/java/org/elasticsearch/action/search/SearchRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/action/search/SearchRequestBuilder.java
+@@ -689,6 +689,11 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
+         return this;
+     }
+ 
++    public SearchRequestBuilder setHighlighterQuery(QueryBuilder highlightQuery) {
++        highlightBuilder().highlightQuery(highlightQuery);
++        return this;
++    }
++
+     /**
+      * Delegates to {@link org.elasticsearch.search.suggest.SuggestBuilder#setText(String)}.
+      */
+diff --git a/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
+index 7763753..d6dcb2a 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
+@@ -78,6 +78,10 @@ public class FastVectorHighlighter implements Highlighter {
+         try {
+             MapperHighlightEntry entry = cache.mappers.get(mapper);
+             FieldQuery fieldQuery = null;
++            Query fieldQuerySource = field.highlightQuery();
++            if (fieldQuerySource == null) {
++                fieldQuerySource = context.parsedQuery().query();
++            }
+             if (entry == null) {
+                 FragListBuilder fragListBuilder;
+                 BaseFragmentsBuilder fragmentsBuilder;
+@@ -121,21 +125,23 @@ public class FastVectorHighlighter implements Highlighter {
+                     // fragment builders are used explicitly
+                     cache.fvh = new org.apache.lucene.search.vectorhighlight.FastVectorHighlighter();
+                 }
+-                CustomFieldQuery.highlightFilters.set(field.highlightFilter());
++                cache.mappers.put(mapper, entry);
++            }
++            CustomFieldQuery.highlightFilters.set(field.highlightFilter());
++            if (field.highlightQuery() == null) {
+                 if (field.requireFieldMatch()) {
+                     if (cache.fieldMatchFieldQuery == null) {
+-                        // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
+-                        cache.fieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
++                        cache.fieldMatchFieldQuery = new CustomFieldQuery(fieldQuerySource, hitContext.topLevelReader(), true, field.requireFieldMatch());
+                     }
+                     fieldQuery = cache.fieldMatchFieldQuery;
+                 } else {
+                     if (cache.noFieldMatchFieldQuery == null) {
+-                        // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
+-                        cache.noFieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
++                        cache.noFieldMatchFieldQuery = new CustomFieldQuery(fieldQuerySource, hitContext.topLevelReader(), true, field.requireFieldMatch());
+                     }
+                     fieldQuery = cache.noFieldMatchFieldQuery;
+                 }
+-                cache.mappers.put(mapper, entry);
++            } else {
++                fieldQuery = new CustomFieldQuery(fieldQuerySource, hitContext.topLevelReader(), true, field.requireFieldMatch());
+             }
+ 
+             String[] fragments;
+diff --git a/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java b/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
+index 4e0ccc6..f266efd 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
++++ b/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
+@@ -21,6 +21,7 @@ package org.elasticsearch.search.highlight;
+ 
+ import org.elasticsearch.common.xcontent.ToXContent;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.elasticsearch.index.query.QueryBuilder;
+ 
+ import java.io.IOException;
+ import java.util.List;
+@@ -55,6 +56,8 @@ public class HighlightBuilder implements ToXContent {
+ 
+     private Map<String, Object> options;
+ 
++    private QueryBuilder highlightQuery;
++
+     /**
+      * Adds a field to be highlighted with default fragment size of 100 characters, and
+      * default number of fragments of 5 using the default encoder
+@@ -209,6 +212,11 @@ public class HighlightBuilder implements ToXContent {
+         return this;
+     }
+ 
++    public HighlightBuilder highlightQuery(QueryBuilder highlightQuery) {
++        this.highlightQuery = highlightQuery;
++        return this;
++    }
++
+     @Override
+     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+         builder.startObject("highlight");
+@@ -239,6 +247,10 @@ public class HighlightBuilder implements ToXContent {
+         if (options != null && options.size() > 0) {
+             builder.field("options", options);
+         }
++        if (highlightQuery != null) {
++            builder.field("highlight_query");
++            highlightQuery.toXContent(builder, params);
++        }
+         if (fields != null) {
+             builder.startObject("fields");
+             for (Field field : fields) {
+@@ -282,6 +294,10 @@ public class HighlightBuilder implements ToXContent {
+                 if (field.options != null && field.options.size() > 0) {
+                     builder.field("options", field.options);
+                 }
++                if (field.highlightQuery != null) {
++                    builder.field("highlight_query");
++                    field.highlightQuery.toXContent(builder, params);
++                }
+ 
+                 builder.endObject();
+             }
+@@ -307,6 +323,7 @@ public class HighlightBuilder implements ToXContent {
+         String highlighterType;
+         String fragmenter;
+         Map<String, Object> options;
++        QueryBuilder highlightQuery;
+ 
+         public Field(String name) {
+             this.name = name;
+@@ -408,5 +425,10 @@ public class HighlightBuilder implements ToXContent {
+             this.options = options;
+             return this;
+         }
++
++        public Field highlightQuery(QueryBuilder highlightQuery) {
++            this.highlightQuery = highlightQuery;
++            return this;
++        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java b/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
+index edceffc..8e03c7e 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
++++ b/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
+@@ -20,6 +20,7 @@
+ package org.elasticsearch.search.highlight;
+ 
+ import com.google.common.collect.Lists;
++import org.apache.lucene.search.Query;
+ import org.apache.lucene.search.vectorhighlight.SimpleBoundaryScanner;
+ import org.elasticsearch.common.xcontent.XContentParser;
+ import org.elasticsearch.search.SearchParseElement;
+@@ -80,6 +81,7 @@ public class HighlighterParseElement implements SearchParseElement {
+         String globalHighlighterType = null;
+         String globalFragmenter = null;
+         Map<String, Object> globalOptions = null;
++        Query globalHighlightQuery = null;
+ 
+         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+             if (token == XContentParser.Token.FIELD_NAME) {
+@@ -130,6 +132,8 @@ public class HighlighterParseElement implements SearchParseElement {
+                 } else if ("fragmenter".equals(topLevelFieldName)) {
+                     globalFragmenter = parser.text();
+                 }
++            } else if (token == XContentParser.Token.START_OBJECT && ("highlight_query".equals(topLevelFieldName) || "highlightQuery".equals(topLevelFieldName))) {
++                globalHighlightQuery = context.queryParserService().parse(parser).query();
+             } else if (token == XContentParser.Token.START_OBJECT && "options".equals(topLevelFieldName)) {
+                 globalOptions = parser.map();
+             } else if (token == XContentParser.Token.START_OBJECT) {
+@@ -185,6 +189,8 @@ public class HighlighterParseElement implements SearchParseElement {
+                                     } else if ("fragmenter".equals(fieldName)) {
+                                         field.fragmenter(parser.text());
+                                     }
++                                } else if (token == XContentParser.Token.START_OBJECT && ("highlight_query".equals(fieldName) || "highlightQuery".equals(fieldName))) {
++                                    field.highlightQuery(context.queryParserService().parse(parser).query());
+                                 } else if (fieldName.equals("options")) {
+                                     field.options(parser.map());
+                                 }
+@@ -240,6 +246,9 @@ public class HighlighterParseElement implements SearchParseElement {
+             if (field.options() == null || field.options().size() == 0) {
+                 field.options(globalOptions);
+             }
++            if (field.highlightQuery() == null) {
++                field.highlightQuery(globalHighlightQuery);
++            }
+         }
+ 
+         context.highlight(new SearchContextHighlight(fields));
+diff --git a/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
+index ff1d0f8..4825599 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
+@@ -68,12 +68,19 @@ public class PlainHighlighter implements Highlighter {
+         }
+         Map<FieldMapper<?>, org.apache.lucene.search.highlight.Highlighter> cache = (Map<FieldMapper<?>, org.apache.lucene.search.highlight.Highlighter>) hitContext.cache().get(CACHE_KEY);
+ 
+-        org.apache.lucene.search.highlight.Highlighter entry = cache.get(mapper);
+-        if (entry == null) {
++        Query highlightQuery = field.highlightQuery();
++        if (highlightQuery == null) {
+             // Don't use the context.query() since it might be rewritten, and we need to pass the non rewritten queries to
+             // let the highlighter handle MultiTerm ones
+-            Query query = context.parsedQuery().query();
+-            QueryScorer queryScorer = new CustomQueryScorer(query, field.requireFieldMatch() ? mapper.names().indexName() : null);
++            highlightQuery = context.parsedQuery().query();
++        }
++
++        org.apache.lucene.search.highlight.Highlighter entry = null;
++        if (field.highlightQuery() == null) {
++            entry = cache.get(mapper);
++        }
++        if (entry == null) {
++            QueryScorer queryScorer = new CustomQueryScorer(highlightQuery, field.requireFieldMatch() ? mapper.names().indexName() : null);
+             queryScorer.setExpandMultiTermQuery(true);
+             Fragmenter fragmenter;
+             if (field.numberOfFragments() == 0) {
+@@ -94,7 +101,9 @@ public class PlainHighlighter implements Highlighter {
+             // always highlight across all data
+             entry.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
+ 
+-            cache.put(mapper, entry);
++            if (field.highlightQuery() == null) {
++                cache.put(mapper, entry);
++            }
+         }
+ 
+         List<Object> textsToHighlight;
+diff --git a/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java b/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
+index 04e71d2..c88f198 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
++++ b/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
+@@ -19,6 +19,8 @@
+ 
+ package org.elasticsearch.search.highlight;
+ 
++import org.apache.lucene.search.Query;
++
+ import java.util.List;
+ import java.util.Map;
+ 
+@@ -68,6 +70,8 @@ public class SearchContextHighlight {
+ 
+         private Map<String, Object> options;
+ 
++        private Query highlightQuery;
++
+         public Field(String field) {
+             this.field = field;
+         }
+@@ -187,5 +191,13 @@ public class SearchContextHighlight {
+         public void options(Map<String, Object> options) {
+             this.options = options;
+         }
++
++        public Query highlightQuery() {
++            return highlightQuery;
++        }
++
++        public void highlightQuery(Query highlightQuery) {
++            this.highlightQuery = highlightQuery;
++        }
+     }
+ }
+diff --git a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+index 1857b9a..c32482e 100644
+--- a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
++++ b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+@@ -154,6 +154,74 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+         SearchResponse search = client().prepareSearch("test").setTypes("test").setQuery(matchQuery("name.autocomplete", "deut tel").operator(Operator.OR)).addHighlightedField("name.autocomplete").execute().actionGet();
+         assertHighlight(search, 0, "name.autocomplete", 0, equalTo("ARCO<em>TEL</em> Ho<em>tel</em>s <em>Deut</em>schland"));
+     }
++
++    @Test
++    public void testGlobalHighlightQuery() throws Exception {
++        wipeIndex("test");
++        client().admin().indices().prepareCreate("test")
++                .addMapping("type", jsonBuilder()
++                        .startObject()
++                            .startObject("type")
++                                .startObject("properties")
++                                    .startObject("field")
++                                        .field("type", "string")
++                                        .field("store", "yes")
++                                    .endObject()
++                                .endObject()
++                            .endObject()
++                        .endObject())
++                .execute().actionGet();
++        ensureYellow();
++        client().prepareIndex("test", "type", "1")
++                .setSource("field", "foo bar baz")
++                .execute().actionGet();
++        refresh();
++
++        SearchResponse searchResponse = client().prepareSearch("test")
++                .setQuery(termQuery("field", "foo"))
++                .setHighlighterQuery(termQuery("field", "bar"))
++                .addHighlightedField(new HighlightBuilder.Field("field"))
++                .execute().actionGet();
++
++        assertHighlight(searchResponse, 0, "field", 0, equalTo("foo <em>bar</em> baz"));
++    }
++
++    @Test
++    public void testFieldSpecificHighlightQueryOnFvh() throws Exception {
++        wipeIndex("test");
++        client().admin().indices().prepareCreate("test")
++                .addMapping("type", jsonBuilder()
++                        .startObject()
++                            .startObject("type")
++                                .startObject("properties")
++                                    .startObject("field")
++                                        .field("type", "string")
++                                        .field("store", "yes")
++                                        .field("term_vector", "with_positions_offsets")
++                                    .endObject()
++                                .endObject()
++                            .endObject()
++                        .endObject())
++                .execute().actionGet();
++        ensureYellow();
++        client().prepareIndex("test", "type", "1")
++                .setSource("field", "foo bar baz qux")
++                .execute().actionGet();
++        refresh();
++
++        HighlightBuilder.Field highlightField = new HighlightBuilder.Field("field")
++                .highlighterType("fvh")
++                .fragmentSize(50)
++                .numOfFragments(1)
++                .highlightQuery(termQuery("field", "qux"));
++
++        SearchResponse searchResponse = client().prepareSearch("test")
++                .setQuery(termQuery("field", "foo"))
++                .addHighlightedField(highlightField)
++                .execute().actionGet();
++
++        assertHighlight(searchResponse, 0, "field", 0, equalTo("foo bar baz <em>qux</em>"));
++    }
+     
+     @Test 
+     public void testMultiPhraseCutoff() throws ElasticSearchException, IOException {

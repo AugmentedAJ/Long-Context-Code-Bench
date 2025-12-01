@@ -1,0 +1,177 @@
+diff --git a/src/main/java/org/elasticsearch/index/shard/service/InternalIndexShard.java b/src/main/java/org/elasticsearch/index/shard/service/InternalIndexShard.java
+index 1eaf50f..143f91f 100644
+--- a/src/main/java/org/elasticsearch/index/shard/service/InternalIndexShard.java
++++ b/src/main/java/org/elasticsearch/index/shard/service/InternalIndexShard.java
+@@ -173,6 +173,7 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+         this.indexService = indexService;
+         this.codecService = codecService;
+         state = IndexShardState.CREATED;
++        this.indicesLifecycle.indexShardStateChanged(this, null, IndexShardState.CREATED, "shard created");
+ 
+         this.refreshInterval = indexSettings.getAsTime("engine.robin.refresh_interval", indexSettings.getAsTime(INDEX_REFRESH_INTERVAL, engine.defaultRefreshInterval()));
+         this.mergeInterval = indexSettings.getAsTime("index.merge.async_interval", TimeValue.timeValueSeconds(1));
+@@ -286,9 +287,11 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+                 }
+ 
+                 boolean movedToStarted = false;
++                IndexShardState previousState = null;
+                 synchronized (mutex) {
+                     // do the check under a mutex, so we make sure to only change to STARTED if in POST_RECOVERY
+                     if (state == IndexShardState.POST_RECOVERY) {
++                        previousState = state;
+                         logger.debug("state: [{}]->[{}], reason [global state is [{}]]", state, IndexShardState.STARTED, newRouting.state());
+                         state = IndexShardState.STARTED;
+                         movedToStarted = true;
+@@ -297,6 +300,7 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+                     }
+                 }
+                 if (movedToStarted) {
++                    indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.STARTED, "global state is [" + newRouting.state() + "]");
+                     indicesLifecycle.afterIndexShardStarted(this);
+                 }
+             }
+@@ -313,6 +317,7 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+      */
+     public IndexShardState recovering(String reason) throws IndexShardStartedException,
+             IndexShardRelocatedException, IndexShardRecoveringException, IndexShardClosedException {
++        IndexShardState previousState;
+         synchronized (mutex) {
+             IndexShardState returnValue = state;
+             if (state == IndexShardState.CLOSED) {
+@@ -331,19 +336,24 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+                 throw new IndexShardRecoveringException(shardId);
+             }
+             logger.debug("state: [{}]->[{}], reason [{}]", state, IndexShardState.RECOVERING, reason);
++            previousState = state;
+             state = IndexShardState.RECOVERING;
++            indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.RECOVERING, reason);
+             return returnValue;
+         }
+     }
+ 
+     public InternalIndexShard relocated(String reason) throws IndexShardNotStartedException {
++        IndexShardState previousState;
+         synchronized (mutex) {
+             if (state != IndexShardState.STARTED) {
+                 throw new IndexShardNotStartedException(shardId, state);
+             }
+             logger.debug("state: [{}]->[{}], reason [{}]", state, IndexShardState.RELOCATED, reason);
++            previousState = state;
+             state = IndexShardState.RELOCATED;
+         }
++        indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.RELOCATED, reason);
+         return this;
+     }
+ 
+@@ -641,6 +651,7 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+     }
+ 
+     public void close(String reason) {
++        IndexShardState previousState;
+         synchronized (mutex) {
+             indexSettingsService.removeListener(applyRefreshSettings);
+             if (state != IndexShardState.CLOSED) {
+@@ -656,8 +667,10 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+             if (logger.isDebugEnabled()) {
+                 logger.debug("state: [{}]->[{}], reason [{}]", state, IndexShardState.CLOSED, reason);
+             }
++            previousState = state;
+             state = IndexShardState.CLOSED;
+         }
++        indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.CLOSED, reason);
+     }
+ 
+     public long checkIndexTook() {
+@@ -666,6 +679,7 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+ 
+ 
+     public InternalIndexShard postRecovery(String reason) throws IndexShardStartedException, IndexShardRelocatedException, IndexShardClosedException {
++        IndexShardState previousState;
+         synchronized (mutex) {
+             if (state == IndexShardState.CLOSED) {
+                 throw new IndexShardClosedException(shardId);
+@@ -682,8 +696,10 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+             engine.start();
+             startScheduledTasksIfNeeded();
+             logger.debug("state: [{}]->[{}], reason [{}]", state, IndexShardState.POST_RECOVERY, reason);
++            previousState = state;
+             state = IndexShardState.POST_RECOVERY;
+         }
++        indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.POST_RECOVERY, reason);
+         indicesLifecycle.afterIndexShardPostRecovery(this);
+         return this;
+     }
+@@ -724,10 +740,13 @@ public class InternalIndexShard extends AbstractIndexShardComponent implements I
+         // clear unreferenced files
+         translog.clearUnreferenced();
+         engine.refresh(new Engine.Refresh("recovery_finalization").force(true));
++        IndexShardState previousState;
+         synchronized (mutex) {
+             logger.debug("state: [{}]->[{}], reason [post recovery]", state, IndexShardState.POST_RECOVERY);
++            previousState = state;
+             state = IndexShardState.POST_RECOVERY;
+         }
++        indicesLifecycle.indexShardStateChanged(this, previousState, IndexShardState.POST_RECOVERY, "post recovery");
+         indicesLifecycle.afterIndexShardPostRecovery(this);
+         startScheduledTasksIfNeeded();
+         engine.enableGcDeletes(true);
+diff --git a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
+index 9c95dd5..d31481a 100644
+--- a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
++++ b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
+@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.index.Index;
+ import org.elasticsearch.index.service.IndexService;
++import org.elasticsearch.index.shard.IndexShardState;
+ import org.elasticsearch.index.shard.ShardId;
+ import org.elasticsearch.index.shard.service.IndexShard;
+ 
+@@ -58,6 +59,18 @@ public interface IndicesLifecycle {
+ 
+         }
+ 
++        /**
++         * Called when the shard state has changed.
++         *
++         * @param indexShard The index shard
++         * @param previousState The previous shard state (can be null)
++         * @param currentState The current shard state
++         * @param reason The reason for the state change
++         */
++        public void indexShardStateChanged(IndexShard indexShard, @Nullable IndexShardState previousState, IndexShardState currentState, @Nullable String reason) {
++
++        }
++
+         /**
+          * Called before the index gets created.
+          */
+diff --git a/src/main/java/org/elasticsearch/indices/InternalIndicesLifecycle.java b/src/main/java/org/elasticsearch/indices/InternalIndicesLifecycle.java
+index b196f9e..73037ed 100644
+--- a/src/main/java/org/elasticsearch/indices/InternalIndicesLifecycle.java
++++ b/src/main/java/org/elasticsearch/indices/InternalIndicesLifecycle.java
+@@ -26,6 +26,7 @@ import org.elasticsearch.common.inject.Inject;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.index.Index;
+ import org.elasticsearch.index.service.IndexService;
++import org.elasticsearch.index.shard.IndexShardState;
+ import org.elasticsearch.index.shard.ShardId;
+ import org.elasticsearch.index.shard.service.IndexShard;
+ 
+@@ -61,6 +62,16 @@ public class InternalIndicesLifecycle extends AbstractComponent implements Indic
+         }
+     }
+ 
++    public void indexShardStateChanged(IndexShard indexShard, @Nullable IndexShardState previousState, IndexShardState currentState, @Nullable String reason) {
++        for (Listener listener : listeners) {
++            try {
++                listener.indexShardStateChanged(indexShard, previousState, currentState, reason);
++            } catch (Throwable t) {
++                logger.warn("{} failed to invoke shard state changed callback", t, indexShard.shardId());
++            }
++        }
++    }
++
+     public void beforeIndexCreated(Index index) {
+         for (Listener listener : listeners) {
+             try {

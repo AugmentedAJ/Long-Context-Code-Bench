@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134985,
+  "base_commit": "4a2d8fd40328763780fbefc32366456e1419b48b",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 28487,
+  "patch_unified": "diff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\nindex 2b3bc52d..6ef91ce0 100644\n--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\n+++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/AuthorizationStatePersistenceUtils.java\n@@ -130,7 +130,7 @@ public final class AuthorizationStatePersistenceUtils {\n             },\n             error -> {\n                 String msg = TransformMessages.getMessage(TransformMessages.FAILED_TO_LOAD_TRANSFORM_STATE, transformId);\n-                logger.error(msg, error);\n+                logger.warn(msg, error);\n                 listener.onFailure(error);\n             }\n         );\ndiff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\nindex 05918a33..27820f77 100644\n--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\n+++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformIndex.java\n@@ -213,7 +213,7 @@ public final class TransformIndex {\n                     config.getDestination().getIndex(),\n                     config.getId()\n                 );\n-                logger.error(message, e);\n+                logger.warn(message, e);\n                 listener.onFailure(new RuntimeException(message, e));\n             })\n         );\n@@ -255,7 +255,7 @@ public final class TransformIndex {\n                     config.getDestination().getIndex(),\n                     config.getId()\n                 );\n-                logger.error(message, e);\n+                logger.warn(message, e);\n                 listener.onFailure(new RuntimeException(message, e));\n             })\n         );",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr134985/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

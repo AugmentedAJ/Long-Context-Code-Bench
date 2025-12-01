@@ -1,0 +1,2179 @@
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/abs.json b/docs/reference/query-languages/esql/kibana/definition/functions/abs.json
+index 5d822dd3..2c00b173 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/abs.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/abs.json
+@@ -58,5 +58,5 @@
+     "FROM employees\n| KEEP first_name, last_name, height\n| EVAL abs_height = ABS(0.0 - height)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/absent.json b/docs/reference/query-languages/esql/kibana/definition/functions/absent.json
+index 281dd189..22577008 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/absent.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/absent.json
+@@ -227,5 +227,5 @@
+     "FROM employees\n| WHERE emp_no == 10020\n| STATS is_absent = TO_INTEGER(ABSENT(languages))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/absent_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/absent_over_time.json
+index 25812ff1..8c2b1aee 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/absent_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/absent_over_time.json
+@@ -226,5 +226,5 @@
+     "TS k8s\n| WHERE cluster == \"prod\" AND pod == \"two\"\n| STATS events_received = max(absent_over_time(events_received)) BY pod, time_bucket = tbucket(2 minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/acos.json b/docs/reference/query-languages/esql/kibana/definition/functions/acos.json
+index 69b70c98..638fc51b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/acos.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/acos.json
+@@ -57,5 +57,5 @@
+     "ROW a=.9\n| EVAL acos=ACOS(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/asin.json b/docs/reference/query-languages/esql/kibana/definition/functions/asin.json
+index 9340dc2a..3632ecad 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/asin.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/asin.json
+@@ -57,5 +57,5 @@
+     "ROW a=.9\n| EVAL asin=ASIN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/atan.json b/docs/reference/query-languages/esql/kibana/definition/functions/atan.json
+index 17ef8db6..98fd9789 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/atan.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/atan.json
+@@ -57,5 +57,5 @@
+     "ROW a=12.9\n| EVAL atan=ATAN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/atan2.json b/docs/reference/query-languages/esql/kibana/definition/functions/atan2.json
+index f59a8309..34d98aab 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/atan2.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/atan2.json
+@@ -297,5 +297,5 @@
+     "ROW y=12.9, x=.6\n| EVAL atan2=ATAN2(y, x)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/avg.json b/docs/reference/query-languages/esql/kibana/definition/functions/avg.json
+index 9af4ac38..a9143e0a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/avg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/avg.json
+@@ -46,5 +46,5 @@
+     "FROM employees\n| STATS avg_salary_change = ROUND(AVG(MV_AVG(salary_change)), 10)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/avg_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/avg_over_time.json
+index 548e4b4b..887b3a85 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/avg_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/avg_over_time.json
+@@ -46,5 +46,5 @@
+     "TS k8s\n| STATS max_cost=max(avg_over_time(network.cost)) BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/bit_length.json b/docs/reference/query-languages/esql/kibana/definition/functions/bit_length.json
+index 8ad2d469..c1ef9a6f 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/bit_length.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/bit_length.json
+@@ -34,5 +34,5 @@
+     "FROM airports\n| WHERE country == \"India\"\n| KEEP city\n| EVAL fn_length = LENGTH(city), fn_bit_length = BIT_LENGTH(city)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/bucket.json b/docs/reference/query-languages/esql/kibana/definition/functions/bucket.json
+index 684707f7..24640a5e 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/bucket.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/bucket.json
+@@ -1602,5 +1602,5 @@
+     "FROM employees\n| STATS dates = MV_SORT(VALUES(birth_date)) BY b = BUCKET(birth_date + 1 HOUR, 1 YEAR) - 1 HOUR\n| EVAL d_count = MV_COUNT(dates)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/byte_length.json b/docs/reference/query-languages/esql/kibana/definition/functions/byte_length.json
+index c0a0972f..b8511cc5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/byte_length.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/byte_length.json
+@@ -34,5 +34,5 @@
+     "FROM airports\n| WHERE country == \"India\"\n| KEEP city\n| EVAL fn_length = LENGTH(city), fn_byte_length = BYTE_LENGTH(city)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/case.json b/docs/reference/query-languages/esql/kibana/definition/functions/case.json
+index 96a3089e..c233e8dd 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/case.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/case.json
+@@ -815,5 +815,5 @@
+     "FROM sample_data\n| EVAL error = CASE(message LIKE \"*error*\", 1, 0)\n| EVAL hour = DATE_TRUNC(1 hour, @timestamp)\n| STATS error_rate = AVG(error) by hour\n| SORT hour"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/categorize.json b/docs/reference/query-languages/esql/kibana/definition/functions/categorize.json
+index 86c754b1..5ade9909 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/categorize.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/categorize.json
+@@ -37,5 +37,5 @@
+     "FROM sample_data\n| STATS count=COUNT() BY category=CATEGORIZE(message)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/cbrt.json b/docs/reference/query-languages/esql/kibana/definition/functions/cbrt.json
+index 4bc5b7cc..35c1706d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/cbrt.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/cbrt.json
+@@ -57,5 +57,5 @@
+     "ROW d = 1000.0\n| EVAL c = CBRT(d)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/ceil.json b/docs/reference/query-languages/esql/kibana/definition/functions/ceil.json
+index 8264cffe..ceb81295 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/ceil.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/ceil.json
+@@ -58,5 +58,5 @@
+     "ROW a=1.8\n| EVAL a=CEIL(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/cidr_match.json b/docs/reference/query-languages/esql/kibana/definition/functions/cidr_match.json
+index c4006e83..340890ed 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/cidr_match.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/cidr_match.json
+@@ -45,5 +45,5 @@
+     "FROM hosts\n| WHERE CIDR_MATCH(ip1, \"127.0.0.2/32\", \"127.0.0.3/32\")\n| KEEP card, host, ip0, ip1"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/coalesce.json b/docs/reference/query-languages/esql/kibana/definition/functions/coalesce.json
+index eca39999..bc39771c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/coalesce.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/coalesce.json
+@@ -357,5 +357,5 @@
+     "ROW a=null, b=\"b\"\n| EVAL COALESCE(a, b)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/concat.json b/docs/reference/query-languages/esql/kibana/definition/functions/concat.json
+index a1f0e973..42e28c90 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/concat.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/concat.json
+@@ -81,5 +81,5 @@
+     "FROM employees\n| KEEP first_name, last_name\n| EVAL fullname = CONCAT(first_name, \" \", last_name)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/contains.json b/docs/reference/query-languages/esql/kibana/definition/functions/contains.json
+index a058a262..e7e7c538 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/contains.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/contains.json
+@@ -81,5 +81,5 @@
+     "ROW a = \"hello\"\n| EVAL has_ll = CONTAINS(a, \"ll\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/copy_sign.json b/docs/reference/query-languages/esql/kibana/definition/functions/copy_sign.json
+index 51d3edca..58c9a1c8 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/copy_sign.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/copy_sign.json
+@@ -168,5 +168,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/cos.json b/docs/reference/query-languages/esql/kibana/definition/functions/cos.json
+index 0093262e..c4dc774e 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/cos.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/cos.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL cos=COS(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/cosh.json b/docs/reference/query-languages/esql/kibana/definition/functions/cosh.json
+index 77c4c243..6b070d05 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/cosh.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/cosh.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL cosh=COSH(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/count.json b/docs/reference/query-languages/esql/kibana/definition/functions/count.json
+index 4510ef42..998bc555 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/count.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/count.json
+@@ -229,5 +229,5 @@
+     "ROW n=1\n| STATS COUNT(n > 0 OR NULL), COUNT(n < 0 OR NULL)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct.json b/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct.json
+index 894049ac..be55341b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct.json
+@@ -671,5 +671,5 @@
+     "ROW words=\"foo;bar;baz;qux;quux;foo\"\n| STATS distinct_word_count = COUNT_DISTINCT(SPLIT(words, \";\"))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct_over_time.json
+index b2758c61..f7e192fd 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/count_distinct_over_time.json
+@@ -670,5 +670,5 @@
+     "TS k8s\n| STATS distincts=count_distinct(count_distinct_over_time(network.cost)),\n        distincts_imprecise=count_distinct(count_distinct_over_time(network.cost, 100))\n  BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/count_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/count_over_time.json
+index c8c1527b..3ca70de0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/count_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/count_over_time.json
+@@ -226,5 +226,5 @@
+     "TS k8s\n| STATS count=count(count_over_time(network.cost))\n  BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/date_diff.json b/docs/reference/query-languages/esql/kibana/definition/functions/date_diff.json
+index 0eb71571..6c1c4e58 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/date_diff.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/date_diff.json
+@@ -202,5 +202,5 @@
+     "ROW end_23 = TO_DATETIME(\"2023-12-31T23:59:59.999Z\"),\n  start_24 = TO_DATETIME(\"2024-01-01T00:00:00.000Z\"),\n    end_24 = TO_DATETIME(\"2024-12-31T23:59:59.999\")\n| EVAL end23_to_start24 = DATE_DIFF(\"year\", end_23, start_24)\n| EVAL end23_to_end24   = DATE_DIFF(\"year\", end_23, end_24)\n| EVAL start_to_end_24  = DATE_DIFF(\"year\", start_24, end_24)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/date_extract.json b/docs/reference/query-languages/esql/kibana/definition/functions/date_extract.json
+index ddabb789..d22d0101 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/date_extract.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/date_extract.json
+@@ -82,5 +82,5 @@
+     "FROM sample_data\n| WHERE DATE_EXTRACT(\"hour_of_day\", @timestamp) < 9\n    AND DATE_EXTRACT(\"hour_of_day\", @timestamp) >= 17"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/date_format.json b/docs/reference/query-languages/esql/kibana/definition/functions/date_format.json
+index dd9fbe19..7f665ccc 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/date_format.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/date_format.json
+@@ -105,5 +105,5 @@
+     "FROM employees\n| KEEP first_name, last_name, hire_date\n| EVAL hired = DATE_FORMAT(\"yyyy-MM-dd\", hire_date)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/date_parse.json b/docs/reference/query-languages/esql/kibana/definition/functions/date_parse.json
+index 7c4b5c4a..9eceb297 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/date_parse.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/date_parse.json
+@@ -81,5 +81,5 @@
+     "ROW date_string = \"2022-05-06\"\n| EVAL date = DATE_PARSE(\"yyyy-MM-dd\", date_string)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/date_trunc.json b/docs/reference/query-languages/esql/kibana/definition/functions/date_trunc.json
+index b3cc3caf..dc8b2c3a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/date_trunc.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/date_trunc.json
+@@ -83,5 +83,5 @@
+     "FROM sample_data\n| EVAL error = CASE(message LIKE \"*error*\", 1, 0)\n| EVAL hour = DATE_TRUNC(1 hour, @timestamp)\n| STATS error_rate = AVG(error) by hour\n| SORT hour"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/day_name.json b/docs/reference/query-languages/esql/kibana/definition/functions/day_name.json
+index 3f2933b5..0945eb2c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/day_name.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/day_name.json
+@@ -33,5 +33,5 @@
+     "ROW dt = to_datetime(\"1953-09-02T00:00:00.000Z\")\n| EVAL weekday = DAY_NAME(dt);"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/decay.json b/docs/reference/query-languages/esql/kibana/definition/functions/decay.json
+index e2ca30b4..23840c98 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/decay.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/decay.json
+@@ -257,5 +257,5 @@
+     "FROM employees\n| EVAL decay_result = decay(salary, 0, 100000, {\"offset\": 5, \"decay\": 0.5, \"type\": \"linear\"})\n| SORT decay_result DESC"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/e.json b/docs/reference/query-languages/esql/kibana/definition/functions/e.json
+index 02649e8f..1c407ad3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/e.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/e.json
+@@ -13,5 +13,5 @@
+     "ROW E()"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/ends_with.json b/docs/reference/query-languages/esql/kibana/definition/functions/ends_with.json
+index c4287f74..ad99e9db 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/ends_with.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/ends_with.json
+@@ -81,5 +81,5 @@
+     "FROM employees\n| KEEP last_name\n| EVAL ln_E = ENDS_WITH(last_name, \"d\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/exp.json b/docs/reference/query-languages/esql/kibana/definition/functions/exp.json
+index 26c041e7..56e7e967 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/exp.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/exp.json
+@@ -57,5 +57,5 @@
+     "ROW d = 5.0\n| EVAL s = EXP(d)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/first.json b/docs/reference/query-languages/esql/kibana/definition/functions/first.json
+index 336afa2f..ca65def6 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/first.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/first.json
+@@ -189,5 +189,5 @@
+     "FROM k8s\n| STATS first_bytes_in = FIRST(network.bytes_in, @timestamp) BY pod\n| SORT pod ASC"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/first_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/first_over_time.json
+index 5129d136..ca74598d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/first_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/first_over_time.json
+@@ -46,5 +46,5 @@
+     "TS k8s\n| STATS max_cost=max(first_over_time(network.cost)) BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/floor.json b/docs/reference/query-languages/esql/kibana/definition/functions/floor.json
+index 0184d1c1..8a5f16c7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/floor.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/floor.json
+@@ -58,5 +58,5 @@
+     "ROW a=1.8\n| EVAL a=FLOOR(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/from_base64.json b/docs/reference/query-languages/esql/kibana/definition/functions/from_base64.json
+index edcd3f2d..2b83bbe1 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/from_base64.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/from_base64.json
+@@ -33,5 +33,5 @@
+     "ROW a = \"ZWxhc3RpYw==\"\n| EVAL d = FROM_BASE64(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/greatest.json b/docs/reference/query-languages/esql/kibana/definition/functions/greatest.json
+index e1fe63a4..02da71e5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/greatest.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/greatest.json
+@@ -250,5 +250,5 @@
+     "ROW a = 10, b = 20\n| EVAL g = GREATEST(a, b)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/hash.json b/docs/reference/query-languages/esql/kibana/definition/functions/hash.json
+index 9ed270ff..38abe37b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/hash.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/hash.json
+@@ -81,5 +81,5 @@
+     "FROM sample_data\n| WHERE message != \"Connection error\"\n| EVAL md5 = hash(\"md5\", message), sha256 = hash(\"sha256\", message)\n| KEEP message, md5, sha256"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/hypot.json b/docs/reference/query-languages/esql/kibana/definition/functions/hypot.json
+index 130b0e5f..c46522f4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/hypot.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/hypot.json
+@@ -297,5 +297,5 @@
+     "ROW a = 3.0, b = 4.0\n| EVAL c = HYPOT(a, b)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/ip_prefix.json b/docs/reference/query-languages/esql/kibana/definition/functions/ip_prefix.json
+index b49e2789..9c6ad3a7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/ip_prefix.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/ip_prefix.json
+@@ -33,5 +33,5 @@
+     "ROW ip4 = to_ip(\"1.2.3.4\"), ip6 = TO_IP(\"fe80::cae2:65ff:fece:feb9\")\n| EVAL ip4_prefix = IP_PREFIX(ip4, 24, 0), ip6_prefix = IP_PREFIX(ip6, 0, 112);"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/knn.json b/docs/reference/query-languages/esql/kibana/definition/functions/knn.json
+index cd5541f8..7a1782a6 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/knn.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/knn.json
+@@ -8,5 +8,5 @@
+     "from colors metadata _score\n| where knn(rgb_vector, [0, 120, 0])\n| sort _score desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/kql.json b/docs/reference/query-languages/esql/kibana/definition/functions/kql.json
+index f3fe7c2d..f4a4a203 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/kql.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/kql.json
+@@ -33,5 +33,5 @@
+     "FROM books\n| WHERE KQL(\"author: Faulkner\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/last.json b/docs/reference/query-languages/esql/kibana/definition/functions/last.json
+index 25254238..76a806f5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/last.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/last.json
+@@ -189,5 +189,5 @@
+     "FROM k8s\n| STATS last_bytes_in = LAST(network.bytes_in, @timestamp) BY pod\n| SORT pod ASC"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/last_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/last_over_time.json
+index d8e64acd..945e0be4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/last_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/last_over_time.json
+@@ -46,5 +46,5 @@
+     "TS k8s\n| STATS max_cost=max(last_over_time(network.cost)) BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/least.json b/docs/reference/query-languages/esql/kibana/definition/functions/least.json
+index c95abc40..c3f9ff1c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/least.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/least.json
+@@ -249,5 +249,5 @@
+     "ROW a = 10, b = 20\n| EVAL l = LEAST(a, b)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/left.json b/docs/reference/query-languages/esql/kibana/definition/functions/left.json
+index d185a61a..161ab996 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/left.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/left.json
+@@ -45,5 +45,5 @@
+     "FROM employees\n| KEEP last_name\n| EVAL left = LEFT(last_name, 3)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/length.json b/docs/reference/query-languages/esql/kibana/definition/functions/length.json
+index 76e9787e..4743d53d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/length.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/length.json
+@@ -34,5 +34,5 @@
+     "FROM airports\n| WHERE country == \"India\"\n| KEEP city\n| EVAL fn_length = LENGTH(city)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/locate.json b/docs/reference/query-languages/esql/kibana/definition/functions/locate.json
+index 29bfa5c5..9c0406b1 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/locate.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/locate.json
+@@ -177,5 +177,5 @@
+     "ROW a = \"hello\"\n| EVAL a_ll = LOCATE(a, \"ll\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/log.json b/docs/reference/query-languages/esql/kibana/definition/functions/log.json
+index 9aa81913..5df37988 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/log.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/log.json
+@@ -346,5 +346,5 @@
+     "ROW value = 100\n| EVAL s = LOG(value);"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/log10.json b/docs/reference/query-languages/esql/kibana/definition/functions/log10.json
+index b813d398..d98755c7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/log10.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/log10.json
+@@ -57,5 +57,5 @@
+     "ROW d = 1000.0\n| EVAL s = LOG10(d)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/ltrim.json b/docs/reference/query-languages/esql/kibana/definition/functions/ltrim.json
+index 14d41f23..0dd5e3b0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/ltrim.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/ltrim.json
+@@ -33,5 +33,5 @@
+     "ROW message = \"   some text  \",  color = \" red \"\n| EVAL message = LTRIM(message)\n| EVAL color = LTRIM(color)\n| EVAL message = CONCAT(\"'\", message, \"'\")\n| EVAL color = CONCAT(\"'\", color, \"'\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/match.json b/docs/reference/query-languages/esql/kibana/definition/functions/match.json
+index e00c20d8..e0a6ce5a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/match.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/match.json
+@@ -735,5 +735,5 @@
+     "FROM books\n| WHERE MATCH(title, \"Hobbit Back Again\", {\"operator\": \"AND\"})\n| KEEP title;"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/match_phrase.json b/docs/reference/query-languages/esql/kibana/definition/functions/match_phrase.json
+index 3ab94b9d..b392c0c0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/match_phrase.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/match_phrase.json
+@@ -59,5 +59,5 @@
+     "FROM books\n| WHERE MATCH_PHRASE(author, \"William Faulkner\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/max.json b/docs/reference/query-languages/esql/kibana/definition/functions/max.json
+index e30651b6..a44ffd41 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/max.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/max.json
+@@ -142,5 +142,5 @@
+     "FROM employees\n| STATS max_avg_salary_change = MAX(MV_AVG(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/max_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/max_over_time.json
+index 597c9505..066736ba 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/max_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/max_over_time.json
+@@ -142,5 +142,5 @@
+     "TS k8s\n| STATS cost=sum(max_over_time(network.cost)) BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/md5.json b/docs/reference/query-languages/esql/kibana/definition/functions/md5.json
+index b08d3681..b1634f53 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/md5.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/md5.json
+@@ -33,5 +33,5 @@
+     "FROM sample_data\n| WHERE message != \"Connection error\"\n| EVAL md5 = md5(message)\n| KEEP message, md5"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/median.json b/docs/reference/query-languages/esql/kibana/definition/functions/median.json
+index 9cfc2b06..d302d495 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/median.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/median.json
+@@ -47,5 +47,5 @@
+     "FROM employees\n| STATS median_max_salary_change = MEDIAN(MV_MAX(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/median_absolute_deviation.json b/docs/reference/query-languages/esql/kibana/definition/functions/median_absolute_deviation.json
+index dc3f73c0..46970661 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/median_absolute_deviation.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/median_absolute_deviation.json
+@@ -47,5 +47,5 @@
+     "FROM employees\n| STATS m_a_d_max_salary_change = MEDIAN_ABSOLUTE_DEVIATION(MV_MAX(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/min.json b/docs/reference/query-languages/esql/kibana/definition/functions/min.json
+index e9569a85..3bd44302 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/min.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/min.json
+@@ -142,5 +142,5 @@
+     "FROM employees\n| STATS min_avg_salary_change = MIN(MV_AVG(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/min_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/min_over_time.json
+index a2fae75f..4ccba389 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/min_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/min_over_time.json
+@@ -142,5 +142,5 @@
+     "TS k8s\n| STATS cost=sum(min_over_time(network.cost)) BY cluster, time_bucket = bucket(@timestamp,1minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/month_name.json b/docs/reference/query-languages/esql/kibana/definition/functions/month_name.json
+index a8aae099..4b49d82b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/month_name.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/month_name.json
+@@ -33,5 +33,5 @@
+     "ROW dt = to_datetime(\"1996-03-21T00:00:00.000Z\")\n| EVAL monthName = MONTH_NAME(dt);"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/multi_match.json b/docs/reference/query-languages/esql/kibana/definition/functions/multi_match.json
+index 90539229..cb41e6c4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/multi_match.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/multi_match.json
+@@ -735,5 +735,5 @@
+     "FROM books\n| WHERE MULTI_MATCH(\"Hobbit Back Again\", title, description, {\"operator\": \"AND\"})\n| KEEP title;"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_append.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_append.json
+index e47c655b..6efdc1c8 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_append.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_append.json
+@@ -369,5 +369,5 @@
+     "FROM employees\n| WHERE emp_no == 10039 OR emp_no == 10040\n| SORT emp_no\n| EVAL dates = MV_APPEND(birth_date, hire_date)\n| KEEP emp_no, birth_date, hire_date, dates"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_avg.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_avg.json
+index 2bf96e31..97b8d243 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_avg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_avg.json
+@@ -57,5 +57,5 @@
+     "ROW a=[3, 5, 1, 6]\n| EVAL avg_a = MV_AVG(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_concat.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_concat.json
+index a8f72f27..6e01ee28 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_concat.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_concat.json
+@@ -82,5 +82,5 @@
+     "ROW a=[10, 9, 8]\n| EVAL j = MV_CONCAT(TO_STRING(a), \", \")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_contains.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_contains.json
+index da091144..5146f545 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_contains.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_contains.json
+@@ -371,5 +371,5 @@
+     "FROM airports\n| WHERE mv_contains(type, [\"major\",\"military\"]) AND scalerank == 9\n| KEEP scalerank, name, country"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_count.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_count.json
+index b699d691..293e5643 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_count.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_count.json
+@@ -225,5 +225,5 @@
+     "ROW a=[\"foo\", \"zoo\", \"bar\"]\n| EVAL count_a = MV_COUNT(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_dedupe.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_dedupe.json
+index af0016a8..a81f268b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_dedupe.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_dedupe.json
+@@ -226,5 +226,5 @@
+     "ROW a=[\"foo\", \"foo\", \"bar\", \"foo\"]\n| EVAL dedupe_a = MV_DEDUPE(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_first.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_first.json
+index 34222aee..a1da8669 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_first.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_first.json
+@@ -225,5 +225,5 @@
+     "ROW a=\"foo;bar;baz\"\n| EVAL first_a = MV_FIRST(SPLIT(a, \";\"))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_last.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_last.json
+index e098d37e..4f167dff 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_last.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_last.json
+@@ -225,5 +225,5 @@
+     "ROW a=\"foo;bar;baz\"\n| EVAL last_a = MV_LAST(SPLIT(a, \";\"))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_max.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_max.json
+index 86b81328..11acbf23 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_max.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_max.json
+@@ -142,5 +142,5 @@
+     "ROW a=[\"foo\", \"zoo\", \"bar\"]\n| EVAL max_a = MV_MAX(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_median.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_median.json
+index 0324d88b..e0d89418 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_median.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_median.json
+@@ -58,5 +58,5 @@
+     "ROW a=[3, 7, 1, 6]\n| EVAL median_a = MV_MEDIAN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_median_absolute_deviation.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_median_absolute_deviation.json
+index 2fe3a664..cefe60d3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_median_absolute_deviation.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_median_absolute_deviation.json
+@@ -58,5 +58,5 @@
+     "ROW values = [0, 2, 5, 6]\n| EVAL median_absolute_deviation = MV_MEDIAN_ABSOLUTE_DEVIATION(values), median = MV_MEDIAN(values)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_min.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_min.json
+index e0e70258..a672c54e 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_min.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_min.json
+@@ -142,5 +142,5 @@
+     "ROW a=[\"foo\", \"bar\"]\n| EVAL min_a = MV_MIN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_percentile.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_percentile.json
+index a6ad9942..95ec6640 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_percentile.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_percentile.json
+@@ -171,5 +171,5 @@
+     "ROW values = [5, 5, 10, 12, 5000]\n| EVAL p50 = MV_PERCENTILE(values, 50), median = MV_MEDIAN(values)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_pseries_weighted_sum.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_pseries_weighted_sum.json
+index f22def5f..744407e4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_pseries_weighted_sum.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_pseries_weighted_sum.json
+@@ -27,5 +27,5 @@
+     "ROW a = [70.0, 45.0, 21.0, 21.0, 21.0]\n| EVAL sum = MV_PSERIES_WEIGHTED_SUM(a, 1.5)\n| KEEP sum"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_slice.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_slice.json
+index 73a9eea5..9f2bdf65 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_slice.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_slice.json
+@@ -442,5 +442,5 @@
+     "row a = [1, 2, 2, 3]\n| eval a1 = mv_slice(a, -2), a2 = mv_slice(a, -3, -1)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_sort.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_sort.json
+index db143e5c..f3060368 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_sort.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_sort.json
+@@ -189,5 +189,5 @@
+     "ROW a = [4, 2, -3, 2]\n| EVAL sa = mv_sort(a), sd = mv_sort(a, \"DESC\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_sum.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_sum.json
+index a5acb873..93587834 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_sum.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_sum.json
+@@ -57,5 +57,5 @@
+     "ROW a=[3, 5, 6]\n| EVAL sum_a = MV_SUM(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/mv_zip.json b/docs/reference/query-languages/esql/kibana/definition/functions/mv_zip.json
+index 22f606fa..e260cb9a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/mv_zip.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/mv_zip.json
+@@ -273,5 +273,5 @@
+     "ROW a = [\"x\", \"y\", \"z\"], b = [\"1\", \"2\"]\n| EVAL c = mv_zip(a, b, \"-\")\n| KEEP a, b, c"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/now.json b/docs/reference/query-languages/esql/kibana/definition/functions/now.json
+index 166a8192..ca9e17aa 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/now.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/now.json
+@@ -14,5 +14,5 @@
+     "FROM sample_data\n| WHERE @timestamp > NOW() - 1 hour"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/percentile.json b/docs/reference/query-languages/esql/kibana/definition/functions/percentile.json
+index 81bcac56..f559f9e0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/percentile.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/percentile.json
+@@ -172,5 +172,5 @@
+     "FROM employees\n| STATS p80_max_salary_change = PERCENTILE(MV_MAX(salary_change), 80)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/pi.json b/docs/reference/query-languages/esql/kibana/definition/functions/pi.json
+index aa382093..826f3fb1 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/pi.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/pi.json
+@@ -13,5 +13,5 @@
+     "ROW PI()"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/pow.json b/docs/reference/query-languages/esql/kibana/definition/functions/pow.json
+index 8858166a..2a9c2e41 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/pow.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/pow.json
+@@ -299,5 +299,5 @@
+     "ROW base = 4, exponent = 0.5\n| EVAL s = POW(base, exponent)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/present.json b/docs/reference/query-languages/esql/kibana/definition/functions/present.json
+index d75d787b..ff2c175d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/present.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/present.json
+@@ -227,5 +227,5 @@
+     "FROM employees\n| WHERE emp_no == 10020\n| STATS is_present = TO_INTEGER(PRESENT(languages))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/present_over_time.json b/docs/reference/query-languages/esql/kibana/definition/functions/present_over_time.json
+index 4bccb8d0..2611e9ee 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/present_over_time.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/present_over_time.json
+@@ -226,5 +226,5 @@
+     "TS k8s\n| WHERE cluster == \"prod\" AND pod == \"two\"\n| STATS events_received = max(present_over_time(events_received)) BY pod, time_bucket = tbucket(2 minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/qstr.json b/docs/reference/query-languages/esql/kibana/definition/functions/qstr.json
+index cd709f69..48de3f7f 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/qstr.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/qstr.json
+@@ -48,5 +48,5 @@
+     "FROM books\n| WHERE QSTR(\"title: Hobbjt~\", {\"fuzziness\": 2})"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/rate.json b/docs/reference/query-languages/esql/kibana/definition/functions/rate.json
+index 72deaea8..1d675d21 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/rate.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/rate.json
+@@ -46,5 +46,5 @@
+     "TS k8s\n| STATS max(rate(network.total_bytes_in)) BY time_bucket = bucket(@timestamp,5minute)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/repeat.json b/docs/reference/query-languages/esql/kibana/definition/functions/repeat.json
+index 15887a48..3ae5091f 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/repeat.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/repeat.json
+@@ -45,5 +45,5 @@
+     "ROW a = \"Hello!\"\n| EVAL triple_a = REPEAT(a, 3)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/replace.json b/docs/reference/query-languages/esql/kibana/definition/functions/replace.json
+index afc95a26..1f8fd84d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/replace.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/replace.json
+@@ -202,5 +202,5 @@
+     "ROW str = \"Hello World\"\n| EVAL str = REPLACE(str, \"\\\\\\\\s+\", \"\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/reverse.json b/docs/reference/query-languages/esql/kibana/definition/functions/reverse.json
+index 6cc1fe9a..af307e49 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/reverse.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/reverse.json
+@@ -34,5 +34,5 @@
+     "ROW bending_arts = \"\uD83D\uDCA7\uD83E\uDEA8\uD83D\uDD25\uD83D\uDCA8\" | EVAL bending_arts_reversed = REVERSE(bending_arts);"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/right.json b/docs/reference/query-languages/esql/kibana/definition/functions/right.json
+index 25fe1bc9..df0a21e5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/right.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/right.json
+@@ -45,5 +45,5 @@
+     "FROM employees\n| KEEP last_name\n| EVAL right = RIGHT(last_name, 3)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/round.json b/docs/reference/query-languages/esql/kibana/definition/functions/round.json
+index f0014f81..35e45520 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/round.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/round.json
+@@ -201,5 +201,5 @@
+     "FROM employees\n| KEEP first_name, last_name, height\n| EVAL height_ft = ROUND(height * 3.281, 1)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/round_to.json b/docs/reference/query-languages/esql/kibana/definition/functions/round_to.json
+index b376da80..bb9e27f9 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/round_to.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/round_to.json
+@@ -207,5 +207,5 @@
+     "FROM employees\n| STATS COUNT(*) BY birth_window=ROUND_TO(\n    birth_date,\n    \"1900-01-01T00:00:00Z\"::DATETIME,\n    \"1950-01-01T00:00:00Z\"::DATETIME,\n    \"1955-01-01T00:00:00Z\"::DATETIME,\n    \"1960-01-01T00:00:00Z\"::DATETIME,\n    \"1965-01-01T00:00:00Z\"::DATETIME,\n    \"1970-01-01T00:00:00Z\"::DATETIME,\n    \"1975-01-01T00:00:00Z\"::DATETIME\n)\n| SORT birth_window ASC"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/rtrim.json b/docs/reference/query-languages/esql/kibana/definition/functions/rtrim.json
+index 4f886e00..90fd89da 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/rtrim.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/rtrim.json
+@@ -33,5 +33,5 @@
+     "ROW message = \"   some text  \",  color = \" red \"\n| EVAL message = RTRIM(message)\n| EVAL color = RTRIM(color)\n| EVAL message = CONCAT(\"'\", message, \"'\")\n| EVAL color = CONCAT(\"'\", color, \"'\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sample.json b/docs/reference/query-languages/esql/kibana/definition/functions/sample.json
+index 28487b60..7d45a3fa 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sample.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sample.json
+@@ -333,5 +333,5 @@
+     "FROM employees\n| STATS sample = SAMPLE(gender, 5)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/scalb.json b/docs/reference/query-languages/esql/kibana/definition/functions/scalb.json
+index 22538c0c..0f4ce72a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/scalb.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/scalb.json
+@@ -153,5 +153,5 @@
+     "row x = 3.0, y = 10 | eval z = scalb(x, y)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/score.json b/docs/reference/query-languages/esql/kibana/definition/functions/score.json
+index 4772093e..205c990d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/score.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/score.json
+@@ -21,5 +21,5 @@
+     "FROM books METADATA _score\n| WHERE match(title, \"Return\") AND match(author, \"Tolkien\")\n| EVAL first_score = score(match(title, \"Return\"))"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sha1.json b/docs/reference/query-languages/esql/kibana/definition/functions/sha1.json
+index 0d0ea6a3..97e984aa 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sha1.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sha1.json
+@@ -33,5 +33,5 @@
+     "FROM sample_data\n| WHERE message != \"Connection error\"\n| EVAL sha1 = sha1(message)\n| KEEP message, sha1"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sha256.json b/docs/reference/query-languages/esql/kibana/definition/functions/sha256.json
+index 054e4d9b..02a5d6cd 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sha256.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sha256.json
+@@ -33,5 +33,5 @@
+     "FROM sample_data\n| WHERE message != \"Connection error\"\n| EVAL sha256 = sha256(message)\n| KEEP message, sha256"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/signum.json b/docs/reference/query-languages/esql/kibana/definition/functions/signum.json
+index c7056994..17e68d5b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/signum.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/signum.json
+@@ -57,5 +57,5 @@
+     "ROW d = 100.0\n| EVAL s = SIGNUM(d)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sin.json b/docs/reference/query-languages/esql/kibana/definition/functions/sin.json
+index 108ee56c..a60129a0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sin.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sin.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL sin=SIN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sinh.json b/docs/reference/query-languages/esql/kibana/definition/functions/sinh.json
+index 7a7bec35..e39b5c87 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sinh.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sinh.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL sinh=SINH(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/space.json b/docs/reference/query-languages/esql/kibana/definition/functions/space.json
+index ad71e019..d813c248 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/space.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/space.json
+@@ -21,5 +21,5 @@
+     "ROW message = CONCAT(\"Hello\", SPACE(1), \"World!\");"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/split.json b/docs/reference/query-languages/esql/kibana/definition/functions/split.json
+index bd0f4e6f..12ab2ded 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/split.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/split.json
+@@ -81,5 +81,5 @@
+     "ROW words=\"foo;bar;baz;qux;quux;corge\"\n| EVAL word = SPLIT(words, \";\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sqrt.json b/docs/reference/query-languages/esql/kibana/definition/functions/sqrt.json
+index 23d5c6a8..467f91ef 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sqrt.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sqrt.json
+@@ -57,5 +57,5 @@
+     "ROW d = 100.0\n| EVAL s = SQRT(d)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_centroid_agg.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_centroid_agg.json
+index ed7e44e2..b3408616 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_centroid_agg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_centroid_agg.json
+@@ -33,5 +33,5 @@
+     "FROM airports\n| STATS centroid=ST_CENTROID_AGG(location)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_contains.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_contains.json
+index 402fcb86..4503fc06 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_contains.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_contains.json
+@@ -153,5 +153,5 @@
+     "FROM airport_city_boundaries\n| WHERE ST_CONTAINS(city_boundary, TO_GEOSHAPE(\"POLYGON((109.35 18.3, 109.45 18.3, 109.45 18.4, 109.35 18.4, 109.35 18.3))\"))\n| KEEP abbrev, airport, region, city, city_location"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_disjoint.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_disjoint.json
+index a0fd759e..0dd7d58d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_disjoint.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_disjoint.json
+@@ -261,5 +261,5 @@
+     "FROM airport_city_boundaries\n| WHERE ST_DISJOINT(city_boundary, TO_GEOSHAPE(\"POLYGON((-10 -60, 120 -60, 120 60, -10 60, -10 -60))\"))\n| KEEP abbrev, airport, region, city, city_location"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_distance.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_distance.json
+index 2ce393d0..0dcd2859 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_distance.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_distance.json
+@@ -45,5 +45,5 @@
+     "FROM airports\n| WHERE abbrev == \"CPH\"\n| EVAL distance = ST_DISTANCE(location, city_location)\n| KEEP abbrev, name, location, city_location, distance"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_envelope.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_envelope.json
+index d24edbca..f773cf72 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_envelope.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_envelope.json
+@@ -57,5 +57,5 @@
+     "FROM airport_city_boundaries\n| WHERE abbrev == \"CPH\"\n| EVAL envelope = ST_ENVELOPE(city_boundary)\n| KEEP abbrev, airport, envelope"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_extent_agg.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_extent_agg.json
+index 6364a3cf..e3892357 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_extent_agg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_extent_agg.json
+@@ -59,5 +59,5 @@
+     "FROM airports\n| WHERE country == \"India\"\n| STATS extent = ST_EXTENT_AGG(location)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_geohash.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_geohash.json
+index 369e20ee..0a0a2a48 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_geohash.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_geohash.json
+@@ -51,5 +51,5 @@
+     "FROM airports\n| EVAL geohash = ST_GEOHASH(location, 1)\n| STATS\n    count = COUNT(geohash),\n    centroid = ST_CENTROID_AGG(location)\n      BY geohash\n| WHERE count >= 10\n| EVAL geohashString = TO_STRING(geohash)\n| KEEP count, centroid, geohashString\n| SORT count DESC, geohashString ASC"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_geohex.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_geohex.json
+index edf1d966..dd0d6f1b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_geohex.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_geohex.json
+@@ -54,5 +54,5 @@
+     "FROM airports\n| EVAL geohex = ST_GEOHEX(location, 1)\n| STATS\n    count = COUNT(geohex),\n    centroid = ST_CENTROID_AGG(location)\n      BY geohex\n| WHERE count >= 10\n| EVAL geohexString = TO_STRING(geohex)\n| KEEP count, centroid, geohexString\n| SORT count DESC, geohexString ASC"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_geotile.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_geotile.json
+index f3a1f0ab..1f7992ab 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_geotile.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_geotile.json
+@@ -51,5 +51,5 @@
+     "FROM airports\n| EVAL geotile = ST_GEOTILE(location, 2)\n| STATS\n    count = COUNT(geotile),\n    centroid = ST_CENTROID_AGG(location)\n      BY geotile\n| EVAL geotileString = TO_STRING(geotile)\n| SORT count DESC, geotileString ASC\n| KEEP count, centroid, geotileString"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_intersects.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_intersects.json
+index 4073c12e..d1d8629a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_intersects.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_intersects.json
+@@ -261,5 +261,5 @@
+     "FROM airports\n| WHERE ST_INTERSECTS(location, TO_GEOSHAPE(\"POLYGON((42 14, 43 14, 43 15, 42 15, 42 14))\"))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_within.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_within.json
+index edb1927c..5fc87de3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_within.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_within.json
+@@ -153,5 +153,5 @@
+     "FROM airport_city_boundaries\n| WHERE ST_WITHIN(city_boundary, TO_GEOSHAPE(\"POLYGON((109.1 18.15, 109.6 18.15, 109.6 18.65, 109.1 18.65, 109.1 18.15))\"))\n| KEEP abbrev, airport, region, city, city_location"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_x.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_x.json
+index 4ee148b7..4581c0d0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_x.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_x.json
+@@ -33,5 +33,5 @@
+     "ROW point = TO_GEOPOINT(\"POINT(42.97109629958868 14.7552534006536)\")\n| EVAL x =  ST_X(point), y = ST_Y(point)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_xmax.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_xmax.json
+index a32f9b37..efcf1603 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_xmax.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_xmax.json
+@@ -57,5 +57,5 @@
+     "FROM airport_city_boundaries\n| WHERE abbrev == \"CPH\"\n| EVAL envelope = ST_ENVELOPE(city_boundary)\n| EVAL xmin = ST_XMIN(envelope), xmax = ST_XMAX(envelope), ymin = ST_YMIN(envelope), ymax = ST_YMAX(envelope)\n| KEEP abbrev, airport, xmin, xmax, ymin, ymax"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_xmin.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_xmin.json
+index 1569053e..87af1029 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_xmin.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_xmin.json
+@@ -57,5 +57,5 @@
+     "FROM airport_city_boundaries\n| WHERE abbrev == \"CPH\"\n| EVAL envelope = ST_ENVELOPE(city_boundary)\n| EVAL xmin = ST_XMIN(envelope), xmax = ST_XMAX(envelope), ymin = ST_YMIN(envelope), ymax = ST_YMAX(envelope)\n| KEEP abbrev, airport, xmin, xmax, ymin, ymax"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_y.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_y.json
+index 8d4d4244..7aa40299 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_y.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_y.json
+@@ -33,5 +33,5 @@
+     "ROW point = TO_GEOPOINT(\"POINT(42.97109629958868 14.7552534006536)\")\n| EVAL x =  ST_X(point), y = ST_Y(point)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_ymax.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_ymax.json
+index 18c83d79..f6b78ed4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_ymax.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_ymax.json
+@@ -57,5 +57,5 @@
+     "FROM airport_city_boundaries\n| WHERE abbrev == \"CPH\"\n| EVAL envelope = ST_ENVELOPE(city_boundary)\n| EVAL xmin = ST_XMIN(envelope), xmax = ST_XMAX(envelope), ymin = ST_YMIN(envelope), ymax = ST_YMAX(envelope)\n| KEEP abbrev, airport, xmin, xmax, ymin, ymax"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/st_ymin.json b/docs/reference/query-languages/esql/kibana/definition/functions/st_ymin.json
+index 89c5d38c..9c72d027 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/st_ymin.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/st_ymin.json
+@@ -57,5 +57,5 @@
+     "FROM airport_city_boundaries\n| WHERE abbrev == \"CPH\"\n| EVAL envelope = ST_ENVELOPE(city_boundary)\n| EVAL xmin = ST_XMIN(envelope), xmax = ST_XMAX(envelope), ymin = ST_YMIN(envelope), ymax = ST_YMAX(envelope)\n| KEEP abbrev, airport, xmin, xmax, ymin, ymax"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/starts_with.json b/docs/reference/query-languages/esql/kibana/definition/functions/starts_with.json
+index eb5d0dae..e01c61ed 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/starts_with.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/starts_with.json
+@@ -81,5 +81,5 @@
+     "FROM employees\n| KEEP last_name\n| EVAL ln_S = STARTS_WITH(last_name, \"B\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/std_dev.json b/docs/reference/query-languages/esql/kibana/definition/functions/std_dev.json
+index 1fade0d5..bc446fe3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/std_dev.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/std_dev.json
+@@ -46,5 +46,5 @@
+     "FROM employees\n| STATS stddev_salary_change = STD_DEV(MV_MAX(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/substring.json b/docs/reference/query-languages/esql/kibana/definition/functions/substring.json
+index 5b77b0dc..f3321617 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/substring.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/substring.json
+@@ -59,5 +59,5 @@
+     "FROM employees\n| KEEP last_name\n| EVAL ln_sub = SUBSTRING(last_name, 2)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/sum.json b/docs/reference/query-languages/esql/kibana/definition/functions/sum.json
+index bb071eac..686d6f69 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/sum.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/sum.json
+@@ -46,5 +46,5 @@
+     "FROM employees\n| STATS total_salary_changes = SUM(MV_MAX(salary_change))"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/tan.json b/docs/reference/query-languages/esql/kibana/definition/functions/tan.json
+index b4c47b58..b2680c1b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/tan.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/tan.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL tan=TAN(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/tanh.json b/docs/reference/query-languages/esql/kibana/definition/functions/tanh.json
+index f01fdc61..43c6b80d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/tanh.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/tanh.json
+@@ -57,5 +57,5 @@
+     "ROW a=1.8\n| EVAL tanh=TANH(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/tau.json b/docs/reference/query-languages/esql/kibana/definition/functions/tau.json
+index b484b471..5bf647d5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/tau.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/tau.json
+@@ -13,5 +13,5 @@
+     "ROW TAU()"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/tbucket.json b/docs/reference/query-languages/esql/kibana/definition/functions/tbucket.json
+index c95f75bb..a7d4248d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/tbucket.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/tbucket.json
+@@ -58,5 +58,5 @@
+     "FROM sample_data\n| STATS min = MIN(@timestamp), max = MAX(@timestamp) BY bucket = TBUCKET(\"1 hour\")\n| SORT min"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/term.json b/docs/reference/query-languages/esql/kibana/definition/functions/term.json
+index e13c3ace..b3b682dd 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/term.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/term.json
+@@ -81,5 +81,5 @@
+     "FROM books\n| WHERE TERM(author, \"gabriel\")"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_aggregate_metric_double.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_aggregate_metric_double.json
+index 64ae79a7..585072a2 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_aggregate_metric_double.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_aggregate_metric_double.json
+@@ -9,5 +9,5 @@
+     "ROW x = [5032, 11111, 40814]\n| EVAL agg_metric = TO_AGGREGATE_METRIC_DOUBLE(x)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_base64.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_base64.json
+index 2b3d91dc..a6620515 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_base64.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_base64.json
+@@ -33,5 +33,5 @@
+     "ROW a = \"elastic\"\n| EVAL e = TO_BASE64(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_boolean.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_boolean.json
+index bb98f126..64aa2635 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_boolean.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_boolean.json
+@@ -93,5 +93,5 @@
+     "ROW str = [\"true\", \"TRuE\", \"false\", \"\", \"yes\", \"1\"]\n| EVAL bool = TO_BOOLEAN(str)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianpoint.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianpoint.json
+index 9bcaaa90..ab8a2d76 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianpoint.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianpoint.json
+@@ -45,5 +45,5 @@
+     "ROW wkt = [\"POINT(4297.11 -1475.53)\", \"POINT(7580.93 2272.77)\"]\n| MV_EXPAND wkt\n| EVAL pt = TO_CARTESIANPOINT(wkt)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianshape.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianshape.json
+index 3236193d..a824b456 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianshape.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_cartesianshape.json
+@@ -57,5 +57,5 @@
+     "ROW wkt = [\"POINT(4297.11 -1475.53)\", \"POLYGON ((3339584.72 1118889.97, 4452779.63 4865942.27, 2226389.81 4865942.27, 1113194.90 2273030.92, 3339584.72 1118889.97))\"]\n| MV_EXPAND wkt\n| EVAL geom = TO_CARTESIANSHAPE(wkt)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_date_nanos.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_date_nanos.json
+index edf20c37..d05e3fb0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_date_nanos.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_date_nanos.json
+@@ -94,5 +94,5 @@
+     "FROM date_nanos\n| WHERE MV_MIN(nanos) < TO_DATE_NANOS(\"2023-10-23T12:27:28.948Z\")\n    AND millis > \"2000-01-01\"\n| SORT nanos DESC"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_dateperiod.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_dateperiod.json
+index 52ed6a72..ff5b3b63 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_dateperiod.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_dateperiod.json
+@@ -45,5 +45,5 @@
+     "ROW x = \"2024-01-01\"::datetime\n| EVAL y = x + \"3 DAYS\"::date_period, z = x - TO_DATEPERIOD(\"3 days\");"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_datetime.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_datetime.json
+index 435f4213..f8f35299 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_datetime.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_datetime.json
+@@ -107,5 +107,5 @@
+     "ROW int = [0, 1]\n| EVAL dt = TO_DATETIME(int)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_degrees.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_degrees.json
+index 721b509a..7aaf6d5c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_degrees.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_degrees.json
+@@ -57,5 +57,5 @@
+     "ROW rad = [1.57, 3.14, 4.71]\n| EVAL deg = TO_DEGREES(rad)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_dense_vector.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_dense_vector.json
+index 932937bf..22f2f5af 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_dense_vector.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_dense_vector.json
+@@ -8,5 +8,5 @@
+     "row ints = [1, 2, 3]\n| eval vector = to_dense_vector(ints)\n| keep vector"
+   ],
+   "preview" : false,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_double.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_double.json
+index 9893c8ad..3c56e846 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_double.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_double.json
+@@ -141,5 +141,5 @@
+     "ROW str1 = \"5.20128E11\", str2 = \"foo\"\n| EVAL dbl = TO_DOUBLE(\"520128000000\"), dbl1 = TO_DOUBLE(str1), dbl2 = TO_DOUBLE(str2)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_geohash.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_geohash.json
+index 317716ec..9bce69a5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_geohash.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_geohash.json
+@@ -57,5 +57,5 @@
+     "ROW string = \"u3bu\"\n| EVAL geohash = TO_GEOHASH(string)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_geohex.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_geohex.json
+index 0949e9d9..323341f6 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_geohex.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_geohex.json
+@@ -57,5 +57,5 @@
+     "ROW string = \"841f059ffffffff\"\n| EVAL geohex = TO_GEOHEX(string)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_geopoint.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_geopoint.json
+index af0932aa..4de1ff49 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_geopoint.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_geopoint.json
+@@ -45,5 +45,5 @@
+     "ROW wkt = \"POINT(42.97109630194 14.7552534413725)\"\n| EVAL pt = TO_GEOPOINT(wkt)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_geoshape.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_geoshape.json
+index ac995833..19d826f0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_geoshape.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_geoshape.json
+@@ -93,5 +93,5 @@
+     "ROW wkt = \"POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))\"\n| EVAL geom = TO_GEOSHAPE(wkt)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_geotile.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_geotile.json
+index a5b71503..3a611bf4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_geotile.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_geotile.json
+@@ -57,5 +57,5 @@
+     "ROW string = \"4/8/5\"\n| EVAL geotile = TO_GEOTILE(string)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_integer.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_integer.json
+index 389a2d6e..283d7ce3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_integer.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_integer.json
+@@ -117,5 +117,5 @@
+     "ROW long = [5013792, 2147483647, 501379200000]\n| EVAL int = TO_INTEGER(long)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_ip.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_ip.json
+index 9d028fe8..1628c60a 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_ip.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_ip.json
+@@ -47,5 +47,5 @@
+     "ROW s = \"1.1.010.1\" | EVAL ip = TO_IP(s, {\"leading_zeros\":\"decimal\"})"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_long.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_long.json
+index 345f6f8c..81ef9095 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_long.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_long.json
+@@ -177,5 +177,5 @@
+     "ROW str1 = \"2147483648\", str2 = \"2147483648.2\", str3 = \"foo\"\n| EVAL long1 = TO_LONG(str1), long2 = TO_LONG(str2), long3 = TO_LONG(str3)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_lower.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_lower.json
+index cb1f059f..bf92694e 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_lower.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_lower.json
+@@ -34,5 +34,5 @@
+     "ROW v = TO_LOWER([\"Some\", \"Text\"])"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_radians.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_radians.json
+index deee838e..f4e76306 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_radians.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_radians.json
+@@ -57,5 +57,5 @@
+     "ROW deg = [90.0, 180.0, 270.0]\n| EVAL rad = TO_RADIANS(deg)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_string.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_string.json
+index 7e81f967..822fe8bc 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_string.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_string.json
+@@ -226,5 +226,5 @@
+     "ROW a=[10, 9, 8]\n| EVAL j = TO_STRING(a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_timeduration.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_timeduration.json
+index fe714b3e..373c65e6 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_timeduration.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_timeduration.json
+@@ -45,5 +45,5 @@
+     "ROW x = \"2024-01-01\"::datetime\n| EVAL y = x + \"3 hours\"::time_duration, z = x - TO_TIMEDURATION(\"3 hours\");"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_unsigned_long.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_unsigned_long.json
+index ea10abb3..22922c9c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_unsigned_long.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_unsigned_long.json
+@@ -105,5 +105,5 @@
+     "ROW str1 = \"2147483648\", str2 = \"2147483648.2\", str3 = \"foo\"\n| EVAL long1 = TO_UNSIGNED_LONG(str1), long2 = TO_ULONG(str2), long3 = TO_UL(str3)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_upper.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_upper.json
+index 82e3f66a..1b7e5e7d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_upper.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_upper.json
+@@ -33,5 +33,5 @@
+     "ROW message = \"Some Text\"\n| EVAL message_upper = TO_UPPER(message)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/to_version.json b/docs/reference/query-languages/esql/kibana/definition/functions/to_version.json
+index a20c0cc2..55ff1abb 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/to_version.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/to_version.json
+@@ -45,5 +45,5 @@
+     "ROW v = TO_VERSION(\"1.2.3\")"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/top.json b/docs/reference/query-languages/esql/kibana/definition/functions/top.json
+index f2729e0d..651d6647 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/top.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/top.json
+@@ -201,5 +201,5 @@
+     "FROM employees\n| STATS top_salaries = TOP(salary, 3, \"desc\"), top_salary = MAX(salary)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/trim.json b/docs/reference/query-languages/esql/kibana/definition/functions/trim.json
+index 2506963b..1b1463f3 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/trim.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/trim.json
+@@ -33,5 +33,5 @@
+     "ROW message = \"   some text  \",  color = \" red \"\n| EVAL message = TRIM(message)\n| EVAL color = TRIM(color)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/url_decode.json b/docs/reference/query-languages/esql/kibana/definition/functions/url_decode.json
+index 44dcef86..27c20232 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/url_decode.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/url_decode.json
+@@ -33,5 +33,5 @@
+     "ROW u = \"https%3A%2F%2Fwww.example.com%2Fpapers%3Fq%3Dinformation%2Bretrieval%26year%3D2024%26citations%3Dhigh\" | EVAL u = URL_DECODE(u)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/url_encode.json b/docs/reference/query-languages/esql/kibana/definition/functions/url_encode.json
+index 85197c6a..8ba52ddf 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/url_encode.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/url_encode.json
+@@ -33,5 +33,5 @@
+     "ROW u = \"https://www.example.com/papers?q=information+retrieval&year=2024&citations=high\" | EVAL u = URL_ENCODE(u)"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_cosine.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_cosine.json
+index f3b3df1d..70abacc9 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_cosine.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_cosine.json
+@@ -8,5 +8,5 @@
+     " from colors\n | where color != \"black\"\n | eval similarity = v_cosine(rgb_vector, [0, 255, 255])\n | sort similarity desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_dot_product.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_dot_product.json
+index 05b8f0aa..eb238b91 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_dot_product.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_dot_product.json
+@@ -8,5 +8,5 @@
+     " from colors\n | eval similarity = v_dot_product(rgb_vector, [0, 255, 255])\n | sort similarity desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_hamming.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_hamming.json
+index 51e3660a..0d4e4da7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_hamming.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_hamming.json
+@@ -8,5 +8,5 @@
+     " from colors\n | eval similarity = v_hamming(rgb_vector, [0, 255, 255])\n | sort similarity desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_l1_norm.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_l1_norm.json
+index 2dcd2ac9..6b13f9dc 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_l1_norm.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_l1_norm.json
+@@ -8,5 +8,5 @@
+     " from colors\n | eval similarity = v_l1_norm(rgb_vector, [0, 255, 255])\n | sort similarity desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_l2_norm.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_l2_norm.json
+index 573de789..ffd1b99e 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_l2_norm.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_l2_norm.json
+@@ -8,5 +8,5 @@
+     " from colors\n | eval similarity = v_l2_norm(rgb_vector, [0, 255, 255])\n | sort similarity desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/v_magnitude.json b/docs/reference/query-languages/esql/kibana/definition/functions/v_magnitude.json
+index 2835d403..1764eb98 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/v_magnitude.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/v_magnitude.json
+@@ -8,5 +8,5 @@
+     " from colors\n | eval magnitude = v_magnitude(rgb_vector)\n | sort magnitude desc, color asc"
+   ],
+   "preview" : true,
+-  "snapshot_only" : true
++  "snapshotOnly" : true
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/values.json b/docs/reference/query-languages/esql/kibana/definition/functions/values.json
+index cf7de697..5df48def 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/values.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/values.json
+@@ -225,5 +225,5 @@
+     "FROM employees\n| EVAL first_letter = SUBSTRING(first_name, 0, 1)\n| STATS first_name = MV_SORT(VALUES(first_name)) BY first_letter\n| SORT first_letter"
+   ],
+   "preview" : true,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/functions/weighted_avg.json b/docs/reference/query-languages/esql/kibana/definition/functions/weighted_avg.json
+index 29978449..c1e5d413 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/functions/weighted_avg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/functions/weighted_avg.json
+@@ -171,5 +171,5 @@
+     "FROM employees\n| STATS w_avg = WEIGHTED_AVG(salary, height) BY languages\n| EVAL w_avg = ROUND(w_avg)\n| KEEP w_avg, languages\n| SORT languages"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/add.json b/docs/reference/query-languages/esql/kibana/definition/operators/add.json
+index e4338a2e..06324d2f 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/add.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/add.json
+@@ -367,5 +367,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/cast.json b/docs/reference/query-languages/esql/kibana/definition/operators/cast.json
+index 109dfc98..5c70d127 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/cast.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/cast.json
+@@ -9,5 +9,5 @@
+     "ROW ver = CONCAT((\"0\"::INT + 1)::STRING, \".2.3\")::VERSION"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/div.json b/docs/reference/query-languages/esql/kibana/definition/operators/div.json
+index 8dd08967..844134d7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/div.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/div.json
+@@ -189,5 +189,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/equals.json b/docs/reference/query-languages/esql/kibana/definition/operators/equals.json
+index b9dcab10..2569676c 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/equals.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/equals.json
+@@ -512,5 +512,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/greater_than.json b/docs/reference/query-languages/esql/kibana/definition/operators/greater_than.json
+index ceca73ad..5d99ea29 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/greater_than.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/greater_than.json
+@@ -368,5 +368,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/greater_than_or_equal.json b/docs/reference/query-languages/esql/kibana/definition/operators/greater_than_or_equal.json
+index 00ee201e..376ba71d 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/greater_than_or_equal.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/greater_than_or_equal.json
+@@ -368,5 +368,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/in.json b/docs/reference/query-languages/esql/kibana/definition/operators/in.json
+index 5bcf5f7b..2c670713 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/in.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/in.json
+@@ -262,5 +262,5 @@
+     "ROW a = 1, b = 4, c = 3\n| WHERE c-a IN (3, b / 2, a)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/is_not_null.json b/docs/reference/query-languages/esql/kibana/definition/operators/is_not_null.json
+index c3cc8fae..3476ac65 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/is_not_null.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/is_not_null.json
+@@ -263,5 +263,5 @@
+     "FROM employees\n| WHERE is_rehired IS NOT NULL\n| STATS COUNT(emp_no)"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/is_null.json b/docs/reference/query-languages/esql/kibana/definition/operators/is_null.json
+index 08c98810..9122d9f0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/is_null.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/is_null.json
+@@ -263,5 +263,5 @@
+     "FROM employees\n| WHERE birth_date IS NULL"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/less_than.json b/docs/reference/query-languages/esql/kibana/definition/operators/less_than.json
+index b6ee8366..13c948d4 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/less_than.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/less_than.json
+@@ -368,5 +368,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/less_than_or_equal.json b/docs/reference/query-languages/esql/kibana/definition/operators/less_than_or_equal.json
+index 161ed97c..96032648 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/less_than_or_equal.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/less_than_or_equal.json
+@@ -368,5 +368,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/like.json b/docs/reference/query-languages/esql/kibana/definition/operators/like.json
+index 97c88faa..14a602e0 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/like.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/like.json
+@@ -46,5 +46,5 @@
+     "FROM employees\n| WHERE first_name LIKE \"\"\"?b*\"\"\"\n| KEEP first_name, last_name"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/match_operator.json b/docs/reference/query-languages/esql/kibana/definition/operators/match_operator.json
+index 44307d28..ba37a432 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/match_operator.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/match_operator.json
+@@ -532,5 +532,5 @@
+     "FROM books\n| WHERE author:\"Faulkner\""
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/mod.json b/docs/reference/query-languages/esql/kibana/definition/operators/mod.json
+index ddcec586..60f0ac3b 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/mod.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/mod.json
+@@ -188,5 +188,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/mul.json b/docs/reference/query-languages/esql/kibana/definition/operators/mul.json
+index 0b59c527..3f1aa167 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/mul.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/mul.json
+@@ -188,5 +188,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/neg.json b/docs/reference/query-languages/esql/kibana/definition/operators/neg.json
+index 82803966..165de5fe 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/neg.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/neg.json
+@@ -68,5 +68,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/not in.json b/docs/reference/query-languages/esql/kibana/definition/operators/not in.json
+index 9fb3282c..43ce3e40 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/not in.json	
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/not in.json	
+@@ -259,5 +259,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/not like.json b/docs/reference/query-languages/esql/kibana/definition/operators/not like.json
+index 8fbaf03d..02b75ffd 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/not like.json	
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/not like.json	
+@@ -43,5 +43,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/not rlike.json b/docs/reference/query-languages/esql/kibana/definition/operators/not rlike.json
+index f25d148a..7d761a34 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/not rlike.json	
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/not rlike.json	
+@@ -43,5 +43,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/not_equals.json b/docs/reference/query-languages/esql/kibana/definition/operators/not_equals.json
+index ac16b232..aa309289 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/not_equals.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/not_equals.json
+@@ -512,5 +512,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/rlike.json b/docs/reference/query-languages/esql/kibana/definition/operators/rlike.json
+index fff34af0..4751eed5 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/rlike.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/rlike.json
+@@ -46,5 +46,5 @@
+     "FROM employees\n| WHERE first_name RLIKE \"\"\".leja.*\"\"\"\n| KEEP first_name, last_name"
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/operators/sub.json b/docs/reference/query-languages/esql/kibana/definition/operators/sub.json
+index 711d8994..d38048c7 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/operators/sub.json
++++ b/docs/reference/query-languages/esql/kibana/definition/operators/sub.json
+@@ -332,5 +332,5 @@
+     }
+   ],
+   "preview" : false,
+-  "snapshot_only" : false
++  "snapshotOnly" : false
+ }
+diff --git a/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json b/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json
+index 7971a20b..9e075e75 100644
+--- a/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json
++++ b/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json
+@@ -4,6 +4,6 @@
+   "type" : "keyword",
+   "serverlessOnly" : true,
+   "preview" : false,
+-  "snapshot_only" : true,
++  "snapshotOnly" : true,
+   "description" : "A project routing expression, used to define which projects to route the query to. Only supported if Cross-Project Search is enabled."
+ }

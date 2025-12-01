@@ -1,0 +1,155 @@
+diff --git a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+index 5a296cd..bc34e36 100644
+--- a/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
++++ b/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java
+@@ -52,6 +52,7 @@ import org.elasticsearch.index.get.GetResult;
+ import org.elasticsearch.index.mapper.internal.ParentFieldMapper;
+ import org.elasticsearch.index.mapper.internal.RoutingFieldMapper;
+ import org.elasticsearch.index.mapper.internal.SourceFieldMapper;
++import org.elasticsearch.index.mapper.internal.TTLFieldMapper;
+ import org.elasticsearch.index.mapper.internal.TimestampFieldMapper;
+ import org.elasticsearch.index.service.IndexService;
+ import org.elasticsearch.index.shard.IllegalIndexShardStateException;
+@@ -153,7 +154,7 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         IndexShard indexShard = indexService.shardSafe(request.shardId());
+ 
+         GetResult getResult = indexShard.getService().get(request.type(), request.id(),
+-                new String[]{SourceFieldMapper.NAME, RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TimestampFieldMapper.NAME}, true);
++                new String[]{SourceFieldMapper.NAME, RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TimestampFieldMapper.NAME, TTLFieldMapper.NAME}, true);
+ 
+         // no doc, what to do, what to do...
+         if (!getResult.exists()) {
+@@ -188,7 +189,26 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         // apply script to update the source
+         String routing = getResult.fields().containsKey(RoutingFieldMapper.NAME) ? getResult.field(RoutingFieldMapper.NAME).value().toString() : null;
+         String parent = getResult.fields().containsKey(ParentFieldMapper.NAME) ? getResult.field(ParentFieldMapper.NAME).value().toString() : null;
+-        // TODO ttl/timestamp
++
++        // Extract timestamp and TTL from existing document or use values from request
++        String timestamp = null;
++        long ttl = -1;
++
++        if (request.timestamp() != null) {
++            // Use timestamp from request if provided
++            timestamp = request.timestamp();
++        } else if (getResult.fields().containsKey(TimestampFieldMapper.NAME)) {
++            // Otherwise preserve existing timestamp
++            timestamp = getResult.field(TimestampFieldMapper.NAME).value().toString();
++        }
++
++        if (request.ttl() > 0) {
++            // Use TTL from request if provided
++            ttl = request.ttl();
++        } else if (getResult.fields().containsKey(TTLFieldMapper.NAME)) {
++            // Otherwise preserve existing TTL
++            ttl = getResult.field(TTLFieldMapper.NAME).value();
++        }
+ 
+         // TODO percolate?
+ 
+@@ -197,7 +217,8 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
+         if (operation == null || "index".equals(operation)) {
+             IndexRequest indexRequest = Requests.indexRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
+                     .source(source, sourceAndContent.v1())
+-                    .version(getResult.version()).replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel());
++                    .version(getResult.version()).replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel())
++                    .timestamp(timestamp).ttl(ttl);
+             indexRequest.operationThreaded(false);
+             indexAction.execute(indexRequest, new ActionListener<IndexResponse>() {
+                 @Override
+diff --git a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+index 05e39ce..34bd7d6 100644
+--- a/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
++++ b/src/main/java/org/elasticsearch/action/update/UpdateRequest.java
+@@ -42,6 +42,9 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+     private String id;
+     @Nullable
+     private String routing;
++    @Nullable
++    private String timestamp;
++    private long ttl = -1;
+ 
+     String script;
+     @Nullable
+@@ -149,6 +152,41 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         return this.routing;
+     }
+ 
++    /**
++     * Sets the timestamp for the indexed document.
++     */
++    public UpdateRequest timestamp(String timestamp) {
++        this.timestamp = timestamp;
++        return this;
++    }
++
++    /**
++     * The timestamp to use for the indexed document.
++     */
++    public String timestamp() {
++        return this.timestamp;
++    }
++
++    /**
++     * Sets the relative ttl value. It musts be {@literal >} 0 as it makes little sense otherwise. Setting it
++     * to <tt>null</tt> will reset to have no ttl.
++     */
++    public UpdateRequest ttl(Long ttl) {
++        if (ttl == null) {
++            this.ttl = -1;
++            return this;
++        }
++        this.ttl = ttl;
++        return this;
++    }
++
++    /**
++     * The ttl of the document.
++     */
++    public long ttl() {
++        return this.ttl;
++    }
++
+     int shardId() {
+         return this.shardId;
+     }
+@@ -291,6 +329,10 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+         if (in.readBoolean()) {
+             routing = in.readUTF();
+         }
++        if (in.readBoolean()) {
++            timestamp = in.readUTF();
++        }
++        ttl = in.readLong();
+         script = in.readUTF();
+         if (in.readBoolean()) {
+             scriptLang = in.readUTF();
+@@ -312,6 +354,13 @@ public class UpdateRequest extends InstanceShardOperationRequest {
+             out.writeBoolean(true);
+             out.writeUTF(routing);
+         }
++        if (timestamp == null) {
++            out.writeBoolean(false);
++        } else {
++            out.writeBoolean(true);
++            out.writeUTF(timestamp);
++        }
++        out.writeLong(ttl);
+         out.writeUTF(script);
+         if (scriptLang == null) {
+             out.writeBoolean(false);
+diff --git a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+index e6bef60..ba388ec 100644
+--- a/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
++++ b/src/main/java/org/elasticsearch/rest/action/update/RestUpdateAction.java
+@@ -57,6 +57,10 @@ public class RestUpdateAction extends BaseRestHandler {
+         updateRequest.routing(request.param("routing"));
+         updateRequest.parent(request.param("parent")); // order is important, set it after routing, so it will set the routing
+         updateRequest.timeout(request.paramAsTime("timeout", updateRequest.timeout()));
++        updateRequest.timestamp(request.param("timestamp"));
++        if (request.hasParam("ttl")) {
++            updateRequest.ttl(request.paramAsTime("ttl", null).millis());
++        }
+         String replicationType = request.param("replication");
+         if (replicationType != null) {
+             updateRequest.replicationType(ReplicationType.fromString(replicationType));

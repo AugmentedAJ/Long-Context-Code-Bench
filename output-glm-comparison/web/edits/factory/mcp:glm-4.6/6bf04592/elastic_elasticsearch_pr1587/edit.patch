@@ -1,0 +1,295 @@
+diff --git a/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java b/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
+index 89f4ab7..1fa700d 100644
+--- a/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
++++ b/src/test/java/org/elasticsearch/test/integration/ttl/SimpleTTLTests.java
+@@ -20,6 +20,7 @@
+ package org.elasticsearch.test.integration.ttl;
+ 
+ import org.elasticsearch.action.get.GetResponse;
++import org.elasticsearch.action.search.SearchResponse;
+ import org.elasticsearch.client.Client;
+ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.xcontent.XContentFactory;
+@@ -29,6 +30,9 @@ import org.testng.annotations.BeforeClass;
+ import org.testng.annotations.Test;
+ 
+ import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
++import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
++import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
++import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+ import static org.hamcrest.MatcherAssert.assertThat;
+ import static org.hamcrest.Matchers.*;
+ 
+@@ -119,4 +123,272 @@ public class SimpleTTLTests extends AbstractNodesTests {
+         getResponse = client.prepareGet("test", "type1", "1").setFields("_ttl").setRealtime(false).execute().actionGet();
+         assertThat(getResponse.exists(), equalTo(false));
+     }
++
++    /**
++     * Test TTL functionality with custom routing across multiple shards.
++     * This ensures that TTL purger correctly preserves routing information
++     * when deleting expired documents.
++     */
++    @Test
++    public void testTTLWithCustomRouting() throws Exception {
++        client.admin().indices().prepareDelete("test_routing").execute().actionGet();
++
++        // Create index with multiple shards to ensure documents can be distributed
++        client.admin().indices().prepareCreate("test_routing")
++                .setSettings(settingsBuilder()
++                        .put("number_of_shards", 3)
++                        .put("number_of_replicas", 1)
++                        .put("routing.hash.type", "simple"))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++        
++        client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++
++        long ttlValue = 3000;
++        String[] routingValues = {"user1", "user2", "user3"};
++        String[] documentIds = {"doc1", "doc2", "doc3"};
++
++        logger.info("--> indexing documents with custom routing");
++        // Index documents with different routing values to distribute across shards
++        for (int i = 0; i < routingValues.length; i++) {
++            client.prepareIndex("test_routing", "type1", documentIds[i])
++                    .setSource(jsonBuilder()
++                            .startObject()
++                            .field("user", routingValues[i])
++                            .field("message", "Test message for " + routingValues[i])
++                            .field("timestamp", System.currentTimeMillis())
++                            .endObject())
++                    .setTTL(ttlValue)
++                    .setRouting(routingValues[i])
++                    .setRefresh(true)
++                    .execute()
++                    .actionGet();
++        }
++
++        logger.info("--> verifying documents exist with routing");
++        // Verify all documents exist and their routing is preserved
++        for (int i = 0; i < routingValues.length; i++) {
++            String docId = documentIds[i];
++            String routing = routingValues[i];
++            
++            GetResponse getResponse = client.prepareGet("test_routing", "type1", docId)
++                    .setFields("_ttl", "_routing")
++                    .setRouting(routing)
++                    .execute()
++                    .actionGet();
++            
++            assertThat("Document " + docId + " should exist", getResponse.exists(), equalTo(true));
++            assertThat("Document " + docId + " should have TTL field", getResponse.field("_ttl"), notNullValue());
++            assertThat("Document " + docId + " should have correct routing", 
++                      getResponse.field("_routing").value(), equalTo(routing));
++        }
++
++        // Verify documents are distributed across the index
++        SearchResponse searchResponse = client.prepareSearch("test_routing")
++                .setQuery(matchAllQuery())
++                .execute()
++                .actionGet();
++        assertThat("All documents should be found", searchResponse.getHits().totalHits(), equalTo((long) routingValues.length));
++
++        logger.info("--> waiting for TTL expiration");
++        // Wait for documents to expire
++        long expirationTime = System.currentTimeMillis() + ttlValue + purgeInterval + 2000;
++        long currentTime = System.currentTimeMillis();
++        if (expirationTime - currentTime > 0) {
++            Thread.sleep(expirationTime - currentTime);
++        }
++
++        logger.info("--> verifying documents have expired with routing");
++        // Verify all documents have expired, using their respective routing values
++        for (int i = 0; i < routingValues.length; i++) {
++            String docId = documentIds[i];
++            String routing = routingValues[i];
++            
++            GetResponse getResponse = client.prepareGet("test_routing", "type1", docId)
++                    .setRouting(routing)
++                    .execute()
++                    .actionGet();
++            
++            assertThat("Document " + docId + " with routing " + routing + " should have expired", 
++                      getResponse.exists(), equalTo(false));
++        }
++
++        // Verify no documents remain via search
++        searchResponse = client.prepareSearch("test_routing")
++                .setQuery(matchAllQuery())
++                .execute()
++                .actionGet();
++        assertThat("All routed documents should have been purged", 
++                  searchResponse.getHits().totalHits(), equalTo(0L));
++    }
++
++    /**
++     * Test TTL behavior when multiple documents share the same routing value.
++     * This ensures the TTL purger handles multiple documents with the same routing correctly.
++     */
++    @Test
++    public void testTTLWithSameRoutingMultipleDocuments() throws Exception {
++        client.admin().indices().prepareDelete("test_same_routing").execute().actionGet();
++
++        client.admin().indices().prepareCreate("test_same_routing")
++                .setSettings(settingsBuilder()
++                        .put("number_of_shards", 2)
++                        .put("number_of_replicas", 1))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++        
++        client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++
++        String routingValue = "same_user";
++        long ttlValue = 2500;
++        int numDocs = 5;
++
++        logger.info("--> indexing multiple documents with same routing");
++        // Index multiple documents with the same routing value
++        for (int i = 0; i < numDocs; i++) {
++            client.prepareIndex("test_same_routing", "type1", "doc" + i)
++                    .setSource(jsonBuilder()
++                            .startObject()
++                            .field("user", routingValue)
++                            .field("message", "Message " + i)
++                            .field("order", i)
++                            .endObject())
++                    .setTTL(ttlValue)
++                    .setRouting(routingValue)
++                    .setRefresh(true)
++                    .execute()
++                    .actionGet();
++        }
++
++        // Verify all documents exist
++        SearchResponse searchResponse = client.prepareSearch("test_same_routing")
++                .setQuery(termQuery("user", routingValue))
++                .execute()
++                .actionGet();
++        assertThat("All documents with same routing should be found", 
++                  searchResponse.getHits().totalHits(), equalTo((long) numDocs));
++
++        logger.info("--> waiting for TTL expiration for same routing documents");
++        // Wait for expiration
++        long expirationTime = System.currentTimeMillis() + ttlValue + purgeInterval + 1000;
++        long currentTime = System.currentTimeMillis();
++        if (expirationTime - currentTime > 0) {
++            Thread.sleep(expirationTime - currentTime);
++        }
++
++        // Verify all documents with the same routing have expired
++        searchResponse = client.prepareSearch("test_same_routing")
++                .setQuery(termQuery("user", routingValue))
++                .execute()
++                .actionGet();
++        assertThat("All documents with routing " + routingValue + " should have expired", 
++                  searchResponse.getHits().totalHits(), equalTo(0L));
++    }
++
++    /**
++     * Test TTL with mixed scenarios - some documents with routing, some without.
++     * This ensures TTL works correctly regardless of whether routing is used.
++     */
++    @Test
++    public void testTTLWithMixedRouting() throws Exception {
++        client.admin().indices().prepareDelete("test_mixed_routing").execute().actionGet();
++
++        client.admin().indices().prepareCreate("test_mixed_routing")
++                .setSettings(settingsBuilder()
++                        .put("number_of_shards", 3)
++                        .put("number_of_replicas", 1))
++                .addMapping("type1", XContentFactory.jsonBuilder()
++                        .startObject()
++                        .startObject("type1")
++                        .startObject("_timestamp").field("enabled", true).field("store", "yes").endObject()
++                        .startObject("_ttl").field("enabled", true).field("store", "yes").endObject()
++                        .endObject()
++                        .endObject())
++                .execute().actionGet();
++        
++        client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
++
++        long ttlValue = 2000;
++
++        logger.info("--> indexing documents with mixed routing");
++        // Index documents with routing
++        for (int i = 0; i < 3; i++) {
++            String routing = "user_" + i;
++            client.prepareIndex("test_mixed_routing", "type1", "routed_doc_" + i)
++                    .setSource(jsonBuilder()
++                            .startObject()
++                            .field("type", "routed")
++                            .field("user", routing)
++                            .field("message", "Routed document " + i)
++                            .endObject())
++                    .setTTL(ttlValue)
++                    .setRouting(routing)
++                    .setRefresh(true)
++                    .execute()
++                    .actionGet();
++        }
++
++        // Index documents without routing
++        for (int i = 0; i < 3; i++) {
++            client.prepareIndex("test_mixed_routing", "type1", "unrouted_doc_" + i)
++                    .setSource(jsonBuilder()
++                            .startObject()
++                            .field("type", "unrouted")
++                            .field("message", "Unrouted document " + i)
++                            .endObject())
++                    .setTTL(ttlValue)
++                    .setRefresh(true)
++                    .execute()
++                    .actionGet();
++        }
++
++        // Verify all documents exist
++        SearchResponse searchResponse = client.prepareSearch("test_mixed_routing")
++                .setQuery(matchAllQuery())
++                .execute()
++                .actionGet();
++        assertThat("All documents should be found", searchResponse.getHits().totalHits(), equalTo(6L));
++
++        // Verify routed documents
++        searchResponse = client.prepareSearch("test_mixed_routing")
++                .setQuery(termQuery("type", "routed"))
++                .execute()
++                .actionGet();
++        assertThat("Routed documents should be found", searchResponse.getHits().totalHits(), equalTo(3L));
++
++        // Verify unrouted documents
++        searchResponse = client.prepareSearch("test_mixed_routing")
++                .setQuery(termQuery("type", "unrouted"))
++                .execute()
++                .actionGet();
++        assertThat("Unrouted documents should be found", searchResponse.getHits().totalHits(), equalTo(3L));
++
++        logger.info("--> waiting for TTL expiration for mixed routing documents");
++        // Wait for TTL expiration
++        long expirationTime = System.currentTimeMillis() + ttlValue + purgeInterval + 1000;
++        long currentTime = System.currentTimeMillis();
++        if (expirationTime - currentTime > 0) {
++            Thread.sleep(expirationTime - currentTime);
++        }
++
++        // Verify all documents have expired
++        searchResponse = client.prepareSearch("test_mixed_routing")
++                .setQuery(matchAllQuery())
++                .execute()
++                .actionGet();
++        assertThat("All documents (routed and unrouted) should have expired", 
++                  searchResponse.getHits().totalHits(), equalTo(0L));
++    }
+ }

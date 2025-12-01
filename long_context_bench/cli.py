@@ -146,7 +146,7 @@ def edit(
 @click.option("--sample-path", type=click.Path(exists=True), help="Path to sample.json (for single file mode)")
 @click.option("--edit-path", type=click.Path(exists=True), help="Path to edit.json (for single file mode)")
 @click.option("--edit-run-ids", help="Comma-separated list of edit run IDs to evaluate (for batch mode)")
-@click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
+@click.option("--judge-model", required=True, help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5, sonnet)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--output-dir", type=click.Path(), default="output", help="Base output directory (judges saved to output/judges/, edits read from output/edits/)")
 @click.option("--samples-dir", type=click.Path(exists=True), help="Samples directory (defaults to data/samples, falls back to output/samples)")
@@ -167,7 +167,7 @@ def judge(
     concurrency: int,
     resume_judge_run_id: Optional[str],
 ) -> None:
-    """Judge stage: Score agent edits against ground truth using LLM.
+    """Judge stage: Score agent edits against ground truth using Claude Code CLI.
 
     Two modes:
     1. Single file mode: Provide --sample-path and --edit-path
@@ -217,7 +217,7 @@ def judge(
 
 @main.command()
 @click.option("--pr-number", required=True, type=int, help="PR number to analyze")
-@click.option("--judge-model", required=True, help="Judge model (e.g., anthropic/claude-3-5-sonnet-20241022)")
+@click.option("--judge-model", required=True, help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5)")
 @click.option("--comparative/--no-comparative", default=True, help="Generate comparative analysis across agents")
 @click.option("--test-label", help="Optional label to filter edits by")
 @click.option("--output-dir", type=click.Path(), default="output", help="Output directory")
@@ -232,18 +232,18 @@ def analyze_pr(
     cache_dir: str,
     force: bool,
 ) -> None:
-    """Cross-agent analysis: Compare multiple agents' solutions for a single PR using LLM.
+    """Cross-agent analysis: Compare multiple agents' solutions for a single PR using Claude Code CLI.
 
     This command finds all agent attempts for the specified PR (optionally filtered
-    by test_label), judges each one using LLM, and optionally generates a comparative
+    by test_label), judges each one using Claude Code CLI, and optionally generates a comparative
     analysis showing:
     - Individual scores for each agent
     - Side-by-side comparison of approaches
-    - LLM-generated ranking and analysis (with --comparative)
+    - Ranking and analysis (with --comparative)
 
     Example:
         long-context-bench analyze-pr --pr-number 114869 --test-label v0 \\
-            --judge-model anthropic/claude-3-5-sonnet-20241022 --comparative
+            --judge-model claude-sonnet-4-5 --comparative
     """
     from long_context_bench.stages.cross_agent_analysis import run_cross_agent_analysis
 
@@ -278,7 +278,7 @@ def analyze_pr(
 @click.option(
     "--judge-model",
     required=True,
-    help="LLM judge model whose scores should be reused for scalar per-agent metrics (e.g., anthropic/claude-3-5-sonnet-20241022)",
+    help="Judge model whose scores should be reused for scalar per-agent metrics (e.g., claude-sonnet-4-5)",
 )
 @click.option(
     "--include-codebase-context/--no-codebase-context",
@@ -314,7 +314,7 @@ def head_to_head_pr(
     """Run head-to-head evaluation for a single PR across all agents.
 
     This command finds all agent edits for the specified PR (optionally
-    filtered by test_label), reuses LLM judge scores from the given JUDGE_MODEL
+    filtered by test_label), reuses judge scores from the given JUDGE_MODEL
     for scalar per-agent metrics when available, and runs pairwise comparisons
     using a single dedicated CLI judge agent (configured via --judge-runner and
     --judge-runner-model). Results are written as a HeadToHeadPRResult artifact
@@ -325,7 +325,7 @@ def head_to_head_pr(
     click.echo(f"Running head-to-head evaluation for PR {pr_number}")
     if test_label:
         click.echo(f"Test label filter: {test_label}")
-    click.echo(f"Scalar LLM judge model for per-agent scores: {judge_model}")
+    click.echo(f"Scalar judge model for per-agent scores: {judge_model}")
     click.echo(f"Pairwise judge runner: {judge_runner} (model={judge_runner_model})")
     if include_codebase_context:
         click.echo("Including codebase context in prompts")
@@ -454,8 +454,8 @@ def pipeline(
 @click.option("--concurrency", type=int, default=1, help="Max concurrent tasks")
 @click.option("--total-shards", type=int, default=1, help="Total number of shards")
 @click.option("--shard-index", type=int, default=0, help="Current shard index (0-based)")
-@click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode")
-@click.option("--judge-model", help="Judge model (for LLM mode)")
+@click.option("--judge-mode", type=click.Choice(["deterministic", "llm"]), default="deterministic", help="Judge mode (llm uses Claude Code CLI)")
+@click.option("--judge-model", help="Judge model for Claude Code CLI (e.g., claude-sonnet-4-5)")
 @click.option("--test-label", help="Optional label for grouping runs for comparison")
 @click.option("--github-token", envvar="GITHUB_GIT_TOKEN", help="GitHub token")
 @click.option("--disable-retrieval", is_flag=True, help="Disable retrieval features")

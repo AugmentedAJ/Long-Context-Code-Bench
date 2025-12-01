@@ -1,0 +1,46 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+index a394166..42e8603 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+@@ -111,11 +111,13 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+ 
+     public void createIndex(final Request request, final Listener userListener) {
+         ImmutableSettings.Builder updatedSettingsBuilder = ImmutableSettings.settingsBuilder();
+-        for (Map.Entry<String, String> entry : request.settings.getAsMap().entrySet()) {
+-            if (!entry.getKey().startsWith("index.")) {
+-                updatedSettingsBuilder.put("index." + entry.getKey(), entry.getValue());
+-            } else {
+-                updatedSettingsBuilder.put(entry.getKey(), entry.getValue());
++        if (request.settings != null) {
++            for (Map.Entry<String, String> entry : request.settings.getAsMap().entrySet()) {
++                if (!entry.getKey().startsWith("index.")) {
++                    updatedSettingsBuilder.put("index." + entry.getKey(), entry.getValue());
++                } else {
++                    updatedSettingsBuilder.put(entry.getKey(), entry.getValue());
++                }
+             }
+         }
+         request.settings(updatedSettingsBuilder.build());
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataIndexTemplateService.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataIndexTemplateService.java
+index 20314cf..a8fcc49 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataIndexTemplateService.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataIndexTemplateService.java
+@@ -103,11 +103,13 @@ public class MetaDataIndexTemplateService extends AbstractComponent {
+ 
+     public void putTemplate(final PutRequest request, final PutListener listener) {
+         ImmutableSettings.Builder updatedSettingsBuilder = ImmutableSettings.settingsBuilder();
+-        for (Map.Entry<String, String> entry : request.settings.getAsMap().entrySet()) {
+-            if (!entry.getKey().startsWith("index.")) {
+-                updatedSettingsBuilder.put("index." + entry.getKey(), entry.getValue());
+-            } else {
+-                updatedSettingsBuilder.put(entry.getKey(), entry.getValue());
++        if (request.settings != null) {
++            for (Map.Entry<String, String> entry : request.settings.getAsMap().entrySet()) {
++                if (!entry.getKey().startsWith("index.")) {
++                    updatedSettingsBuilder.put("index." + entry.getKey(), entry.getValue());
++                } else {
++                    updatedSettingsBuilder.put(entry.getKey(), entry.getValue());
++                }
+             }
+         }
+         request.settings(updatedSettingsBuilder.build());

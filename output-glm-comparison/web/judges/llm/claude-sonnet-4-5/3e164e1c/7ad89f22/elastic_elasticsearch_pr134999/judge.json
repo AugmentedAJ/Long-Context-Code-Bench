@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134999,
+  "base_commit": "8272fc895484bdcf635a3828616e03183cac283d",
+  "head_commit": "31bc76628f7cc184ad66a96ba2915c3902eaeae8",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": 0.0,
+  "rationale": "The agent's diff is identical to the ground truth diff. Both changes convert the overall_score parameter from a string value \"41.0\" to a numeric value 41.0 in two locations within the YAML test file (lines 605 and 627). The changes are correct, complete, and follow proper YAML syntax where numeric values should not be quoted when they represent actual numbers rather than strings. No extra files were added, no unsolicited documentation was created, and the implementation matches the task requirements perfectly.",
+  "edit_run_id": "7ad89f22",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml\nindex aa0ef16a044..52f70efcf4b 100644\n--- a/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml\n+++ b/x-pack/plugin/src/yamlRestTest/resources/rest-api-spec/test/ml/jobs_get_result_overall_buckets.yml\n@@ -602,7 +602,7 @@ setup:\n       ml.get_overall_buckets:\n         job_id: \"jobs-get-result-overall-buckets-*\"\n         bucket_span: \"2h\"\n-        overall_score: \"41.0\"\n+        overall_score: 41.0\n \n   - match: { count: 1 }\n   - match: { overall_buckets.0.timestamp: 1464746400000 }\n@@ -624,7 +624,7 @@ setup:\n       ml.get_overall_buckets:\n         job_id: \"jobs-that-do-not-exist-*\"\n         bucket_span: \"2h\"\n-        overall_score: \"41.0\"\n+        overall_score: 41.0\n         allow_no_match: true\n \n   - match: { count: 0 }"
+}

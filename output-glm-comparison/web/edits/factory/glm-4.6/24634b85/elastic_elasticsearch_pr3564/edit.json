@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 36814,
+  "patch_unified": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 5db2355..da1981c 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -124,18 +124,17 @@ launch_service()\n     # The es-foreground option will tell ElasticSearch not to close stdout/stderr, but it's up to us not to background.\n     if [ \"x$foreground\" != \"x\" ]; then\n         es_parms=\"$es_parms -Des.foreground=yes\"\n+        # Use exec in foreground mode so we replace the shell process\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                 org.elasticsearch.bootstrap.ElasticSearch\n-        execval=$?\n+        # exec never returns, so the code below never executes in foreground mode\n     else\n-        # Startup ElasticSearch, background it, and write the pid.\n-        exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n+        # Startup ElasticSearch, background it.  Java will write the pid file if pidpath is set.\n+        \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                     org.elasticsearch.bootstrap.ElasticSearch <&- &\n         execval=$?\n-        [ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"\n+        return $execval\n     fi\n-\n-    return $execval\n }\n \n # Parse any command line options.",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr3564/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

@@ -1,0 +1,36 @@
+diff --git a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java
+index 1d9fd9cb..3a70d27d 100644
+--- a/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java
++++ b/modules/mapper-extras/src/main/java/org/elasticsearch/index/mapper/extras/MatchOnlyTextFieldMapper.java
+@@ -301,9 +301,11 @@ public class MatchOnlyTextFieldMapper extends FieldMapper {
+                 String name = storedFieldNameForSyntheticSource();
+                 return storedFieldFetcher(name);
+             }
++            // Extract needed objects from SearchExecutionContext to avoid memory leak
++            ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);
++            // Create a SourceProvider using the context's createSourceProvider method to avoid capturing the context itself
++            SourceProvider sourceProvider = searchExecutionContext.createSourceProvider(null);
+             return context -> {
+-                ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);
+-                SourceProvider sourceProvider = searchExecutionContext.lookup();
+                 valueFetcher.setNextReader(context);
+                 return docID -> {
+                     try {
+diff --git a/x-pack/plugin/logsdb/src/main/java/org/elasticsearch/xpack/logsdb/patternedtext/PatternedTextFieldType.java b/x-pack/plugin/logsdb/src/main/java/org/elasticsearch/xpack/logsdb/patternedtext/PatternedTextFieldType.java
+index 35f10475..94bd921d 100644
+--- a/x-pack/plugin/logsdb/src/main/java/org/elasticsearch/xpack/logsdb/patternedtext/PatternedTextFieldType.java
++++ b/x-pack/plugin/logsdb/src/main/java/org/elasticsearch/xpack/logsdb/patternedtext/PatternedTextFieldType.java
+@@ -118,9 +118,11 @@ public class PatternedTextFieldType extends StringFieldType {
+     private IOFunction<LeafReaderContext, CheckedIntFunction<List<Object>, IOException>> getValueFetcherProvider(
+         SearchExecutionContext searchExecutionContext
+     ) {
++        // Extract needed objects from SearchExecutionContext to avoid memory leak
++        ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);
++        // Create a SourceProvider using the context's createSourceProvider method to avoid capturing the context itself
++        SourceProvider sourceProvider = searchExecutionContext.createSourceProvider(null);
+         return context -> {
+-            ValueFetcher valueFetcher = valueFetcher(searchExecutionContext, null);
+-            SourceProvider sourceProvider = searchExecutionContext.lookup();
+             valueFetcher.setNextReader(context);
+             return docID -> {
+                 try {

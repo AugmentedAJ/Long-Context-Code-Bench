@@ -1,0 +1,26 @@
+diff --git a/src/test/java/org/elasticsearch/search/geo/GeoFilterTests.java b/src/test/java/org/elasticsearch/search/geo/GeoFilterTests.java
+index 5279dea..a791d74 100644
+--- a/src/test/java/org/elasticsearch/search/geo/GeoFilterTests.java
++++ b/src/test/java/org/elasticsearch/search/geo/GeoFilterTests.java
+@@ -23,6 +23,7 @@ import com.spatial4j.core.context.SpatialContext;
+ import com.spatial4j.core.distance.DistanceUtils;
+ import com.spatial4j.core.exception.InvalidShapeException;
+ import com.spatial4j.core.shape.Shape;
++import org.apache.lucene.util.SloppyMath;
+ import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
+ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
+ import org.apache.lucene.spatial.query.SpatialArgs;
+@@ -552,12 +553,7 @@ public class GeoFilterTests extends ElasticsearchIntegrationTest {
+     }
+ 
+     public static double distance(double lat1, double lon1, double lat2, double lon2) {
+-        return GeoUtils.EARTH_SEMI_MAJOR_AXIS * DistanceUtils.distHaversineRAD(
+-                DistanceUtils.toRadians(lat1),
+-                DistanceUtils.toRadians(lon1),
+-                DistanceUtils.toRadians(lat2),
+-                DistanceUtils.toRadians(lon2)
+-        );
++        return SloppyMath.haversinMeters(lat1, lon1, lat2, lon2);
+     }
+ 
+     protected static boolean testRelationSupport(SpatialOperation relation) {

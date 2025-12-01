@@ -1,0 +1,193 @@
+diff --git a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
+index ac543c4f..f637123f 100644
+--- a/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
++++ b/x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/security/authc/Authentication.java
+@@ -1363,51 +1363,24 @@ public final class Authentication implements ToXContentObject {
+     }
+ 
+     public static Authentication newRealmAuthentication(User user, RealmRef realmRef) {
+-        // TODO make the type system ensure that this is not a run-as user
+-        Authentication authentication = new Authentication(
+-            new Subject(user, realmRef, TransportVersion.current(), Map.of()),
+-            AuthenticationType.REALM
+-        );
+-        assert false == authentication.isServiceAccount();
+-        assert false == authentication.isApiKey();
+-        assert false == authentication.isCrossClusterAccess();
+-        assert false == authentication.isAuthenticatedInternally();
+-        assert false == authentication.isAuthenticatedAnonymously();
+-        return authentication;
++        // Create an AuthenticationResult wrapper to use the unified method
++        AuthenticationResult<User> authResult = AuthenticationResult.success(user);
++        return newUnifiedAuthentication(Subject.Type.USER, authResult, null, AuthenticationType.REALM, realmRef);
+     }
+ 
+     public static Authentication newCloudAccessTokenAuthentication(
+         AuthenticationResult<User> authResult,
+         Authentication.RealmRef realmRef
+     ) {
+-        assert authResult.isAuthenticated() : "cloud access token authn result must be successful";
+-        final User user = authResult.getValue();
+-        return new Authentication(
+-            new Subject(user, realmRef, TransportVersion.current(), authResult.getMetadata()),
+-            AuthenticationType.TOKEN
+-        );
++        return newUnifiedAuthentication(Subject.Type.USER, authResult, null, AuthenticationType.TOKEN, realmRef);
+     }
+ 
+     public static Authentication newCloudApiKeyAuthentication(AuthenticationResult<User> authResult, String nodeName) {
+-        assert authResult.isAuthenticated() : "cloud API Key authn result must be successful";
+-        final User apiKeyUser = authResult.getValue();
+-        final Authentication.RealmRef authenticatedBy = newCloudApiKeyRealmRef(nodeName);
+-        return new Authentication(
+-            new Subject(apiKeyUser, authenticatedBy, TransportVersion.current(), authResult.getMetadata()),
+-            AuthenticationType.API_KEY
+-        );
++        return newUnifiedAuthentication(Subject.Type.CLOUD_API_KEY, authResult, nodeName);
+     }
+ 
+     public static Authentication newApiKeyAuthentication(AuthenticationResult<User> authResult, String nodeName) {
+-        assert authResult.isAuthenticated() : "API Key authn result must be successful";
+-        final User apiKeyUser = authResult.getValue();
+-        assert apiKeyUser.roles().length == 0 : "The user associated to an API key authentication must have no role";
+-        final Authentication.RealmRef authenticatedBy = newApiKeyRealmRef(nodeName);
+-        Authentication authentication = new Authentication(
+-            new Subject(apiKeyUser, authenticatedBy, TransportVersion.current(), authResult.getMetadata()),
+-            AuthenticationType.API_KEY
+-        );
+-        return authentication;
++        return newUnifiedAuthentication(Subject.Type.API_KEY, authResult, nodeName);
+     }
+ 
+     public Authentication toCrossClusterAccess(CrossClusterAccessSubjectInfo crossClusterAccessSubjectInfo) {
+@@ -1713,6 +1686,130 @@ public final class Authentication implements ToXContentObject {
+         }
+     }
+ 
++    /**
++     * Unified method to create authentication for different subject types and authentication methods.
++     * Supports request-scoped-tokens by handling both User and API Key authentication creation methods
++     * in a single unified method that accommodates different authentication types and subject types.
++     *
++     * @param subjectType The type of subject (USER, API_KEY, CLOUD_API_KEY, SERVICE_ACCOUNT, CROSS_CLUSTER_ACCESS)
++     * @param authResult The authentication result containing the user and metadata
++     * @param nodeName The node name for the realm reference
++     * @param authenticationType The authentication type (REALM, API_KEY, TOKEN, ANONYMOUS, INTERNAL)
++     * @param realmRef Optional realm reference, if null one will be created based on subject type
++     * @return A new Authentication object configured for the specified subject and authentication type
++     */
++    public static Authentication newUnifiedAuthentication(
++        Subject.Type subjectType,
++        AuthenticationResult<User> authResult,
++        String nodeName,
++        AuthenticationType authenticationType,
++        @Nullable Authentication.RealmRef realmRef
++    ) {
++        assert authResult.isAuthenticated() : "Authentication result must be successful";
++        final User user = authResult.getValue();
++        
++        // Create appropriate realm reference based on subject type if not provided
++        if (realmRef == null) {
++            switch (subjectType) {
++                case API_KEY:
++                    assert user.roles().length == 0 : "The user associated with an API key authentication must have no role";
++                    realmRef = newApiKeyRealmRef(nodeName);
++                    authenticationType = AuthenticationType.API_KEY;
++                    break;
++                case CLOUD_API_KEY:
++                    // Cloud API keys can have roles in some contexts, defer validation to the validation method
++                    realmRef = newCloudApiKeyRealmRef(nodeName);
++                    authenticationType = AuthenticationType.API_KEY;
++                    break;
++                case SERVICE_ACCOUNT:
++                    realmRef = newServiceAccountRealmRef(nodeName);
++                    authenticationType = AuthenticationType.TOKEN;
++                    break;
++                case USER:
++                default:
++                    if (realmRef == null) {
++                        throw new IllegalArgumentException("Realm reference must be provided for USER subject type");
++                    }
++                    authenticationType = AuthenticationType.REALM;
++                    break;
++            }
++        }
++
++        Subject subject = new Subject(user, realmRef, TransportVersion.current(), authResult.getMetadata());
++        
++        // Validate consistency between subject type and authentication type
++        validateSubjectAuthenticationTypeCompatibility(subjectType, authenticationType, authResult);
++        
++        return new Authentication(subject, authenticationType);
++    }
++
++    /**
++     * Overloaded method for creating unified authentication with automatic realm reference creation
++     *
++     * @param subjectType The type of subject (USER, API_KEY, CLOUD_API_KEY, SERVICE_ACCOUNT, CROSS_CLUSTER_ACCESS)
++     * @param authResult The authentication result containing the user and metadata
++     * @param nodeName The node name for the realm reference
++     * @return A new Authentication object configured for the specified subject type
++     */
++    public static Authentication newUnifiedAuthentication(
++        Subject.Type subjectType,
++        AuthenticationResult<User> authResult,
++        String nodeName
++    ) {
++        return newUnifiedAuthentication(subjectType, authResult, nodeName, null, null);
++    }
++
++    /**
++     * Validates the compatibility between subject type and authentication type
++     *
++     * @param subjectType The subject type to validate
++     * @param authenticationType The authentication type to validate  
++     * @param authResult The authentication result for additional validation
++     */
++    private static void validateSubjectAuthenticationTypeCompatibility(
++        Subject.Type subjectType,
++        AuthenticationType authenticationType,
++        AuthenticationResult<User> authResult
++    ) {
++        User user = authResult.getValue();
++        
++        switch (subjectType) {
++            case API_KEY:
++                if (authenticationType != AuthenticationType.API_KEY) {
++                    throw new IllegalArgumentException("API key subject type requires API_KEY authentication type");
++                }
++                if (user.roles().length != 0) {
++                    throw new IllegalArgumentException("API key authentication user must have no roles");
++                }
++                break;
++            case CLOUD_API_KEY:
++                if (authenticationType != AuthenticationType.API_KEY) {
++                    throw new IllegalArgumentException("Cloud API key subject type requires API_KEY authentication type");
++                }
++                // Cloud API keys may have roles in some contexts (unlike regular API keys)
++                // Validation is deferred to higher-level components
++                break;
++            case SERVICE_ACCOUNT:
++                if (authenticationType != AuthenticationType.TOKEN) {
++                    throw new IllegalArgumentException("Service account subject type requires TOKEN authentication type");
++                }
++                break;
++            case USER:
++                if (authenticationType != AuthenticationType.REALM && authenticationType != AuthenticationType.TOKEN) {
++                    throw new IllegalArgumentException("User subject type requires REALM or TOKEN authentication type");
++                }
++                break;
++            case CROSS_CLUSTER_ACCESS:
++                if (authenticationType != AuthenticationType.API_KEY) {
++                    throw new IllegalArgumentException("Cross cluster access subject type requires API_KEY authentication type");
++                }
++                if (user.roles().length != 0) {
++                    throw new IllegalArgumentException("Cross cluster access authentication user must have no roles");
++                }
++                break;
++        }
++    }
++
+     public static class AuthenticationSerializationHelper {
+ 
+         private AuthenticationSerializationHelper() {}

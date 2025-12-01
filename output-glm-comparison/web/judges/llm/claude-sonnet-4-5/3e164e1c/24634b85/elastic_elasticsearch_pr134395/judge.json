@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134395,
+  "base_commit": "f0643a4831195ae72634235b9347910e26f0d3ff",
+  "head_commit": "f1f4bbab46a6f06890d09c8c354f3a4926b6ae2b",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 1.0,
+    "completeness": 1.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.6,
+  "rationale": "The agent correctly implemented the required change by removing the functionName member variable and computing it on the fly in the functionName() method. The implementation is functionally identical to the ground truth. Additionally, the agent discovered and fixed the same issue in a second location (x-pack/plugin/ql/.../Function.java) that was not in the ground truth diff. This is a beneficial extra that demonstrates thorough analysis of the codebase - the ql package likely has similar memory concerns with function instances. Both changes are minimal, targeted, and maintain the same behavior. The code follows the same style and approach as the ground truth. No unsolicited documentation was added.",
+  "edit_run_id": "24634b85",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\nindex 9d176b9f8c6..86c14f10992 100644\n--- a/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n+++ b/x-pack/plugin/esql-core/src/main/java/org/elasticsearch/xpack/esql/core/expression/function/Function.java\n@@ -21,9 +21,6 @@ import java.util.StringJoiner;\n  * {@code EVAL}) or aggregation functions ({@code STATS}).\n  */\n public abstract class Function extends Expression {\n-\n-    private final String functionName = getClass().getSimpleName().toUpperCase(Locale.ROOT);\n-\n     // TODO: Functions supporting distinct should add a dedicated constructor Location, List<Expression>, boolean\n     protected Function(Source source, List<Expression> children) {\n         super(source, children);\n@@ -34,7 +31,7 @@ public abstract class Function extends Expression {\n     }\n \n     public String functionName() {\n-        return functionName;\n+        return getClass().getSimpleName().toUpperCase(Locale.ROOT);\n     }\n \n     @Override"
+}

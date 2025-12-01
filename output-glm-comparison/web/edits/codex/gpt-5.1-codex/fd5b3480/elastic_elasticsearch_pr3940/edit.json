@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3940,
+  "base_commit": "b2d82d7e75c4ac0a97886c0ef9fd709879be6951",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 40190,
+  "patch_unified": "diff --git a/docs/reference/cluster/health.asciidoc b/docs/reference/cluster/health.asciidoc\nindex 52685de..d9d4b76 100644\n--- a/docs/reference/cluster/health.asciidoc\n+++ b/docs/reference/cluster/health.asciidoc\n@@ -38,9 +38,9 @@ status is controlled by the worst index status.\n \n One of the main benefits of the API is the ability to wait until the\n cluster reaches a certain high water-mark health level. For example, the\n-following will wait till the cluster reaches the `yellow` level for 50\n-seconds (if it reaches the `green` or `yellow` status beforehand, it\n-will return):\n+following waits *up to* 50 seconds for the cluster to reach the `yellow`\n+level (the request returns immediately when the `green` or `yellow`\n+status is achieved):\n \n [source,js]\n --------------------------------------------------\n@@ -74,8 +74,9 @@ The cluster health API accepts the following request parameters:\n     `lt(N)` notation.\n \n `timeout`::\n-    A time based parameter controlling how long to wait if one of\n-    the wait_for_XXX are provided. Defaults to `30s`.\n+    A time based parameter that defines the maximum time to wait for\n+    the `wait_for_*` conditions to be met. The request returns as soon as\n+    the conditions are satisfied, or when the timeout is reached.\n \n \n The following is an example of getting the cluster health at the",
+  "logs_path": "codex/gpt-5.1-codex/1c2e04d5/elastic_elasticsearch_pr3940/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

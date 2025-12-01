@@ -1,0 +1,247 @@
+diff --git a/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
+index 7763753..a9abf8f 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/FastVectorHighlighter.java
+@@ -122,18 +122,25 @@ public class FastVectorHighlighter implements Highlighter {
+                     cache.fvh = new org.apache.lucene.search.vectorhighlight.FastVectorHighlighter();
+                 }
+                 CustomFieldQuery.highlightFilters.set(field.highlightFilter());
+-                if (field.requireFieldMatch()) {
+-                    if (cache.fieldMatchFieldQuery == null) {
+-                        // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
+-                        cache.fieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
+-                    }
+-                    fieldQuery = cache.fieldMatchFieldQuery;
++                // Use custom highlight query if provided, otherwise use the search query
++                if (field.highlightQuery() != null) {
++                    // When a custom highlight query is provided, create a new FieldQuery for it
++                    fieldQuery = new CustomFieldQuery(field.highlightQuery(), hitContext.topLevelReader(), true, field.requireFieldMatch());
+                 } else {
+-                    if (cache.noFieldMatchFieldQuery == null) {
+-                        // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
+-                        cache.noFieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
++                    // Use cached field query for the search query
++                    if (field.requireFieldMatch()) {
++                        if (cache.fieldMatchFieldQuery == null) {
++                            // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
++                            cache.fieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
++                        }
++                        fieldQuery = cache.fieldMatchFieldQuery;
++                    } else {
++                        if (cache.noFieldMatchFieldQuery == null) {
++                            // we use top level reader to rewrite the query against all readers, with use caching it across hits (and across readers...)
++                            cache.noFieldMatchFieldQuery = new CustomFieldQuery(context.parsedQuery().query(), hitContext.topLevelReader(), true, field.requireFieldMatch());
++                        }
++                        fieldQuery = cache.noFieldMatchFieldQuery;
+                     }
+-                    fieldQuery = cache.noFieldMatchFieldQuery;
+                 }
+                 cache.mappers.put(mapper, entry);
+             }
+diff --git a/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java b/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
+index 4e0ccc6..93d879f 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
++++ b/src/main/java/org/elasticsearch/search/highlight/HighlightBuilder.java
+@@ -21,6 +21,7 @@ package org.elasticsearch.search.highlight;
+ 
+ import org.elasticsearch.common.xcontent.ToXContent;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.elasticsearch.index.query.QueryBuilder;
+ 
+ import java.io.IOException;
+ import java.util.List;
+@@ -282,6 +283,10 @@ public class HighlightBuilder implements ToXContent {
+                 if (field.options != null && field.options.size() > 0) {
+                     builder.field("options", field.options);
+                 }
++                if (field.highlightQuery != null) {
++                    builder.field("highlight_query");
++                    field.highlightQuery.toXContent(builder, params);
++                }
+ 
+                 builder.endObject();
+             }
+@@ -307,6 +312,7 @@ public class HighlightBuilder implements ToXContent {
+         String highlighterType;
+         String fragmenter;
+         Map<String, Object> options;
++        QueryBuilder highlightQuery;
+ 
+         public Field(String name) {
+             this.name = name;
+@@ -408,5 +414,14 @@ public class HighlightBuilder implements ToXContent {
+             this.options = options;
+             return this;
+         }
++
++        /**
++         * Set a custom highlight query to be used for highlighting instead of the search query.
++         * This allows highlighting different terms than those used for searching.
++         */
++        public Field highlightQuery(QueryBuilder highlightQuery) {
++            this.highlightQuery = highlightQuery;
++            return this;
++        }
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java b/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
+index edceffc..05aaa02 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
++++ b/src/main/java/org/elasticsearch/search/highlight/HighlighterParseElement.java
+@@ -20,8 +20,10 @@
+ package org.elasticsearch.search.highlight;
+ 
+ import com.google.common.collect.Lists;
++import org.apache.lucene.search.Query;
+ import org.apache.lucene.search.vectorhighlight.SimpleBoundaryScanner;
+ import org.elasticsearch.common.xcontent.XContentParser;
++import org.elasticsearch.index.query.ParsedQuery;
+ import org.elasticsearch.search.SearchParseElement;
+ import org.elasticsearch.search.SearchParseException;
+ import org.elasticsearch.search.internal.SearchContext;
+@@ -185,8 +187,13 @@ public class HighlighterParseElement implements SearchParseElement {
+                                     } else if ("fragmenter".equals(fieldName)) {
+                                         field.fragmenter(parser.text());
+                                     }
+-                                } else if (fieldName.equals("options")) {
+-                                    field.options(parser.map());
++                                } else if (token == XContentParser.Token.START_OBJECT) {
++                                    if (fieldName.equals("options")) {
++                                        field.options(parser.map());
++                                    } else if ("highlight_query".equals(fieldName) || "highlightQuery".equals(fieldName)) {
++                                        ParsedQuery parsedQuery = context.queryParserService().parse(parser);
++                                        field.highlightQuery(parsedQuery.query());
++                                    }
+                                 }
+                             }
+                             fields.add(field);
+diff --git a/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
+index ff1d0f8..dfa4735 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/PlainHighlighter.java
+@@ -72,7 +72,8 @@ public class PlainHighlighter implements Highlighter {
+         if (entry == null) {
+             // Don't use the context.query() since it might be rewritten, and we need to pass the non rewritten queries to
+             // let the highlighter handle MultiTerm ones
+-            Query query = context.parsedQuery().query();
++            // Use custom highlight query if provided, otherwise use the search query
++            Query query = field.highlightQuery() != null ? field.highlightQuery() : context.parsedQuery().query();
+             QueryScorer queryScorer = new CustomQueryScorer(query, field.requireFieldMatch() ? mapper.names().indexName() : null);
+             queryScorer.setExpandMultiTermQuery(true);
+             Fragmenter fragmenter;
+diff --git a/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java b/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
+index 04e71d2..c88f198 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
++++ b/src/main/java/org/elasticsearch/search/highlight/SearchContextHighlight.java
+@@ -19,6 +19,8 @@
+ 
+ package org.elasticsearch.search.highlight;
+ 
++import org.apache.lucene.search.Query;
++
+ import java.util.List;
+ import java.util.Map;
+ 
+@@ -68,6 +70,8 @@ public class SearchContextHighlight {
+ 
+         private Map<String, Object> options;
+ 
++        private Query highlightQuery;
++
+         public Field(String field) {
+             this.field = field;
+         }
+@@ -187,5 +191,13 @@ public class SearchContextHighlight {
+         public void options(Map<String, Object> options) {
+             this.options = options;
+         }
++
++        public Query highlightQuery() {
++            return highlightQuery;
++        }
++
++        public void highlightQuery(Query highlightQuery) {
++            this.highlightQuery = highlightQuery;
++        }
+     }
+ }
+diff --git a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+index 1857b9a..27496a8 100644
+--- a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
++++ b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+@@ -1598,4 +1598,75 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+         assertThat(response.getFailedShards(), equalTo(0));
+     }
+ 
++    @Test
++    public void testCustomHighlightQuery() throws Exception {
++        wipeIndex("test");
++        client().admin().indices().prepareCreate("test").execute().actionGet();
++        client().admin().cluster().prepareHealth("test").setWaitForGreenStatus().execute().actionGet();
++
++        client().prepareIndex("test", "type1", "1")
++                .setSource("field1", "The quick brown fox jumps over the lazy dog")
++                .setRefresh(true).execute().actionGet();
++
++        // Search for "lazy" but highlight "quick" and "brown" using a custom highlight query
++        SearchSourceBuilder source = searchSource()
++                .query(termQuery("field1", "lazy"))
++                .from(0).size(60).explain(true)
++                .highlight(highlight().field(new HighlightBuilder.Field("field1")
++                        .highlightQuery(QueryBuilders.boolQuery()
++                                .should(termQuery("field1", "quick"))
++                                .should(termQuery("field1", "brown"))))
++                        .preTags("<em>").postTags("</em>"));
++
++        SearchResponse searchResponse = client().search(searchRequest("test").source(source).searchType(QUERY_THEN_FETCH)).actionGet();
++        assertNoFailures(searchResponse);
++        assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
++
++        // The document should be found by searching for "lazy", but highlighting should show "quick" and "brown"
++        assertThat(searchResponse.getHits().getAt(0).highlightFields().get("field1").fragments()[0].string(),
++                equalTo("The <em>quick</em> <em>brown</em> fox jumps over the lazy dog"));
++    }
++
++    @Test
++    public void testCustomHighlightQueryWithFastVectorHighlighter() throws Exception {
++        wipeIndex("test");
++        client().admin().indices().prepareCreate("test")
++                .addMapping("type1", jsonBuilder()
++                        .startObject()
++                            .startObject("type1")
++                                .startObject("properties")
++                                    .startObject("field1")
++                                        .field("type", "string")
++                                        .field("term_vector", "with_positions_offsets")
++                                    .endObject()
++                                .endObject()
++                            .endObject()
++                        .endObject())
++                .execute().actionGet();
++        client().admin().cluster().prepareHealth("test").setWaitForGreenStatus().execute().actionGet();
++
++        client().prepareIndex("test", "type1", "1")
++                .setSource("field1", "The quick brown fox jumps over the lazy dog")
++                .setRefresh(true).execute().actionGet();
++
++        // Search for "lazy" but highlight "quick" and "brown" using a custom highlight query with FVH
++        SearchSourceBuilder source = searchSource()
++                .query(termQuery("field1", "lazy"))
++                .from(0).size(60).explain(true)
++                .highlight(highlight().field(new HighlightBuilder.Field("field1")
++                        .highlightQuery(QueryBuilders.boolQuery()
++                                .should(termQuery("field1", "quick"))
++                                .should(termQuery("field1", "brown")))
++                        .highlighterType("fast-vector-highlighter"))
++                        .preTags("<em>").postTags("</em>"));
++
++        SearchResponse searchResponse = client().search(searchRequest("test").source(source).searchType(QUERY_THEN_FETCH)).actionGet();
++        assertNoFailures(searchResponse);
++        assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
++
++        // The document should be found by searching for "lazy", but highlighting should show "quick" and "brown"
++        assertThat(searchResponse.getHits().getAt(0).highlightFields().get("field1").fragments()[0].string(),
++                equalTo("The <em>quick</em> <em>brown</em> fox jumps over the lazy dog"));
++    }
++
+ }

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134520,
+  "base_commit": "63b6d96a44939b8720a20b5809b28318dc2a75fd",
+  "runner": "codex",
+  "model": "gpt-5.1-codex",
+  "timeout_s": 10800,
+  "status": "success",
+  "elapsed_ms": 120638,
+  "patch_unified": "diff --git a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\nindex 4ebcae1c..877c59fd 100644\n--- a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n+++ b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java\n@@ -45,7 +45,11 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {\n                 ThreadPool.Names.WRITE_COORDINATION,\n                 allocatedProcessors,\n                 10000,\n-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK\n+                EsExecutors.TaskTrackingConfig.builder()\n+                    .trackOngoingTasks()\n+                    .trackMaxQueueLatency()\n+                    .trackExecutionTime(indexAutoscalingEWMA)\n+                    .build()\n             )\n         );\n         result.put(",
+  "logs_path": "codex/gpt-5.1-codex/fd5b3480/elastic_elasticsearch_pr134520/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "fd5b3480",
+  "test_label": "v1-agent-comparison"
+}

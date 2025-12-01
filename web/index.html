@@ -16,13 +16,13 @@
             <section class="intro">
                 <h2>About Long-Context-Code-Bench</h2>
                 <p>
-                    Long-Context-Code-Bench evaluates AI coding agents on <strong>enterprise-scale repositories with 40,000+ files</strong>.
+                    Long-Context-Code-Bench evaluates AI coding agents on <strong>enterprise-scale repositories with ~20,000 files</strong>.
                     Unlike existing benchmarks that focus on small codebases, LCB measures what matters most for enterprise adoption:
                     the ability to understand, modify, and integrate changes across massive real-world repositories.
                 </p>
                 <p>
                     Each agent is tested on recreating actual PR changes from the Elasticsearch repository given only the PR description—no
-                    access to the solution or git history. Solutions are then evaluated by an LLM judge (Claude Sonnet 4.5) that compares
+                    access to the solution or git history. Solutions are evaluated by a judge model (Claude Sonnet 4.5) that compares
                     the agent's changes against the ground truth diff, scoring on correctness, completeness, code reuse, best practices,
                     and unsolicited documentation.
                 </p>
@@ -33,8 +33,8 @@
                     <a href="https://github.com/AugmentedAJ/Long-Context-Code-Bench" target="_blank">github.com/AugmentedAJ/Long-Context-Code-Bench</a>.
                 </p>
                 <div class="version-notice">
-                    <strong>📊 Version v1</strong> — This release features 100 PRs from the Elasticsearch repository (~40,000 files)
-                    with single-agent LLM-as-judge evaluation. Future versions will include head-to-head agent-as-judge comparisons,
+                    <strong>📊 Version v1</strong> — This release features 100 PRs from the Elasticsearch repository (~20,000 files)
+                    with single-agent evaluation. Future versions will include head-to-head agent-as-judge comparisons,
                     diverse codebases across multiple languages (Java, TypeScript, Go, Rust), and even larger repository sizes to
                     comprehensively evaluate context engines and retrieval systems at scale.
                 </div>
@@ -177,9 +177,9 @@
     </div>
 
 	    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-	    <script src="data-loader.js?v=8"></script>
-	    <script src="charts.js?v=8"></script>
-	    <script src="app.js?v=8"></script>
+	    <script src="data-loader.js?v=9"></script>
+	    <script src="charts.js?v=9"></script>
+	    <script src="app.js?v=9"></script>
     <script>
         // Toggle collapsible card sections
         function toggleCollapsible(headerEl) {

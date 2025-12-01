@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134968,
+  "base_commit": "2ab71babbc961f70b434f7bd5f8cb935f283fc0e",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 45508,
+  "patch_unified": "diff --git a/.buildkite/scripts/update-transport-versions.sh b/.buildkite/scripts/update-transport-versions.sh\nindex c3ae067f..51115c75 100755\n--- a/.buildkite/scripts/update-transport-versions.sh\n+++ b/.buildkite/scripts/update-transport-versions.sh\n@@ -40,7 +40,12 @@ git config --global user.name elasticsearchmachine\n git config --global user.email 'infra-root+elasticsearchmachine@elastic.co'\n \n gh pr checkout \"${BUILDKITE_PULL_REQUEST}\"\n-git add -A .\n+\n+# Only add transport-related changes\n+git add server/src/main/java/org/elasticsearch/TransportVersion.java\n+git add server/src/main/java/org/elasticsearch/TransportVersions.java\n+git add server/src/main/resources/transport/\n+\n git commit -m \"$NEW_COMMIT_MESSAGE\"\n git push\n ",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr134968/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

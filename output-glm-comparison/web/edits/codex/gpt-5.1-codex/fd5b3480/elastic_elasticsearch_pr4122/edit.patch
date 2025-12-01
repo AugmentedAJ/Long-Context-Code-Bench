@@ -1,0 +1,109 @@
+diff --git a/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java b/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
+index 796cf88..461ebe8 100644
+--- a/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
++++ b/src/main/java/org/elasticsearch/search/highlight/PostingsHighlighter.java
+@@ -67,19 +67,28 @@ public class PostingsHighlighter implements Highlighter {
+         SearchContext context = highlighterContext.context;
+         FetchSubPhase.HitContext hitContext = highlighterContext.hitContext;
+ 
+-        if (!hitContext.cache().containsKey(CACHE_KEY)) {
++        @SuppressWarnings("unchecked")
++        Map<Query, HighlighterEntry> cache = (Map<Query, HighlighterEntry>) hitContext.cache().get(CACHE_KEY);
++        if (cache == null) {
++            cache = new IdentityHashMap<Query, HighlighterEntry>();
++            hitContext.cache().put(CACHE_KEY, cache);
++        }
++
++        Query highlightQuery = highlighterContext.highlightQuery;
++        HighlighterEntry highlighterEntry = cache.get(highlightQuery);
++        if (highlighterEntry == null) {
+             //get the non rewritten query and rewrite it
+             Query query;
+             try {
+-                query = rewrite(context, hitContext.topLevelReader());
++                query = rewrite(highlightQuery, context, hitContext.topLevelReader());
+             } catch (IOException e) {
+                 throw new FetchPhaseExecutionException(context, "Failed to highlight field [" + highlighterContext.fieldName + "]", e);
+             }
+             SortedSet<Term> queryTerms = extractTerms(query);
+-            hitContext.cache().put(CACHE_KEY, new HighlighterEntry(queryTerms));
++            highlighterEntry = new HighlighterEntry(queryTerms);
++            cache.put(highlightQuery, highlighterEntry);
+         }
+ 
+-        HighlighterEntry highlighterEntry = (HighlighterEntry) hitContext.cache().get(CACHE_KEY);
+         MapperHighlighterEntry mapperHighlighterEntry = highlighterEntry.mappers.get(fieldMapper);
+ 
+         if (mapperHighlighterEntry == null) {
+@@ -146,11 +155,15 @@ public class PostingsHighlighter implements Highlighter {
+         return null;
+     }
+ 
+-    private static Query rewrite(SearchContext searchContext, IndexReader reader) throws IOException {
++    private static Query rewrite(Query original, SearchContext searchContext, IndexReader reader) throws IOException {
++        if (original == null) {
++            return null;
++        }
+         //rewrite is expensive: if the query was already rewritten we try not to rewrite
+-        boolean mustRewrite = !searchContext.queryRewritten();
+-
+-        Query original = searchContext.parsedQuery().query();
++        boolean mustRewrite = true;
++        if (original == searchContext.parsedQuery().query()) {
++            mustRewrite = !searchContext.queryRewritten();
++        }
+ 
+         MultiTermQuery originalMultiTermQuery = null;
+         MultiTermQuery.RewriteMethod originalRewriteMethod = null;
+@@ -175,11 +188,9 @@ public class PostingsHighlighter implements Highlighter {
+             query = rewrittenQuery;
+         }
+ 
+-        if (originalMultiTermQuery != null) {
+-            if (originalRewriteMethod != null) {
+-                //set back the original rewrite method after the rewrite is done
+-                originalMultiTermQuery.setRewriteMethod(originalRewriteMethod);
+-            }
++        if (originalMultiTermQuery != null && originalRewriteMethod != null) {
++            //set back the original rewrite method after the rewrite is done
++            originalMultiTermQuery.setRewriteMethod(originalRewriteMethod);
+         }
+ 
+         return query;
+diff --git a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+index f0356d0..0e210ac 100644
+--- a/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
++++ b/src/test/java/org/elasticsearch/search/highlight/HighlighterSearchTests.java
+@@ -1301,7 +1301,7 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+     @Test
+     public void testHighlightUsesHighlightQuery() throws IOException {
+         assertAcked(prepareCreate("test")
+-                .addMapping("type1", "text", "type=string,store=yes,term_vector=with_positions_offsets"));
++                .addMapping("type1", "text", "type=string,store=yes,term_vector=with_positions_offsets,index_options=offsets"));
+         ensureGreen();
+ 
+         index("test", "type1", "1", "text", "some stuff stuff stuff stuff stuff to highlight against the stuff phrase");
+@@ -1339,6 +1339,11 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+         assertHighlight(response, 0, "text", 0, highlightedMatcher);
+         // Note that the plain highlighter doesn't join the highlighted elements for us
+ 
++        // And do the same for the postings highlighter
++        field.highlighterType("postings");
++        response = search.get();
++        assertHighlight(response, 0, "text", 0, highlightedMatcher);
++
+         // Make sure the fvh takes the highlightQuery into account when it is set on the highlight context instead of the field
+         search.setHighlighterQuery(matchPhraseQuery("text", "stuff phrase"));
+         field.highlighterType("fvh").highlightQuery(null);
+@@ -1350,6 +1355,11 @@ public class HighlighterSearchTests extends AbstractIntegrationTest {
+         response = search.get();
+         assertHighlight(response, 0, "text", 0, highlightedMatcher);
+         // Note that the plain highlighter doesn't join the highlighted elements for us
++
++        // And do the same for the postings highlighter
++        field.highlighterType("postings");
++        response = search.get();
++        assertHighlight(response, 0, "text", 0, highlightedMatcher);
+     }
+ 
+     private static String randomStoreField() {

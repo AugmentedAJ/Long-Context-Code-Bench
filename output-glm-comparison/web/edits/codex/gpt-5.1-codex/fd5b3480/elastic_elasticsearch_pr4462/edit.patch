@@ -1,0 +1,17 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+index 157df71..63e412b 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/alias/get/GetAliasesRequest.java
+@@ -78,11 +78,7 @@ public class GetAliasesRequest extends MasterNodeOperationRequest<GetAliasesRequ
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+-        if (aliases.length == 0) {
+-            return addValidationError("No alias specified", null);
+-        } else {
+-            return null;
+-        }
++        return null;
+     }
+ 
+     @Override

@@ -1,0 +1,90 @@
+diff --git a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/ClientTransformIndexer.java b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/ClientTransformIndexer.java
+index c7fd6df4..7b8fba5f 100644
+--- a/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/ClientTransformIndexer.java
++++ b/x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/ClientTransformIndexer.java
+@@ -25,7 +25,9 @@ import org.elasticsearch.action.search.SearchResponse;
+ import org.elasticsearch.action.search.TransportClosePointInTimeAction;
+ import org.elasticsearch.action.search.TransportOpenPointInTimeAction;
+ import org.elasticsearch.action.search.TransportSearchAction;
++import org.elasticsearch.action.support.GroupedActionListener;
+ import org.elasticsearch.action.support.IndicesOptions;
++import org.elasticsearch.action.support.UnsafePlainActionFuture;
+ import org.elasticsearch.action.support.master.AcknowledgedRequest;
+ import org.elasticsearch.client.internal.ParentTaskAssigningClient;
+ import org.elasticsearch.cluster.block.ClusterBlockLevel;
+@@ -435,7 +437,7 @@ class ClientTransformIndexer extends TransformIndexer {
+ 
+     @Override
+     protected void afterFinishOrFailure() {
+-        closePointInTime();
++        closePointInTimeSync();
+         super.afterFinishOrFailure();
+     }
+ 
+@@ -477,20 +479,48 @@ class ClientTransformIndexer extends TransformIndexer {
+ 
+     @Override
+     protected void onStop() {
+-        closePointInTime();
++        closePointInTimeSync();
+         super.onStop();
+     }
+ 
+-    private void closePointInTime() {
+-        for (String name : namedPits.keySet()) {
+-            closePointInTime(name);
++    private void closePointInTimeSync() {
++        if (namedPits.isEmpty()) {
++            return;
++        }
++
++        // Use UnsafePlainActionFuture to wait for all PIT close requests to complete
++        var future = new UnsafePlainActionFuture<Void>(ThreadPool.Names.GENERIC);
++        closePointInTime(future);
++
++        try {
++            // Wait for all PIT close requests to complete with a reasonable timeout
++            future.actionGet(TimeValue.timeValueSeconds(30));
++        } catch (Exception e) {
++            // Log the error but don't fail the checkpoint completion
++            logger.warn(() -> "[" + getJobId() + "] Failed to wait for all PIT close requests to complete", e);
+         }
+     }
+ 
+-    private void closePointInTime(String name) {
++    private void closePointInTime(ActionListener<Void> listener) {
++        if (namedPits.isEmpty()) {
++            listener.onResponse(null);
++            return;
++        }
++
++        // Collect all PIT names to close
++        var pitNames = new java.util.ArrayList<>(namedPits.keySet());
++        var groupedListener = new GroupedActionListener<>(pitNames.size(), listener.map(responses -> null));
++
++        for (String name : pitNames) {
++            closePointInTime(name, groupedListener);
++        }
++    }
++
++    private void closePointInTime(String name, ActionListener<Void> listener) {
+         PointInTimeBuilder pit = namedPits.remove(name);
+ 
+         if (pit == null) {
++            listener.onResponse(null);
+             return;
+         }
+ 
+@@ -505,9 +535,12 @@ class ClientTransformIndexer extends TransformIndexer {
+             closePitRequest,
+             ActionListener.wrap(response -> {
+                 logger.trace("[{}] closed pit search context [{}]", getJobId(), oldPit);
++                listener.onResponse(null);
+             }, e -> {
+                 // note: closing the pit should never throw, even if the pit is invalid
+                 logger.error(() -> "[" + getJobId() + "] Failed to close point in time reader", e);
++                // Still call onResponse to not block the grouped listener
++                listener.onResponse(null);
+             })
+         );
+     }

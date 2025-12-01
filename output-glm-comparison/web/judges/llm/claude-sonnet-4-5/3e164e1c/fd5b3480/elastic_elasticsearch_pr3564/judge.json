@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3564,
+  "base_commit": "1ac00a13fbeb04f1bf653e9e981b261ce828a080",
+  "head_commit": "2b03bc83a40e470c977564195f6dcc2c208710d1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": -0.8,
+    "completeness": -0.3,
+    "code_reuse": 0.0,
+    "best_practices": -0.5,
+    "unsolicited_docs": 0.0
+  },
+  "aggregate": -0.32,
+  "rationale": "The agent's diff has a critical correctness flaw: in the foreground case, it returns $? after exec, but exec replaces the shell process, so this line is unreachable (the ground truth correctly notes this with a comment). In the background case, the agent removes the 'exec' keyword, which changes the process behavior - the original intent was to replace the shell with the Java process when backgrounding (using exec with &), but the agent's version spawns a subprocess instead, leaving the shell running. The agent correctly removed the duplicate pidfile writing ([ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"), achieving the main task goal. However, the ground truth preserves the 'exec' keyword in the background case and simply returns $? immediately after, while the agent removes 'exec' entirely. The ground truth also adds explanatory comments for the foreground case, while the agent adds a comment for the background case. The structural changes differ: ground truth keeps the else block intact, agent restructures by moving background execution outside the if-else. The removal of exec in the background case is a significant functional change that wasn't requested and alters process management semantics.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/bin/elasticsearch b/bin/elasticsearch\nindex 5db2355add0..de071cca389 100755\n--- a/bin/elasticsearch\n+++ b/bin/elasticsearch\n@@ -126,16 +126,14 @@ launch_service()\n         es_parms=\"$es_parms -Des.foreground=yes\"\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                 org.elasticsearch.bootstrap.ElasticSearch\n-        execval=$?\n+        # exec without running it in the background, makes it replace this shell, we'll never get here...\n+        # no need to return something\n     else\n         # Startup ElasticSearch, background it, and write the pid.\n         exec \"$JAVA\" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home=\"$ES_HOME\" -cp \"$ES_CLASSPATH\" $props \\\n                     org.elasticsearch.bootstrap.ElasticSearch <&- &\n-        execval=$?\n-        [ ! -z \"$pidpath\" ] && printf '%d' $! > \"$pidpath\"\n+        return $?\n     fi\n-\n-    return $execval\n }\n \n # Parse any command line options."
+}

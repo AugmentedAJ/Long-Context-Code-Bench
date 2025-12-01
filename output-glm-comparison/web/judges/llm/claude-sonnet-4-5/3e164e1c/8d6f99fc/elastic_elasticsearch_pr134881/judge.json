@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134881,
+  "base_commit": "ebc291e64630a11d26f51c7ed5385619ce81e3d9",
+  "head_commit": "9d2b009034527014cfa2deb1befea3aa9cdea3a6",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 1.0,
+    "completeness": 1.0,
+    "code_reuse": 1.0,
+    "best_practices": 1.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 1.0,
+  "rationale": "The agent correctly changed all instances of 'snapshot_only' to 'snapshotOnly' across the codebase, achieving consistent camelCase naming. The ground truth changed 2 files (project_routing.json and DocsV3Support.java), while the agent changed those same 2 files plus 269 additional JSON files in docs/reference/query-languages/esql/kibana/definition/ containing the same field. This is objectively more complete than the ground truth - the agent identified and fixed ALL occurrences of the inconsistent naming convention throughout the entire documentation set, not just the two files in the ground truth. The task instruction was to 'change snapshot_only to snapshotOnly to make it consistent' - the agent achieved perfect consistency across the entire codebase, while the ground truth left 269 files with the old naming convention. The changes are purely mechanical find-and-replace operations (snake_case to camelCase for one field name), following best practices for naming conventions. No code functionality was altered, no unsolicited documentation was added, and the agent demonstrated superior thoroughness in finding all instances of the inconsistency.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json b/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json\nindex 7971a20bf5d..9e075e755cd 100644\n--- a/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json\n+++ b/docs/reference/query-languages/esql/kibana/definition/settings/project_routing.json\n@@ -4,6 +4,6 @@\n   \"type\" : \"keyword\",\n   \"serverlessOnly\" : true,\n   \"preview\" : false,\n-  \"snapshot_only\" : true,\n+  \"snapshotOnly\" : true,\n   \"description\" : \"A project routing expression, used to define which projects to route the query to. Only supported if Cross-Project Search is enabled.\"\n }\ndiff --git a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/DocsV3Support.java b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/DocsV3Support.java\nindex 36ce3debffd..397ff46eb0f 100644\n--- a/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/DocsV3Support.java\n+++ b/x-pack/plugin/esql/src/test/java/org/elasticsearch/xpack/esql/expression/function/DocsV3Support.java\n@@ -1109,7 +1109,7 @@ public abstract class DocsV3Support {\n                 builder.field(\"type\", setting.type().typeName());\n                 builder.field(\"serverlessOnly\", setting.serverlessOnly());\n                 builder.field(\"preview\", setting.preview());\n-                builder.field(\"snapshot_only\", setting.snapshotOnly());\n+                builder.field(\"snapshotOnly\", setting.snapshotOnly());\n                 builder.field(\"description\", setting.description());\n                 String rendered = Strings.toString(builder.endObject());\n                 logger.info(\"Writing kibana setting definition for [{}]:\\n{}\", name, rendered);"
+}

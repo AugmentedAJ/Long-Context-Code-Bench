@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134431,
+  "base_commit": "be9d4e9bb1035ee52d8826bd883e9ff504b54e44",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 96358,
+  "patch_unified": "diff --git a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\nindex 3c5948d7..0e008ad0 100644\n--- a/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\n+++ b/libs/entitlement/src/main/java/org/elasticsearch/entitlement/runtime/policy/PolicyManager.java\n@@ -368,19 +368,16 @@ public class PolicyManager {\n      */\n     boolean isTriviallyAllowed(Class<?> requestingClass) {\n         // note: do not log exceptions in here, this could interfere with loading of additionally necessary classes such as ThrowableProxy\n+        // note: do not log trusted system classes here, this could cause ClassCircularityError during class loading\n         if (requestingClass == null) {\n-            generalLogger.debug(\"Entitlement trivially allowed: no caller frames outside the entitlement library\");\n             return true;\n         }\n         if (requestingClass == NO_CLASS) {\n-            generalLogger.debug(\"Entitlement trivially allowed from outermost frame\");\n             return true;\n         }\n         if (isTrustedSystemClass(requestingClass)) {\n-            generalLogger.debug(\"Entitlement trivially allowed from system module [{}]\", requestingClass.getModule().getName());\n             return true;\n         }\n-        generalLogger.trace(\"Entitlement not trivially allowed\");\n         return false;\n     }\n ",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr134431/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

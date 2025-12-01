@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 2725,
+  "base_commit": "a1b24343398babc34e5c5bb372f8d041a3257c94",
+  "head_commit": "dc28151ad77df81fc8b77b7ecf0ebe9d0430ffee",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.2,
+  "rationale": "The agent's diff is functionally identical to the ground truth diff. Both swap the two fields in the toXContent method of FieldDataStats.java: MEMORY_SIZE now gets getMemorySize().toString() and MEMORY_SIZE_IN_BYTES now gets memorySize (the raw ByteSizeValue). The changes are on the same lines (86-87), modify the same file, and implement the exact same fix for the swapped fields. The only difference is cosmetic (whitespace in the diff header). No unsolicited documentation was added. All metrics score at human level (0.0) except unsolicited_docs which scores 1.0 since no extra docs were added.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\nindex f9255ab2dd5..33f898f02b0 100644\n--- a/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n+++ b/src/main/java/org/elasticsearch/index/fielddata/FieldDataStats.java\n@@ -83,8 +83,8 @@ public class FieldDataStats implements Streamable, ToXContent {\n     @Override\n     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {\n         builder.startObject(Fields.FIELD_DATA);\n-        builder.field(Fields.MEMORY_SIZE, memorySize);\n-        builder.field(Fields.MEMORY_SIZE_IN_BYTES, getMemorySize().toString());\n+        builder.field(Fields.MEMORY_SIZE, getMemorySize().toString());\n+        builder.field(Fields.MEMORY_SIZE_IN_BYTES, memorySize);\n         builder.field(Fields.EVICTIONS, getEvictions());\n         builder.endObject();\n         return builder;"
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3936,
+  "base_commit": "03a89297ba7ecc07dd514f4ba6a5c04c55ea83f4",
+  "runner": "factory",
+  "model": "glm-4.6",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 34892,
+  "patch_unified": "diff --git a/docs/reference/search/suggesters/phrase-suggest.asciidoc b/docs/reference/search/suggesters/phrase-suggest.asciidoc\nindex 64b46a5..80ee28a 100644\n--- a/docs/reference/search/suggesters/phrase-suggest.asciidoc\n+++ b/docs/reference/search/suggesters/phrase-suggest.asciidoc\n@@ -226,7 +226,7 @@ The direct generators support the following parameters:\n     and 2. Any other value result in an bad request error being thrown.\n     Defaults to 2.\n \n-`prefix_length`::\n+`prefix_len`::\n     The number of minimal prefix characters that must\n     match in order be a candidate suggestions. Defaults to 1. Increasing\n     this number improves spellcheck performance. Usually misspellings don't",
+  "logs_path": "factory/glm-4.6/24634b85/elastic_elasticsearch_pr3936/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "24634b85",
+  "test_label": null
+}

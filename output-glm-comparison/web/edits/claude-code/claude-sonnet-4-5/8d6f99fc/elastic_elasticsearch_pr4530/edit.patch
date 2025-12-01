@@ -1,0 +1,130 @@
+diff --git a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+index a394166..1a221a0 100644
+--- a/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
++++ b/src/main/java/org/elasticsearch/cluster/metadata/MetaDataCreateIndexService.java
+@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+ import org.apache.lucene.util.CollectionUtil;
+-import org.apache.lucene.util.IOUtils;
+ import org.elasticsearch.ElasticSearchException;
+ import org.elasticsearch.Version;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
+@@ -472,29 +471,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
+             }
+         }
+ 
+-        // see if we have templates defined under config
+-        File templatesDir = new File(environment.configFile(), "templates");
+-        if (templatesDir.exists() && templatesDir.isDirectory()) {
+-            File[] templatesFiles = templatesDir.listFiles();
+-            if (templatesFiles != null) {
+-                for (File templatesFile : templatesFiles) {
+-                    XContentParser parser = null;
+-                    try {
+-                        byte[] templatesData = Streams.copyToByteArray(templatesFile);
+-                        parser = XContentHelper.createParser(templatesData, 0, templatesData.length);
+-                        IndexTemplateMetaData template = IndexTemplateMetaData.Builder.fromXContent(parser);
+-                        if (Regex.simpleMatch(template.template(), request.index)) {
+-                            templates.add(template);
+-                        }
+-                    } catch (Exception e) {
+-                        logger.warn("[{}] failed to read template [{}] from config", e, request.index, templatesFile.getAbsolutePath());
+-                    } finally {
+-                        IOUtils.closeWhileHandlingException(parser);
+-                    }
+-                }
+-            }
+-        }
+-
+         CollectionUtil.timSort(templates, new Comparator<IndexTemplateMetaData>() {
+             @Override
+             public int compare(IndexTemplateMetaData o1, IndexTemplateMetaData o2) {
+diff --git a/src/main/java/org/elasticsearch/gateway/local/state/meta/LocalGatewayMetaState.java b/src/main/java/org/elasticsearch/gateway/local/state/meta/LocalGatewayMetaState.java
+index 4b6fced..99607fa 100644
+--- a/src/main/java/org/elasticsearch/gateway/local/state/meta/LocalGatewayMetaState.java
++++ b/src/main/java/org/elasticsearch/gateway/local/state/meta/LocalGatewayMetaState.java
+@@ -28,6 +28,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
+ import org.elasticsearch.cluster.ClusterStateListener;
+ import org.elasticsearch.cluster.action.index.NodeIndexDeletedAction;
+ import org.elasticsearch.cluster.metadata.IndexMetaData;
++import org.elasticsearch.cluster.metadata.IndexTemplateMetaData;
+ import org.elasticsearch.cluster.metadata.MetaData;
+ import org.elasticsearch.cluster.node.DiscoveryNode;
+ import org.elasticsearch.common.Nullable;
+@@ -42,6 +43,7 @@ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.common.unit.TimeValue;
+ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+ import org.elasticsearch.common.xcontent.*;
++import org.elasticsearch.env.Environment;
+ import org.elasticsearch.env.NodeEnvironment;
+ import org.elasticsearch.index.Index;
+ import org.elasticsearch.threadpool.ThreadPool;
+@@ -97,6 +99,7 @@ public class LocalGatewayMetaState extends AbstractComponent implements ClusterS
+ 
+     private final NodeEnvironment nodeEnv;
+     private final ThreadPool threadPool;
++    private final Environment environment;
+ 
+     private final LocalAllocateDangledIndices allocateDangledIndices;
+     private final NodeIndexDeletedAction nodeIndexDeletedAction;
+@@ -115,12 +118,13 @@ public class LocalGatewayMetaState extends AbstractComponent implements ClusterS
+     private final Object danglingMutex = new Object();
+ 
+     @Inject
+-    public LocalGatewayMetaState(Settings settings, ThreadPool threadPool, NodeEnvironment nodeEnv,
++    public LocalGatewayMetaState(Settings settings, ThreadPool threadPool, NodeEnvironment nodeEnv, Environment environment,
+                                  TransportNodesListGatewayMetaState nodesListGatewayMetaState, LocalAllocateDangledIndices allocateDangledIndices,
+                                  NodeIndexDeletedAction nodeIndexDeletedAction) throws Exception {
+         super(settings);
+         this.nodeEnv = nodeEnv;
+         this.threadPool = threadPool;
++        this.environment = environment;
+         this.format = XContentType.fromRestContentType(settings.get("format", "smile"));
+         this.allocateDangledIndices = allocateDangledIndices;
+         this.nodeIndexDeletedAction = nodeIndexDeletedAction;
+@@ -464,9 +468,44 @@ public class LocalGatewayMetaState extends AbstractComponent implements ClusterS
+                 metaDataBuilder.put(indexMetaData, false);
+             }
+         }
++
++        // load templates from config/templates directory
++        loadTemplates(metaDataBuilder);
++
+         return metaDataBuilder.build();
+     }
+ 
++    private void loadTemplates(MetaData.Builder metaDataBuilder) {
++        File templatesDir = new File(environment.configFile(), "templates");
++        if (!templatesDir.exists() || !templatesDir.isDirectory()) {
++            return;
++        }
++
++        File[] templatesFiles = templatesDir.listFiles();
++        if (templatesFiles == null) {
++            return;
++        }
++
++        for (File templatesFile : templatesFiles) {
++            if (templatesFile.isDirectory()) {
++                continue;
++            }
++
++            XContentParser parser = null;
++            try {
++                byte[] templatesData = Streams.copyToByteArray(templatesFile);
++                parser = XContentHelper.createParser(templatesData, 0, templatesData.length);
++                IndexTemplateMetaData template = IndexTemplateMetaData.Builder.fromXContent(parser);
++                metaDataBuilder.put(template);
++                logger.info("loaded template [{}] from [{}]", template.name(), templatesFile.getAbsolutePath());
++            } catch (Exception e) {
++                logger.warn("failed to load template from [{}], ignoring...", e, templatesFile.getAbsolutePath());
++            } finally {
++                IOUtils.closeWhileHandlingException(parser);
++            }
++        }
++    }
++
+     @Nullable
+     private IndexMetaData loadIndex(String index) {
+         long highestVersion = -1;

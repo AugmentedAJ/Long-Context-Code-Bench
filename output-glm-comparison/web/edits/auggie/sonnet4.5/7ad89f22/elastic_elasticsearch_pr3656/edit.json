@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 3656,
+  "base_commit": "76cc8c3549cebb10eebf73ee2c6829bb2db04e55",
+  "runner": "auggie",
+  "model": "sonnet4.5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 29855,
+  "patch_unified": "diff --git a/docs/reference/setup.asciidoc b/docs/reference/setup.asciidoc\nindex 50012dc..7850e0c 100644\n--- a/docs/reference/setup.asciidoc\n+++ b/docs/reference/setup.asciidoc\n@@ -44,7 +44,7 @@ script. When set, both override anything set using either `JAVA_OPTS` or\n \n [source,sh]\n --------------------------------------------------\n-$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.storage.type=memory\n+$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory\n --------------------------------------------------\n *************************************************************************\n --\ndiff --git a/docs/reference/setup/installation.asciidoc b/docs/reference/setup/installation.asciidoc\nindex e17db47..20d14f6 100644\n--- a/docs/reference/setup/installation.asciidoc\n+++ b/docs/reference/setup/installation.asciidoc\n@@ -34,6 +34,6 @@ script. When set, both override anything set using either `JAVA_OPTS` or\n \n [source,sh]\n --------------------------------------------------\n-$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.storage.type=memory\n+$ bin/elasticsearch -f -Xmx2g -Xms2g -Des.index.store.type=memory\n --------------------------------------------------\n *************************************************************************",
+  "logs_path": "auggie/sonnet4.5/7ad89f22/elastic_elasticsearch_pr3656/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "7ad89f22",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

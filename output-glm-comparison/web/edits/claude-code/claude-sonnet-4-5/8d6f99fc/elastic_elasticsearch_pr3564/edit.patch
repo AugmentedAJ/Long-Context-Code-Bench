@@ -1,0 +1,28 @@
+diff --git a/bin/elasticsearch b/bin/elasticsearch
+index 5db2355..b535960 100755
+--- a/bin/elasticsearch
++++ b/bin/elasticsearch
+@@ -126,16 +126,11 @@ launch_service()
+         es_parms="$es_parms -Des.foreground=yes"
+         exec "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
+                 org.elasticsearch.bootstrap.ElasticSearch
+-        execval=$?
+     else
+-        # Startup ElasticSearch, background it, and write the pid.
++        # Startup ElasticSearch, background it. Pidfile is written by Java bootstrap code.
+         exec "$JAVA" $JAVA_OPTS $ES_JAVA_OPTS $es_parms -Des.path.home="$ES_HOME" -cp "$ES_CLASSPATH" $props \
+                     org.elasticsearch.bootstrap.ElasticSearch <&- &
+-        execval=$?
+-        [ ! -z "$pidpath" ] && printf '%d' $! > "$pidpath"
+     fi
+-
+-    return $execval
+ }
+ 
+ # Parse any command line options.
+@@ -182,5 +177,3 @@ done
+ 
+ # Start up the service
+ launch_service "$pidfile" "$foreground" "$properties"
+-
+-exit $?

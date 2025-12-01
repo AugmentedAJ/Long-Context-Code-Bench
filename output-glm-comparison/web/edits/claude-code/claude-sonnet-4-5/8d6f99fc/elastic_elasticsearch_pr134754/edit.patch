@@ -1,0 +1,64 @@
+diff --git a/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java b/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
+index 3bc2fde3..c7ecb6c7 100644
+--- a/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
++++ b/qa/lucene-index-compatibility/src/javaRestTest/java/org/elasticsearch/lucene/FullClusterRestartSystemIndexCompatibilityIT.java
+@@ -49,7 +49,10 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+         final String asyncSearchIndex = ".async-search";
+         final int numDocs = 2431;
+ 
+-        final Request asyncSearchRequest = new Request("POST", "/" + index + "/_async_search?size=100&keep_on_completion=true");
++        final Request asyncSearchRequest = new Request(
++            "POST",
++            "/" + index + "/_async_search?size=100&keep_on_completion=true&wait_for_completion_timeout=10s"
++        );
+ 
+         if (isFullyUpgradedTo(VERSION_MINUS_2)) {
+             createIndex(
+@@ -67,7 +70,7 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+             String asyncId = searchAsyncAndStoreId(asyncSearchRequest, "n-2_id");
+             ensureGreen(asyncSearchIndex);
+ 
+-            assertAsyncSearchHitCount(asyncId, numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(asyncId, numDocs));
+             assertBusy(() -> assertDocCountNoWarnings(client(), asyncSearchIndex, 1));
+             assertThat(indexVersion(asyncSearchIndex, true), equalTo(VERSION_MINUS_2));
+             return;
+@@ -76,7 +79,7 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+         if (isFullyUpgradedTo(VERSION_MINUS_1)) {
+             // check .async-search index is readable
+             assertThat(indexVersion(asyncSearchIndex, true), equalTo(VERSION_MINUS_2));
+-            assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs));
+ 
+             // migrate system indices
+             Request migrateRequest = new Request("POST", "/_migration/system_features");
+@@ -99,11 +102,11 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+             }, 30, TimeUnit.SECONDS);
+ 
+             // check search results from n-2 search are still readable
+-            assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs));
+ 
+             // perform new async search and check its readable
+             String asyncId = searchAsyncAndStoreId(asyncSearchRequest, "n-1_id");
+-            assertAsyncSearchHitCount(asyncId, numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(asyncId, numDocs));
+             assertBusy(() -> assertDocCountNoWarnings(client(), asyncSearchIndex, 2));
+ 
+             // in order to move to current version we need write block for n-2 index
+@@ -112,12 +115,12 @@ public class FullClusterRestartSystemIndexCompatibilityIT extends FullClusterRes
+ 
+         if (isFullyUpgradedTo(VERSION_CURRENT)) {
+             assertThat(indexVersion(index, true), equalTo(VERSION_MINUS_2));
+-            assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs);
+-            assertAsyncSearchHitCount(async_search_ids.get("n-1_id"), numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(async_search_ids.get("n-2_id"), numDocs));
++            assertBusy(() -> assertAsyncSearchHitCount(async_search_ids.get("n-1_id"), numDocs));
+ 
+             // check system index is still writeable
+             String asyncId = searchAsyncAndStoreId(asyncSearchRequest, "n_id");
+-            assertAsyncSearchHitCount(asyncId, numDocs);
++            assertBusy(() -> assertAsyncSearchHitCount(asyncId, numDocs));
+             assertBusy(() -> assertDocCountNoWarnings(client(), asyncSearchIndex, 3));
+         }
+ 

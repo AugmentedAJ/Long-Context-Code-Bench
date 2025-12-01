@@ -1,0 +1,19 @@
+diff --git a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
+index b57b4369..c0a3138a 100644
+--- a/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
++++ b/x-pack/plugin/esql/compute/src/main/java/org/elasticsearch/compute/data/Block.java
+@@ -53,10 +53,11 @@ public interface Block extends Accountable, BlockLoader.Block, Writeable, RefCou
+      * For now, we approximate this overhead, per block, using this value.
+      *
+      * The exact overhead per block would be (more correctly) {@link RamUsageEstimator#NUM_BYTES_OBJECT_REF},
+-     * but we approximate it with {@link RamUsageEstimator#NUM_BYTES_OBJECT_ALIGNMENT} to avoid further alignments
+-     * to object size (at the end of the alignment, it would make no practical difference).
++     * but we use an increased value to better handle circuit breaking with many small pages.
++     * This increased estimate provides more conservative memory tracking to prevent circuit breaker issues
++     * when dealing with pages containing many small blocks.
+      */
+-    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT;
++    int PAGE_MEM_OVERHEAD_PER_BLOCK = RamUsageEstimator.NUM_BYTES_OBJECT_ALIGNMENT * 4;
+ 
+     /**
+      * {@return an efficient dense single-value view of this block}.

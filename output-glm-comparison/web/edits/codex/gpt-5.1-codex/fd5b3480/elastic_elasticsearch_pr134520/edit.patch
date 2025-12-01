@@ -1,0 +1,17 @@
+diff --git a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
+index 4ebcae1c..877c59fd 100644
+--- a/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
++++ b/server/src/main/java/org/elasticsearch/threadpool/DefaultBuiltInExecutorBuilders.java
+@@ -45,7 +45,11 @@ public class DefaultBuiltInExecutorBuilders implements BuiltInExecutorBuilders {
+                 ThreadPool.Names.WRITE_COORDINATION,
+                 allocatedProcessors,
+                 10000,
+-                EsExecutors.TaskTrackingConfig.DO_NOT_TRACK
++                EsExecutors.TaskTrackingConfig.builder()
++                    .trackOngoingTasks()
++                    .trackMaxQueueLatency()
++                    .trackExecutionTime(indexAutoscalingEWMA)
++                    .build()
+             )
+         );
+         result.put(

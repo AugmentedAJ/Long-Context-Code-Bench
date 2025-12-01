@@ -1,0 +1,27 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+index 0b59da7..135e8f8 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java
+@@ -88,10 +88,21 @@ public class PutWarmerRequest extends AcknowledgedRequest<PutWarmerRequest> {
+ 
+     @Override
+     public ActionRequestValidationException validate() {
+-        ActionRequestValidationException validationException = searchRequest.validate();
++        ActionRequestValidationException validationException = null;
+         if (name == null) {
+             validationException = addValidationError("name is missing", validationException);
+         }
++        if (searchRequest == null) {
++            validationException = addValidationError("search request is missing", validationException);
++        } else {
++            ActionRequestValidationException ex = searchRequest.validate();
++            if (ex != null) {
++                if (validationException == null) {
++                    validationException = new ActionRequestValidationException();
++                }
++                validationException.addValidationErrors(ex.validationErrors());
++            }
++        }
+         return validationException;
+     }
+ 

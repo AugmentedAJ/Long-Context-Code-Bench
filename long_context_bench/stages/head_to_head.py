@@ -615,7 +615,7 @@ def run_head_to_head_for_pr(
         if existing is not None:
             agent_results.append(existing)
         else:
-            # Neutral placeholder scores when no prior LLM judge outputs are available
+            # Neutral placeholder scores when no prior judge outputs are available
             scores = Scores(
                 correctness=0.0,
                 completeness=0.0,

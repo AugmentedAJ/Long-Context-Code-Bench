@@ -1,0 +1,245 @@
+diff --git a/pom.xml b/pom.xml
+index e70a6c8..ba97607 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -321,8 +321,8 @@
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <version>3.1</version>
+                 <configuration>
+-                    <source>1.6</source>
+-                    <target>1.6</target>
++                    <source>1.8</source>
++                    <target>1.8</target>
+                     <fork>true</fork>
+                     <!-- REMOVE WHEN UPGRADE:
+                          see https://jira.codehaus.org/browse/MCOMPILER-209 it's a bug where
+diff --git a/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java b/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java
+index 2e67160..f7de024 100644
+--- a/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java
++++ b/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java
+@@ -37,6 +37,7 @@ import org.elasticsearch.common.settings.Settings;
+ import org.elasticsearch.node.settings.NodeSettingsService;
+ 
+ import java.util.*;
++import java.util.Map;
+ 
+ import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
+ import static org.elasticsearch.cluster.routing.ShardRoutingState.RELOCATING;
+@@ -584,6 +585,153 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
+             }
+         }
+ 
++        /**
++         * Early termination check to see if cluster-wide allocation is disabled for all shards
++         */
++        private boolean isAllocationGloballyDisabled(RoutingNodes.UnassignedShards unassigned) {
++            if (unassigned.isEmpty()) {
++                return false;
++            }
++            
++            // Check a sample shard to determine if allocation is globally disabled
++            MutableShardRouting sampleShard = unassigned.iterator().next();
++            
++            // Check cluster-wide disable settings using the same logic as DisableAllocationDecider
++            boolean hasPrimaries = false;
++            boolean hasReplicas = false;
++            for (MutableShardRouting shard : unassigned) {
++                if (shard.primary()) {
++                    hasPrimaries = true;
++                } else {
++                    hasReplicas = true;
++                }
++                if (hasPrimaries && hasReplicas) {
++                    break;
++                }
++            }
++            
++            // Quick cluster setting checks
++            Settings indexSettings = allocation.routingNodes().metaData().index(sampleShard.index()).settings();
++            
++            // Check if all allocation is disabled
++            if (indexSettings.getAsBoolean("cluster.routing.allocation.disable_allocation", false) ||
++                indexSettings.getAsBoolean("index.routing.allocation.disable_allocation", false)) {
++                return true;
++            }
++            
++            // Check if replica allocation is disabled and we only have replicas
++            if (hasReplicas && !hasPrimaries) {
++                if (indexSettings.getAsBoolean("cluster.routing.allocation.disable_replica_allocation", false) ||
++                    indexSettings.getAsBoolean("index.routing.allocation.disable_replica_allocation", false)) {
++                    return true;
++                }
++            }
++            
++            return false;
++        }
++
++        /**
++         * Node eligibility information for cached allocation decisions
++         */
++        private static class NodeEligibility {
++            final boolean canAcceptPrimaries;
++            final boolean canAcceptReplicas;
++            final boolean hasDiskSpace;
++            final Decision lastDecision;
++            
++            NodeEligibility(boolean canAcceptPrimaries, boolean canAcceptReplicas, boolean hasDiskSpace, Decision lastDecision) {
++                this.canAcceptPrimaries = canAcceptPrimaries;
++                this.canAcceptReplicas = canAcceptReplicas;
++                this.hasDiskSpace = hasDiskSpace;
++                this.lastDecision = lastDecision;
++            }
++        }
++
++        /**
++         * Pre-filters nodes to determine eligibility and cache decisions to avoid unnecessary checks
++         */
++        private Map<String, NodeEligibility> preFilterNodes(RoutingNodes.UnassignedShards unassigned) {
++            Map<String, NodeEligibility> eligibilityCache = new java.util.HashMap<>();
++            
++            if (unassigned.isEmpty()) {
++                return eligibilityCache;
++            }
++            
++            // Sample a primary and replica shard for node eligibility testing
++            MutableShardRouting samplePrimary = null;
++            MutableShardRouting sampleReplica = null;
++            
++            for (MutableShardRouting shard : unassigned) {
++                if (samplePrimary == null && shard.primary()) {
++                    samplePrimary = shard;
++                } else if (sampleReplica == null && !shard.primary()) {
++                    sampleReplica = shard;
++                }
++                
++                if (samplePrimary != null && sampleReplica != null) {
++                    break;
++                }
++            }
++            
++            // Use the first available shard as fallback
++            MutableShardRouting fallbackShard = samplePrimary != null ? samplePrimary : 
++                                              sampleReplica != null ? sampleReplica : 
++                                              unassigned.iterator().next();
++            
++            for (ModelNode node : nodes.values()) {
++                RoutingNode routingNode = routingNodes.node(node.getNodeId());
++                if (routingNode == null) {
++                    continue;
++                }
++                
++                boolean canAcceptPrimaries = true;
++                boolean canAcceptReplicas = true;
++                boolean hasDiskSpace = true;
++                Decision lastDecision = Decision.YES;
++                
++                // Test primary allocation if we have primaries
++                if (samplePrimary != null) {
++                    Decision primaryDecision = allocation.deciders().canAllocate(samplePrimary, routingNode, allocation);
++                    if (primaryDecision.type() == Decision.Type.NO) {
++                        canAcceptPrimaries = false;
++                        if (sampleReplica == null) {
++                            // If we only have primaries and this node can't accept them, cache as completely ineligible
++                            eligibilityCache.put(node.getNodeId(), new NodeEligibility(false, false, false, primaryDecision));
++                            continue;
++                        }
++                        lastDecision = primaryDecision;
++                    }
++                }
++                
++                // Test replica allocation if we have replicas  
++                if (sampleReplica != null) {
++                    Decision replicaDecision = allocation.deciders().canAllocate(sampleReplica, routingNode, allocation);
++                    if (replicaDecision.type() == Decision.Type.NO) {
++                        canAcceptReplicas = false;
++                        if (samplePrimary == null) {
++                            // If we only have replicas and this node can't accept them, cache as completely ineligible
++                            eligibilityCache.put(node.getNodeId(), new NodeEligibility(false, false, false, replicaDecision));
++                            continue;
++                        }
++                        if (lastDecision == Decision.YES) {
++                            lastDecision = replicaDecision;
++                        }
++                    }
++                }
++                
++                // Quick disk space check if disk threshold decider is enabled
++                Decision diskDecision = allocation.deciders().canAllocate(fallbackShard, routingNode, allocation);
++                if (diskDecision.type() == Decision.Type.NO && diskDecision.toString().contains("disk")) {
++                    hasDiskSpace = false;
++                    lastDecision = diskDecision;
++                }
++                
++                eligibilityCache.put(node.getNodeId(), new NodeEligibility(canAcceptPrimaries, canAcceptReplicas, hasDiskSpace, lastDecision));
++            }
++            
++            return eligibilityCache;
++        }
++
+         /**
+          * Allocates all given shards on the minimal eligable node for the shards index
+          * with respect to the weight function. All given shards must be unassigned.
+@@ -596,6 +744,23 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
+             if (unassigned.isEmpty()) {
+                 return false;
+             }
++            
++            // Early termination: Check if cluster-wide allocation is disabled
++            if (isAllocationGloballyDisabled(unassigned)) {
++                if (logger.isTraceEnabled()) {
++                    logger.trace("Allocation is globally disabled, skipping all allocation attempts");
++                }
++                // Move all unassigned shards to ignored list
++                for (MutableShardRouting shard : unassigned) {
++                    ignoredUnassigned.add(shard);
++                }
++                unassigned.clear();
++                return false;
++            }
++            
++            // Pre-filter eligible nodes to avoid checking nodes that cannot accept any allocation
++            Map<String, NodeEligibility> nodeEligibilityCache = preFilterNodes(unassigned);
++            
+             boolean changed = false;
+           
+             /*
+@@ -637,6 +802,24 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
+                     ModelNode minNode = null;
+                     Decision decision = null;
+                     for (ModelNode node : nodes.values()) {
++                        /*
++                         * Early termination: Check node eligibility cache before proceeding with expensive operations
++                         */
++                        NodeEligibility eligibility = nodeEligibilityCache.get(node.getNodeId());
++                        if (eligibility != null) {
++                            // Skip nodes that cannot accept this shard type
++                            if (shard.primary() && !eligibility.canAcceptPrimaries) {
++                                continue;
++                            }
++                            if (!shard.primary() && !eligibility.canAcceptReplicas) {
++                                continue;
++                            }
++                            // Skip nodes with insufficient disk space
++                            if (!eligibility.hasDiskSpace) {
++                                continue;
++                            }
++                        }
++                        
+                         /*
+                          * The shard we add is removed below to simulate the
+ 	                     * addition for weight calculation we use Decision.ALWAYS to
+@@ -656,7 +839,13 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
+ 	                         * don't check deciders
+ 	                         */
+                             if (currentWeight <= minWeight) {
+-                                Decision currentDecision = deciders.canAllocate(shard, routingNodes.node(node.getNodeId()), allocation);
++                                // Use cached decision if available and still valid, otherwise compute new decision
++                                Decision currentDecision;
++                                if (eligibility != null && eligibility.lastDecision.type() == Decision.Type.NO) {
++                                    currentDecision = eligibility.lastDecision; // Use cached NO decision
++                                } else {
++                                    currentDecision = deciders.canAllocate(shard, routingNodes.node(node.getNodeId()), allocation);
++                                }
+                                 NOUPDATE:
+                                 if (currentDecision.type() == Type.YES || currentDecision.type() == Type.THROTTLE) {
+                                     if (currentWeight == minWeight) {

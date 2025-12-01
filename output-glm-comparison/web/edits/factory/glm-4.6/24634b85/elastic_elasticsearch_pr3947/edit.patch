@@ -1,0 +1,83 @@
+diff --git a/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java b/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
+index bc4c097..b562448 100644
+--- a/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
++++ b/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
+@@ -248,6 +248,11 @@ public class CompletionFieldMapper extends AbstractFieldMapper<String> {
+                     }
+                 } else if (token == XContentParser.Token.VALUE_NUMBER) {
+                     if (Fields.CONTENT_FIELD_NAME_WEIGHT.equals(currentFieldName)) {
++                        // Check if the weight is a float or double and reject it
++                        XContentParser.NumberType numberType = parser.numberType();
++                        if (numberType == XContentParser.NumberType.FLOAT || numberType == XContentParser.NumberType.DOUBLE) {
++                            throw new ElasticSearchIllegalArgumentException("Weight must be an integer, but was [" + parser.numberValue() + "] of type [" + numberType + "]");
++                        }
+                         weight = parser.longValue(); // always parse a long to make sure we don't get the overflow value
+                         if (weight < 0 || weight > Integer.MAX_VALUE) {
+                             throw new ElasticSearchIllegalArgumentException("Weight must be in the interval [0..2147483647] but was " + weight);
+diff --git a/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java b/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
+index 61f4883..c4718b3 100644
+--- a/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
++++ b/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
+@@ -18,10 +18,12 @@
+  */
+ package org.elasticsearch.index.mapper.completion;
+ 
++import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.json.JsonXContent;
+ import org.elasticsearch.index.mapper.DocumentMapper;
+ import org.elasticsearch.index.mapper.FieldMapper;
++import org.elasticsearch.index.mapper.MapperException;
+ import org.elasticsearch.index.mapper.MapperTestUtils;
+ import org.elasticsearch.index.mapper.core.CompletionFieldMapper;
+ import org.elasticsearch.test.ElasticsearchTestCase;
+@@ -112,4 +114,49 @@ public class CompletionFieldMapperTests extends ElasticsearchTestCase {
+         assertThat(configMap.get("analyzer").toString(), is("simple"));
+     }
+ 
++    @Test
++    public void testFloatWeightRejection() throws Exception {
++        String mapping = jsonBuilder().startObject().startObject("type1")
++                .startObject("properties").startObject("completion")
++                .field("type", "completion")
++                .endObject().endObject()
++                .endObject().endObject().string();
++
++        DocumentMapper defaultMapper = MapperTestUtils.newParser().parse(mapping);
++
++        // Test that float weight is rejected
++        try {
++            defaultMapper.parse("{\"completion\":{\"input\":\"test\",\"weight\":1.5}}");
++            fail("Expected ElasticSearchIllegalArgumentException for float weight");
++        } catch (MapperException e) {
++            assertTrue("Exception should mention that weight must be an integer",
++                    e.getCause().getMessage().contains("Weight must be an integer"));
++        }
++
++        // Test that double weight is rejected
++        try {
++            defaultMapper.parse("{\"completion\":{\"input\":\"test\",\"weight\":2.0}}");
++            fail("Expected ElasticSearchIllegalArgumentException for double weight");
++        } catch (MapperException e) {
++            assertTrue("Exception should mention that weight must be an integer",
++                    e.getCause().getMessage().contains("Weight must be an integer"));
++        }
++    }
++
++    @Test
++    public void testIntegerWeightAcceptance() throws Exception {
++        String mapping = jsonBuilder().startObject().startObject("type1")
++                .startObject("properties").startObject("completion")
++                .field("type", "completion")
++                .endObject().endObject()
++                .endObject().endObject().string();
++
++        DocumentMapper defaultMapper = MapperTestUtils.newParser().parse(mapping);
++
++        // Test that integer weights are accepted
++        defaultMapper.parse("{\"completion\":{\"input\":\"test\",\"weight\":1}}");
++        defaultMapper.parse("{\"completion\":{\"input\":\"test\",\"weight\":0}}");
++        defaultMapper.parse("{\"completion\":{\"input\":\"test\",\"weight\":2147483647}}");
++    }
++
+ }

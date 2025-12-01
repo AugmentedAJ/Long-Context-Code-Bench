@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4197,
+  "base_commit": "513611bd48e471a6c9594301149c390476a4bc0d",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 43494,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\nindex 0b59da7..3390312 100644\n--- a/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\n+++ b/src/main/java/org/elasticsearch/action/admin/indices/warmer/put/PutWarmerRequest.java\n@@ -88,10 +88,15 @@ public class PutWarmerRequest extends AcknowledgedRequest<PutWarmerRequest> {\n \n     @Override\n     public ActionRequestValidationException validate() {\n-        ActionRequestValidationException validationException = searchRequest.validate();\n+        ActionRequestValidationException validationException = null;\n         if (name == null) {\n             validationException = addValidationError(\"name is missing\", validationException);\n         }\n+        if (searchRequest == null) {\n+            validationException = addValidationError(\"search request is missing\", validationException);\n+        } else {\n+            validationException = searchRequest.validate();\n+        }\n         return validationException;\n     }\n ",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr4197/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

@@ -1,0 +1,15 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 4419,
+  "base_commit": "4e7ce4ee02a85ca02b8a07a27ae4e82341e2db39",
+  "runner": "claude-code",
+  "model": "claude-sonnet-4-5",
+  "timeout_s": 1800,
+  "status": "success",
+  "elapsed_ms": 134884,
+  "patch_unified": "diff --git a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java\nindex 9c95dd5..5d94785 100644\n--- a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java\n+++ b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java\n@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;\n import org.elasticsearch.common.Nullable;\n import org.elasticsearch.index.Index;\n import org.elasticsearch.index.service.IndexService;\n+import org.elasticsearch.index.shard.IndexShardState;\n import org.elasticsearch.index.shard.ShardId;\n import org.elasticsearch.index.shard.service.IndexShard;\n \n@@ -58,6 +59,18 @@ public interface IndicesLifecycle {\n \n         }\n \n+        /**\n+         * Called when the shard state has changed.\n+         *\n+         * @param indexShard The index shard\n+         * @param previousState The previous shard state (can be null if this is the initial state)\n+         * @param currentState The current shard state\n+         * @param reason Optional reason for the state change (can be null)\n+         */\n+        public void onShardStateChanged(IndexShard indexShard, @Nullable IndexShardState previousState, IndexShardState currentState, @Nullable String reason) {\n+\n+        }\n+\n         /**\n          * Called before the index gets created.\n          */",
+  "logs_path": "claude-code/claude-sonnet-4-5/8d6f99fc/elastic_elasticsearch_pr4419/logs.jsonl",
+  "errors": [],
+  "edit_run_id": "8d6f99fc",
+  "test_label": "v1-rollouts-1-3-sonnet4.5"
+}

@@ -1,0 +1,177 @@
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequest.java b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequest.java
+index 9eb3352..5e7bbc3 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequest.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequest.java
+@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.ObjectOpenHashSet;
+ import org.elasticsearch.ElasticSearchGenerationException;
+ import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.action.ActionRequestValidationException;
++import org.elasticsearch.action.support.master.AcknowledgedRequest;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequest;
+ import org.elasticsearch.common.Strings;
+ import org.elasticsearch.common.io.stream.StreamInput;
+@@ -51,7 +52,7 @@ import static org.elasticsearch.common.unit.TimeValue.readTimeValue;
+  * @see org.elasticsearch.client.IndicesAdminClient#putMapping(PutMappingRequest)
+  * @see PutMappingResponse
+  */
+-public class PutMappingRequest extends MasterNodeOperationRequest<PutMappingRequest> {
++public class PutMappingRequest extends AcknowledgedRequest<PutMappingRequest> {
+ 
+     private static ObjectOpenHashSet<String> RESERVED_FIELDS = ObjectOpenHashSet.from(
+             "_uid", "_id", "_type", "_source",  "_all", "_analyzer", "_boost", "_parent", "_routing", "_index",
+@@ -64,8 +65,6 @@ public class PutMappingRequest extends MasterNodeOperationRequest<PutMappingRequ
+ 
+     private String source;
+ 
+-    private TimeValue timeout = new TimeValue(10, TimeUnit.SECONDS);
+-
+     private boolean ignoreConflicts = false;
+ 
+     PutMappingRequest() {
+@@ -224,31 +223,6 @@ public class PutMappingRequest extends MasterNodeOperationRequest<PutMappingRequ
+         return this;
+     }
+ 
+-    /**
+-     * Timeout to wait till the put mapping gets acknowledged of all current cluster nodes. Defaults to
+-     * <tt>10s</tt>.
+-     */
+-    TimeValue timeout() {
+-        return timeout;
+-    }
+-
+-    /**
+-     * Timeout to wait till the put mapping gets acknowledged of all current cluster nodes. Defaults to
+-     * <tt>10s</tt>.
+-     */
+-    public PutMappingRequest timeout(TimeValue timeout) {
+-        this.timeout = timeout;
+-        return this;
+-    }
+-
+-    /**
+-     * Timeout to wait till the put mapping gets acknowledged of all current cluster nodes. Defaults to
+-     * <tt>10s</tt>.
+-     */
+-    public PutMappingRequest timeout(String timeout) {
+-        return timeout(TimeValue.parseTimeValue(timeout, null));
+-    }
+-
+     /**
+      * If there is already a mapping definition registered against the type, then it will be merged. If there are
+      * elements that can't be merged are detected, the request will be rejected unless the
+@@ -274,7 +248,6 @@ public class PutMappingRequest extends MasterNodeOperationRequest<PutMappingRequ
+         indices = in.readStringArray();
+         type = in.readOptionalString();
+         source = in.readString();
+-        timeout = readTimeValue(in);
+         ignoreConflicts = in.readBoolean();
+     }
+ 
+@@ -284,7 +257,6 @@ public class PutMappingRequest extends MasterNodeOperationRequest<PutMappingRequ
+         out.writeStringArrayNullable(indices);
+         out.writeOptionalString(type);
+         out.writeString(source);
+-        timeout.writeTo(out);
+         out.writeBoolean(ignoreConflicts);
+     }
+ }
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequestBuilder.java b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequestBuilder.java
+index e93ca84..f39fffd 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequestBuilder.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingRequestBuilder.java
+@@ -20,6 +20,7 @@
+ package org.elasticsearch.action.admin.indices.mapping.put;
+ 
+ import org.elasticsearch.action.ActionListener;
++import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
+ import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
+ import org.elasticsearch.client.IndicesAdminClient;
+ import org.elasticsearch.client.internal.InternalIndicesAdminClient;
+@@ -31,7 +32,7 @@ import java.util.Map;
+ /**
+  *
+  */
+-public class PutMappingRequestBuilder extends MasterNodeOperationRequestBuilder<PutMappingRequest, PutMappingResponse, PutMappingRequestBuilder> {
++public class PutMappingRequestBuilder extends AcknowledgedRequestBuilder<PutMappingRequest, PutMappingResponse, PutMappingRequestBuilder> {
+ 
+     public PutMappingRequestBuilder(IndicesAdminClient indicesClient) {
+         super((InternalIndicesAdminClient) indicesClient, new PutMappingRequest());
+@@ -83,24 +84,6 @@ public class PutMappingRequestBuilder extends MasterNodeOperationRequestBuilder<
+         return this;
+     }
+ 
+-    /**
+-     * Timeout to wait till the put mapping gets acknowledged of all current cluster nodes. Defaults to
+-     * <tt>10s</tt>.
+-     */
+-    public PutMappingRequestBuilder setTimeout(TimeValue timeout) {
+-        request.timeout(timeout);
+-        return this;
+-    }
+-
+-    /**
+-     * Timeout to wait till the put mapping gets acknowledged of all current cluster nodes. Defaults to
+-     * <tt>10s</tt>.
+-     */
+-    public PutMappingRequestBuilder setTimeout(String timeout) {
+-        request.timeout(timeout);
+-        return this;
+-    }
+-
+     /**
+      * If there is already a mapping definition registered against the type, then it will be merged. If there are
+      * elements that can't be merged are detected, the request will be rejected unless the
+diff --git a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingResponse.java b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingResponse.java
+index 58edc44..3316086 100644
+--- a/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingResponse.java
++++ b/src/main/java/org/elasticsearch/action/admin/indices/mapping/put/PutMappingResponse.java
+@@ -19,7 +19,7 @@
+ 
+ package org.elasticsearch.action.admin.indices.mapping.put;
+ 
+-import org.elasticsearch.action.ActionResponse;
++import org.elasticsearch.action.support.master.AcknowledgedResponse;
+ import org.elasticsearch.common.io.stream.StreamInput;
+ import org.elasticsearch.common.io.stream.StreamOutput;
+ 
+@@ -28,35 +28,25 @@ import java.io.IOException;
+ /**
+  * The response of put mapping operation.
+  */
+-public class PutMappingResponse extends ActionResponse {
+-
+-    private boolean acknowledged;
++public class PutMappingResponse extends AcknowledgedResponse {
+ 
+     PutMappingResponse() {
+ 
+     }
+ 
+     PutMappingResponse(boolean acknowledged) {
+-        this.acknowledged = acknowledged;
+-    }
+-
+-    /**
+-     * Has the put mapping creation been acknowledged by all current cluster nodes within the
+-     * provided {@link PutMappingRequest#timeout(org.elasticsearch.common.unit.TimeValue)}.
+-     */
+-    public boolean isAcknowledged() {
+-        return acknowledged;
++        super(acknowledged);
+     }
+ 
+     @Override
+     public void readFrom(StreamInput in) throws IOException {
+         super.readFrom(in);
+-        acknowledged = in.readBoolean();
++        readAcknowledged(in);
+     }
+ 
+     @Override
+     public void writeTo(StreamOutput out) throws IOException {
+         super.writeTo(out);
+-        out.writeBoolean(acknowledged);
++        writeAcknowledged(out);
+     }
+ }

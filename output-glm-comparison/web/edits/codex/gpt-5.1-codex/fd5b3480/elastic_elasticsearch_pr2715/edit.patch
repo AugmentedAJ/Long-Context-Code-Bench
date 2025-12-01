@@ -1,0 +1,55 @@
+diff --git a/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java b/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
+index 1293a69..c9e6a12 100644
+--- a/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
++++ b/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java
+@@ -21,6 +21,7 @@ package org.elasticsearch.action.bulk;
+ 
+ import com.google.common.collect.Lists;
+ import org.elasticsearch.ElasticSearchIllegalArgumentException;
++import org.elasticsearch.ElasticSearchParseException;
+ import org.elasticsearch.action.ActionRequest;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.WriteConsistencyLevel;
+@@ -281,6 +282,10 @@ public class BulkRequest extends ActionRequest<BulkRequest> {
+                         } else if ("percolate".equals(currentFieldName) || "_percolate".equals(currentFieldName)) {
+                             percolate = parser.textOrNull();
+                         }
++                    } else if (token == XContentParser.Token.START_ARRAY || token == XContentParser.Token.START_OBJECT) {
++                        if ("_id".equals(currentFieldName)) {
++                            throw new ElasticSearchParseException("_id is not allowed to be an object or an array");
++                        }
+                     }
+                 }
+ 
+diff --git a/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java b/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
+index b087dc9..6f9accb 100644
+--- a/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
++++ b/src/main/java/org/elasticsearch/action/get/MultiGetRequest.java
+@@ -20,6 +20,7 @@
+ package org.elasticsearch.action.get;
+ 
+ import org.elasticsearch.ElasticSearchIllegalArgumentException;
++import org.elasticsearch.ElasticSearchParseException;
+ import org.elasticsearch.action.ActionRequest;
+ import org.elasticsearch.action.ActionRequestValidationException;
+ import org.elasticsearch.action.ValidateActions;
+@@ -261,12 +262,19 @@ public class MultiGetRequest extends ActionRequest<MultiGetRequest> {
+                                         routing = parser.text();
+                                     }
+                                 } else if (token == XContentParser.Token.START_ARRAY) {
++                                    if ("_id".equals(currentFieldName)) {
++                                        throw new ElasticSearchParseException("_id is not allowed to be an array");
++                                    }
+                                     if ("fields".equals(currentFieldName)) {
+                                         fields = new ArrayList<String>();
+                                         while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
+                                             fields.add(parser.text());
+                                         }
+                                     }
++                                } else if (token == XContentParser.Token.START_OBJECT) {
++                                    if ("_id".equals(currentFieldName)) {
++                                        throw new ElasticSearchParseException("_id is not allowed to be an object");
++                                    }
+                                 }
+                             }
+                             String[] aFields;

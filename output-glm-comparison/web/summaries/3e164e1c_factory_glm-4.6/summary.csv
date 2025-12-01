@@ -1,0 +1,2 @@
+run_id,total_samples,successful_samples,failed_samples,skipped_samples,success_rate,win_rate,mean_correctness,mean_completeness,mean_code_reuse,mean_best_practices,mean_unsolicited_docs,mean_aggregate,std_aggregate,mean_elapsed_ms,tasks_per_hour,edit_run_id,judge_run_id,test_label,runner,model
+3e164e1c,100,100,0,0,1.0,0.27,-0.3915,-0.3625,-0.2375,-0.283,0.471,-0.1607,0.34405559510819256,146357.68,24.597274294044563,24634b85,3e164e1c,v1-agent-comparison,factory,glm-4.6

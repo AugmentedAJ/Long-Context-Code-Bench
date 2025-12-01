@@ -1,0 +1,17 @@
+diff --git a/server/src/main/java/org/elasticsearch/TransportVersion.java b/server/src/main/java/org/elasticsearch/TransportVersion.java
+index 83189159..726d31fb 100644
+--- a/server/src/main/java/org/elasticsearch/TransportVersion.java
++++ b/server/src/main/java/org/elasticsearch/TransportVersion.java
+@@ -253,9 +253,9 @@ public record TransportVersion(String name, int id, TransportVersion nextPatchVe
+             message.append("].");
+             if (scoredNames.isEmpty() == false) {
+                 List<String> names = scoredNames.stream().map(Tuple::v2).toList();
+-                message.append(" Did you mean ");
+-                message.append(names);
+-                message.append("?");
++                message.append(" Did you mean [");
++                message.append(String.join(", ", names));
++                message.append("]? ");
+             }
+             message.append(" If this is a new transport version, run './gradle generateTransportVersion'.");
+             throw new IllegalStateException(message.toString());

@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134357,
+  "base_commit": "4419e4cc0f09710fb1a29c4d09477b389b249c9f",
+  "head_commit": "0caca6fe02e03254ee63292058700e668094a9f9",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": -0.6,
+    "code_reuse": 0.0,
+    "best_practices": 0.0,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.08,
+  "rationale": "The agent correctly renamed the parameter `blobName` to `fileName` and updated all its usages within the method signature, Javadoc, and method body. However, the agent is incomplete: it missed two additional variable renames that are part of the ground truth - (1) renaming `blobFileExtension` to `luceneFileExt` and (2) updating the Javadoc description from 'The file that was requested and triggered the cache population.' to 'The actual (lucene) file that's requested from the blob location'. These omissions represent missing refactoring for clarity that was part of the intended change. The change doesn't break functionality, but it's only about 60% complete compared to ground truth.",
+  "edit_run_id": "8d6f99fc",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/blob-cache/src/main/java/org/elasticsearch/blobcache/BlobCacheMetrics.java b/x-pack/plugin/blob-cache/src/main/java/org/elasticsearch/blobcache/BlobCacheMetrics.java\nindex 8b1beb02135..84f6c390ac3 100644\n--- a/x-pack/plugin/blob-cache/src/main/java/org/elasticsearch/blobcache/BlobCacheMetrics.java\n+++ b/x-pack/plugin/blob-cache/src/main/java/org/elasticsearch/blobcache/BlobCacheMetrics.java\n@@ -170,28 +170,28 @@ public class BlobCacheMetrics {\n     /**\n      * Record the various cache population metrics after a chunk is copied to the cache\n      *\n-     * @param blobName The file that was requested and triggered the cache population.\n+     * @param fileName The actual (lucene) file that's requested from the blob location\n      * @param bytesCopied The number of bytes copied\n      * @param copyTimeNanos The time taken to copy the bytes in nanoseconds\n      * @param cachePopulationReason The reason for the cache being populated\n      * @param cachePopulationSource The source from which the data is being loaded\n      */\n     public void recordCachePopulationMetrics(\n-        String blobName,\n+        String fileName,\n         int bytesCopied,\n         long copyTimeNanos,\n         CachePopulationReason cachePopulationReason,\n         CachePopulationSource cachePopulationSource\n     ) {\n-        LuceneFilesExtensions luceneFilesExtensions = LuceneFilesExtensions.fromFile(blobName);\n-        String blobFileExtension = luceneFilesExtensions != null ? luceneFilesExtensions.getExtension() : NON_LUCENE_EXTENSION_TO_RECORD;\n+        LuceneFilesExtensions luceneFilesExtensions = LuceneFilesExtensions.fromFile(fileName);\n+        String luceneFileExt = luceneFilesExtensions != null ? luceneFilesExtensions.getExtension() : NON_LUCENE_EXTENSION_TO_RECORD;\n         Map<String, Object> metricAttributes = Map.of(\n             CACHE_POPULATION_REASON_ATTRIBUTE_KEY,\n             cachePopulationReason.name(),\n             CACHE_POPULATION_SOURCE_ATTRIBUTE_KEY,\n             cachePopulationSource.name(),\n             LUCENE_FILE_EXTENSION_ATTRIBUTE_KEY,\n-            blobFileExtension\n+            luceneFileExt\n         );\n         assert bytesCopied > 0 : \"We shouldn't be recording zero-sized copies\";\n         cachePopulationBytes.incrementBy(bytesCopied, metricAttributes);"
+}

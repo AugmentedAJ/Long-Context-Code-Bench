@@ -1,0 +1,117 @@
+diff --git a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
+index 53a669c..e168308 100644
+--- a/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
++++ b/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java
+@@ -97,8 +97,6 @@ import static com.google.common.collect.Lists.newArrayList;
+  */
+ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Repository> implements Repository {
+ 
+-    private BlobPath basePath;
+-
+     private ImmutableBlobContainer snapshotsBlobContainer;
+ 
+     private final String repositoryName;
+@@ -124,19 +122,28 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+         super(repositorySettings.globalSettings());
+         this.repositoryName = repositoryName;
+         this.indexShardRepository = (BlobStoreIndexShardRepository) indexShardRepository;
+-        this.basePath = BlobPath.cleanPath();
+         Map<String, String> globalOnlyParams = Maps.newHashMap();
+         globalOnlyParams.put(MetaData.GLOBAL_PERSISTENT_ONLY_PARAM, "true");
+         globalOnlyFormatParams = new ToXContent.MapParams(globalOnlyParams);
+     }
+ 
++    /**
++     * Returns the base path for this repository.
++     * <p/>
++     * Each repository type can implement its own path logic based on its specific requirements.
++     * The default implementation returns an empty path.
++     *
++     * @return base path for the repository
++     */
++    protected abstract BlobPath basePath();
++
+     /**
+      * {@inheritDoc}
+      */
+     @Override
+     protected void doStart() throws ElasticSearchException {
+-        this.snapshotsBlobContainer = blobStore().immutableBlobContainer(basePath);
+-        indexShardRepository.initialize(blobStore(), basePath, chunkSize());
++        this.snapshotsBlobContainer = blobStore().immutableBlobContainer(basePath());
++        indexShardRepository.initialize(blobStore(), basePath(), chunkSize());
+     }
+ 
+     /**
+@@ -211,7 +218,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+             snapshotsBlobContainer.writeBlob(metaDataBlobName(snapshotId), bStream.bytes().streamInput(), bStream.bytes().length());
+             for (String index : indices) {
+                 IndexMetaData indexMetaData = metaData.index(index);
+-                BlobPath indexPath = basePath.add("indices").add(index);
++                BlobPath indexPath = basePath().add("indices").add(index);
+                 ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+                 bStream = new BytesStreamOutput();
+                 StreamOutput stream = bStream;
+@@ -244,7 +251,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+             snapshotsBlobContainer.deleteBlob(metaDataBlobName(snapshotId));
+             // Now delete all indices
+             for (String index : snapshot.indices()) {
+-                BlobPath indexPath = basePath.add("indices").add(index);
++                BlobPath indexPath = basePath().add("indices").add(index);
+                 ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+                 try {
+                     indexMetaDataBlobContainer.deleteBlob(blobName);
+@@ -338,7 +345,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent<Rep
+         }
+         MetaData.Builder metaDataBuilder = MetaData.builder(metaData);
+         for (String index : indices) {
+-            BlobPath indexPath = basePath.add("indices").add(index);
++            BlobPath indexPath = basePath().add("indices").add(index);
+             ImmutableBlobContainer indexMetaDataBlobContainer = blobStore().immutableBlobContainer(indexPath);
+             XContentParser parser = null;
+             try {
+diff --git a/src/main/java/org/elasticsearch/repositories/fs/FsRepository.java b/src/main/java/org/elasticsearch/repositories/fs/FsRepository.java
+index d14b4bc..6bc9907 100644
+--- a/src/main/java/org/elasticsearch/repositories/fs/FsRepository.java
++++ b/src/main/java/org/elasticsearch/repositories/fs/FsRepository.java
+@@ -19,6 +19,7 @@
+ 
+ package org.elasticsearch.repositories.fs;
+ 
++import org.elasticsearch.common.blobstore.BlobPath;
+ import org.elasticsearch.common.blobstore.BlobStore;
+ import org.elasticsearch.common.blobstore.fs.FsBlobStore;
+ import org.elasticsearch.common.inject.Inject;
+@@ -106,5 +107,10 @@ public class FsRepository extends BlobStoreRepository {
+         return chunkSize;
+     }
+ 
++    @Override
++    protected BlobPath basePath() {
++        return BlobPath.cleanPath();
++    }
++
+ 
+ }
+diff --git a/src/main/java/org/elasticsearch/repositories/uri/URLRepository.java b/src/main/java/org/elasticsearch/repositories/uri/URLRepository.java
+index 2d67e05..8c23d86 100644
+--- a/src/main/java/org/elasticsearch/repositories/uri/URLRepository.java
++++ b/src/main/java/org/elasticsearch/repositories/uri/URLRepository.java
+@@ -19,6 +19,7 @@
+ 
+ package org.elasticsearch.repositories.uri;
+ 
++import org.elasticsearch.common.blobstore.BlobPath;
+ import org.elasticsearch.common.blobstore.BlobStore;
+ import org.elasticsearch.common.blobstore.url.URLBlobStore;
+ import org.elasticsearch.common.inject.Inject;
+@@ -79,4 +80,9 @@ public class URLRepository extends BlobStoreRepository {
+     protected BlobStore blobStore() {
+         return blobStore;
+     }
++
++    @Override
++    protected BlobPath basePath() {
++        return BlobPath.cleanPath();
++    }
+ }

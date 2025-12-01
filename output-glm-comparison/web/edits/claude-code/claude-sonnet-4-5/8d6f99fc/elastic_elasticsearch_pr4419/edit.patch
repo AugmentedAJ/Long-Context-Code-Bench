@@ -1,0 +1,31 @@
+diff --git a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
+index 9c95dd5..5d94785 100644
+--- a/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
++++ b/src/main/java/org/elasticsearch/indices/IndicesLifecycle.java
+@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
+ import org.elasticsearch.common.Nullable;
+ import org.elasticsearch.index.Index;
+ import org.elasticsearch.index.service.IndexService;
++import org.elasticsearch.index.shard.IndexShardState;
+ import org.elasticsearch.index.shard.ShardId;
+ import org.elasticsearch.index.shard.service.IndexShard;
+ 
+@@ -58,6 +59,18 @@ public interface IndicesLifecycle {
+ 
+         }
+ 
++        /**
++         * Called when the shard state has changed.
++         *
++         * @param indexShard The index shard
++         * @param previousState The previous shard state (can be null if this is the initial state)
++         * @param currentState The current shard state
++         * @param reason Optional reason for the state change (can be null)
++         */
++        public void onShardStateChanged(IndexShard indexShard, @Nullable IndexShardState previousState, IndexShardState currentState, @Nullable String reason) {
++
++        }
++
+         /**
+          * Called before the index gets created.
+          */

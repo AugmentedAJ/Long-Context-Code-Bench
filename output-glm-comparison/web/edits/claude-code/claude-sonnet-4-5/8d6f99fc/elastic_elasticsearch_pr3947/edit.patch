@@ -1,0 +1,80 @@
+diff --git a/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java b/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
+index bc4c097..c1d4c57 100644
+--- a/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
++++ b/src/main/java/org/elasticsearch/index/mapper/core/CompletionFieldMapper.java
+@@ -248,6 +248,10 @@ public class CompletionFieldMapper extends AbstractFieldMapper<String> {
+                     }
+                 } else if (token == XContentParser.Token.VALUE_NUMBER) {
+                     if (Fields.CONTENT_FIELD_NAME_WEIGHT.equals(currentFieldName)) {
++                        XContentParser.NumberType numberType = parser.numberType();
++                        if (numberType == XContentParser.NumberType.FLOAT || numberType == XContentParser.NumberType.DOUBLE) {
++                            throw new ElasticSearchIllegalArgumentException("Weight must be an integer value, but was a floating point number");
++                        }
+                         weight = parser.longValue(); // always parse a long to make sure we don't get the overflow value
+                         if (weight < 0 || weight > Integer.MAX_VALUE) {
+                             throw new ElasticSearchIllegalArgumentException("Weight must be in the interval [0..2147483647] but was " + weight);
+diff --git a/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java b/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
+index 61f4883..0626a16 100644
+--- a/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
++++ b/src/test/java/org/elasticsearch/index/mapper/completion/CompletionFieldMapperTests.java
+@@ -18,11 +18,13 @@
+  */
+ package org.elasticsearch.index.mapper.completion;
+ 
++import org.elasticsearch.ElasticSearchIllegalArgumentException;
+ import org.elasticsearch.common.xcontent.XContentBuilder;
+ import org.elasticsearch.common.xcontent.json.JsonXContent;
+ import org.elasticsearch.index.mapper.DocumentMapper;
+ import org.elasticsearch.index.mapper.FieldMapper;
+ import org.elasticsearch.index.mapper.MapperTestUtils;
++import org.elasticsearch.index.mapper.ParseContext;
+ import org.elasticsearch.index.mapper.core.CompletionFieldMapper;
+ import org.elasticsearch.test.ElasticsearchTestCase;
+ import org.junit.Test;
+@@ -112,4 +114,46 @@ public class CompletionFieldMapperTests extends ElasticsearchTestCase {
+         assertThat(configMap.get("analyzer").toString(), is("simple"));
+     }
+ 
++    @Test(expected = ElasticSearchIllegalArgumentException.class)
++    public void testThatFloatWeightsAreRejected() throws Exception {
++        String mapping = jsonBuilder().startObject().startObject("type1")
++                .startObject("properties").startObject("completion")
++                .field("type", "completion")
++                .endObject().endObject()
++                .endObject().endObject().string();
++
++        DocumentMapper defaultMapper = MapperTestUtils.newParser().parse(mapping);
++
++        XContentBuilder builder = jsonBuilder()
++                .startObject()
++                .startObject("completion")
++                .field("input", "test suggestion")
++                .field("weight", 2.5)
++                .endObject()
++                .endObject();
++
++        defaultMapper.parse("type1", "1", builder.bytes());
++    }
++
++    @Test(expected = ElasticSearchIllegalArgumentException.class)
++    public void testThatDoubleWeightsAreRejected() throws Exception {
++        String mapping = jsonBuilder().startObject().startObject("type1")
++                .startObject("properties").startObject("completion")
++                .field("type", "completion")
++                .endObject().endObject()
++                .endObject().endObject().string();
++
++        DocumentMapper defaultMapper = MapperTestUtils.newParser().parse(mapping);
++
++        XContentBuilder builder = jsonBuilder()
++                .startObject()
++                .startObject("completion")
++                .field("input", "test suggestion")
++                .field("weight", 123.456)
++                .endObject()
++                .endObject();
++
++        defaultMapper.parse("type1", "1", builder.bytes());
++    }
++
+ }

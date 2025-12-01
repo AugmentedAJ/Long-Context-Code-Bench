@@ -1,0 +1,78 @@
+diff --git a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java
+index dddb41e9..4406bf89 100644
+--- a/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java
++++ b/x-pack/plugin/esql/src/main/java/org/elasticsearch/xpack/esql/plugin/ComputeService.java
+@@ -240,13 +240,19 @@ public class ComputeService {
+ 
+             Runnable cancelQueryOnFailure = cancelQueryOnFailure(rootTask);
+ 
++            /*
++             * Grab the output attributes here, so we can pass them to
++             * the listener without holding on to a reference to the
++             * entire plan.
++             */
++            List<Attribute> mainPlanOutputAttributes = mainPlan.output();
+             try (
+                 ComputeListener localListener = new ComputeListener(
+                     transportService.getThreadPool(),
+                     cancelQueryOnFailure,
+                     finalListener.map(profiles -> {
+                         execInfo.markEndQuery();
+-                        return new Result(mainPlan.output(), collectedPages, profiles, execInfo);
++                        return new Result(mainPlanOutputAttributes, collectedPages, profiles, execInfo);
+                     })
+                 )
+             ) {
+@@ -329,6 +335,12 @@ public class ComputeService {
+                 listener.onFailure(new IllegalStateException(error));
+                 return;
+             }
++            /*
++             * Grab the output attributes here, so we can pass them to
++             * the listener without holding on to a reference to the
++             * entire plan.
++             */
++            List<Attribute> outputAttributes = physicalPlan.output();
+             var computeContext = new ComputeContext(
+                 newChildSession(sessionId),
+                 profileDescription(profileQualifier, "single"),
+@@ -347,7 +359,7 @@ public class ComputeService {
+                     cancelQueryOnFailure,
+                     listener.map(completionInfo -> {
+                         updateExecutionInfoAfterCoordinatorOnlyQuery(execInfo);
+-                        return new Result(physicalPlan.output(), collectedPages, completionInfo, execInfo);
++                        return new Result(outputAttributes, collectedPages, completionInfo, execInfo);
+                     })
+                 )
+             ) {
+@@ -658,6 +670,12 @@ public class ComputeService {
+                 throw new IllegalStateException("no drivers created");
+             }
+             LOGGER.debug("using {} drivers", drivers.size());
++            /*
++             * Grab the plan string here, so we can pass it to
++             * the listener without holding on to a reference to the
++             * entire plan.
++             */
++            String localPlanString = localPlan.toString();
+             ActionListener<Void> driverListener = listener.map(ignored -> {
+                 if (LOGGER.isDebugEnabled()) {
+                     LOGGER.debug(
+@@ -667,7 +685,7 @@ public class ComputeService {
+                             context.description(),
+                             clusterService.getClusterName().value(),
+                             transportService.getLocalNode().getName(),
+-                            localPlan.toString()
++                            localPlanString
+                         )
+                     );
+                 }
+@@ -677,7 +695,7 @@ public class ComputeService {
+                         context.description(),
+                         clusterService.getClusterName().value(),
+                         transportService.getLocalNode().getName(),
+-                        localPlan.toString()
++                        localPlanString
+                     );
+                 } else {
+                     return DriverCompletionInfo.excludingProfiles(drivers);

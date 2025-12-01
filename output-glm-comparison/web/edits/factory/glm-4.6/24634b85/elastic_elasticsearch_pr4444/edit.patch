@@ -1,0 +1,43 @@
+diff --git a/src/main/java/org/elasticsearch/common/util/concurrent/EsThreadPoolExecutor.java b/src/main/java/org/elasticsearch/common/util/concurrent/EsThreadPoolExecutor.java
+index 86301ec..ea86ce6 100644
+--- a/src/main/java/org/elasticsearch/common/util/concurrent/EsThreadPoolExecutor.java
++++ b/src/main/java/org/elasticsearch/common/util/concurrent/EsThreadPoolExecutor.java
+@@ -44,15 +44,35 @@ public class EsThreadPoolExecutor extends ThreadPoolExecutor {
+     }
+ 
+     public void shutdown(ShutdownListener listener) {
++        // Check and set listener without holding monitor to avoid deadlock
++        // where shutdown() acquires mainLock while terminated() tries to get monitor
++        if (listener == null) {
++            throw new IllegalArgumentException("listener cannot be null");
++        }
++        
+         synchronized (monitor) {
+             if (this.listener != null) {
+                 throw new ElasticSearchIllegalStateException("Shutdown was already called on this thread pool");
+             }
+-            if (isTerminated()) {
+-                listener.onTerminated();
+-            } else {
++            if (!isTerminated()) {
+                 this.listener = listener;
+             }
++        }
++        
++        // Call shutdown outside the synchronized block to avoid deadlock
++        if (isTerminated()) {
++            // If already terminated, call listener directly
++            synchronized (monitor) {
++                // Double-check in case another thread terminated while we were not synchronized
++                if (this.listener != null) {
++                    try {
++                        listener.onTerminated();
++                    } finally {
++                        this.listener = null;
++                    }
++                }
++            }
++        } else {
+             shutdown();
+         }
+     }

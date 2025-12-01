@@ -1,0 +1,20 @@
+{
+  "repo_url": "https://github.com/elastic/elasticsearch.git",
+  "pr_number": 134729,
+  "base_commit": "d70e2bd0d84d610b8ad101288141196261ad7628",
+  "head_commit": "7454de2f410d49baa1291e58af2f1dec959a91f1",
+  "judge_mode": "llm",
+  "judge_model": "claude-sonnet-4-5",
+  "scores": {
+    "correctness": 0.0,
+    "completeness": 0.0,
+    "code_reuse": -0.3,
+    "best_practices": -0.2,
+    "unsolicited_docs": 1.0
+  },
+  "aggregate": 0.1,
+  "rationale": "The agent's change correctly implements the required functionality by checking for both 'snippet' and 'chunk_rescorer' in the test path, matching the ground truth's behavior. However, the agent extracted the condition into a separate helper method `containsSnippetOrChunkRescorer()`, which was not requested and adds unnecessary complexity for a simple boolean expression used only once. The ground truth achieves the same result with an inline condition that is more readable and concise. The formatting with the multi-line 'if' statement is also less conventional than the ground truth's approach. While the code works correctly, it violates the principle of avoiding over-engineering and making changes beyond what was asked.",
+  "edit_run_id": "fd5b3480",
+  "judge_run_id": "3e164e1c",
+  "ground_truth_patch": "diff --git a/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java b/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\nindex d15016ee9f4..e765dbcf5e9 100644\n--- a/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\n+++ b/x-pack/plugin/inference/src/yamlRestTest/java/org/elasticsearch/xpack/inference/InferenceRestIT.java\n@@ -42,7 +42,8 @@ public class InferenceRestIT extends ESClientYamlSuiteTestCase {\n     public InferenceRestIT(final ClientYamlTestCandidate testCandidate) {\n         super(testCandidate);\n         String testPath = testCandidate.getTestPath();\n-        if (testPath.startsWith(\"inference/70_text_similarity_rank_retriever\") && testPath.toLowerCase(Locale.ROOT).contains(\"snippet\")) {\n+        if (testPath.startsWith(\"inference/70_text_similarity_rank_retriever\")\n+            && (testPath.toLowerCase(Locale.ROOT).contains(\"snippet\") || testPath.toLowerCase(Locale.ROOT).contains(\"chunk_rescorer\"))) {\n             assumeTrue(\"Rerank snippets does not work in release builds\", Build.current().isSnapshot());\n         }\n     }"
+}
