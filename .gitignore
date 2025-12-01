@@ -48,6 +48,7 @@ htmlcov/
 
 # Output directories (runtime artifacts only)
 output/
+output-*/
 output_backup_*/
 output_backups/
 backups/

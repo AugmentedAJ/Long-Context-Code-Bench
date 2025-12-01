@@ -1,53 +1,18 @@
 """Sample stage: Extract PR metadata and create sample.json files."""
 
 import json
-import random
 import re
 import tempfile
 from pathlib import Path
 from typing import Optional, List
-from urllib.parse import urlparse
 
 import git
 import requests
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from long_context_bench.models import Sample, SampleStats
-from long_context_bench.synthesis import (
-    synthesize_task_instructions,
-    synthesize_with_auggie,
-    get_synthesis_timestamp,
-)
 
 console = Console()
-
-# Load synthesized prompts mapping
-_SYNTHESIZED_PROMPTS_CACHE = None
-
-def _load_synthesized_prompts() -> dict:
-    """Load synthesized prompts from the mapping file.
-
-    Returns:
-        Dictionary mapping PR number (str) to list of prompt variants
-    """
-    global _SYNTHESIZED_PROMPTS_CACHE
-
-    if _SYNTHESIZED_PROMPTS_CACHE is not None:
-        return _SYNTHESIZED_PROMPTS_CACHE
-
-    # Try to load from the prompt_dataset directory
-    mapping_file = Path(__file__).parent.parent.parent / "prompt_dataset" / "synthesized_prompts_mapping.json"
-
-    if mapping_file.exists():
-        with open(mapping_file) as f:
-            _SYNTHESIZED_PROMPTS_CACHE = json.load(f)
-            console.print(f"[dim]Loaded synthesized prompts for {len(_SYNTHESIZED_PROMPTS_CACHE)} PRs[/dim]")
-    else:
-        console.print(f"[yellow]Warning: Synthesized prompts mapping not found at {mapping_file}[/yellow]")
-        _SYNTHESIZED_PROMPTS_CACHE = {}
-
-    return _SYNTHESIZED_PROMPTS_CACHE
 
 
 def parse_pr_url(url: str) -> tuple[str, str, int]:
@@ -104,45 +69,15 @@ def fetch_pr_metadata(
     return response.json()
 
 
-def create_task_instructions(pr_metadata: dict, pr_number: Optional[int] = None, variant: Optional[int] = None) -> str:
-    """Create task instructions from PR metadata.
-
-    This function now uses synthesized prompts from the prompt_dataset when available.
-    Falls back to the template-based approach if no synthesized prompt is found.
+def create_task_instructions(pr_metadata: dict) -> str:
+    """Create task instructions from PR metadata using template-based approach.
 
     Args:
         pr_metadata: PR metadata from GitHub API
-        pr_number: Optional PR number to look up synthesized prompt
-        variant: Optional variant number (0-4) to select specific prompt. If None, randomly selects one.
 
     Returns:
         Task instructions string
     """
-    # Try to use synthesized prompt if PR number is provided
-    if pr_number is not None:
-        prompts_map = _load_synthesized_prompts()
-        pr_key = str(pr_number)
-
-        if pr_key in prompts_map:
-            variants = prompts_map[pr_key]
-
-            if variants:
-                # Select variant
-                if variant is not None and 0 <= variant < len(variants):
-                    selected_variant = variants[variant]
-                else:
-                    # Randomly select a variant
-                    selected_variant = random.choice(variants)
-
-                prompt = selected_variant["prompt"]
-                console.print(f"[dim]Using synthesized prompt (variant {selected_variant['rollout']}) for PR {pr_number}[/dim]")
-                return prompt
-            else:
-                console.print(f"[yellow]Warning: No variants found for PR {pr_number}, falling back to template[/yellow]")
-        else:
-            console.print(f"[yellow]Warning: No synthesized prompt found for PR {pr_number}, falling back to template[/yellow]")
-
-    # Fallback to template-based approach
     title = pr_metadata.get("title", "")
     body = pr_metadata.get("body") or ""
 
@@ -282,8 +217,6 @@ def sample_pr(
     github_token: Optional[str] = None,
     cache_dir: Optional[Path] = None,
     force: bool = False,
-    synthesize: bool = False,
-    synthesis_model: str = "claude-3-7-sonnet-20250219",
 ) -> Optional[Sample]:
     """Sample a single PR and create sample.json.
 
@@ -294,8 +227,6 @@ def sample_pr(
         github_token: Optional GitHub token
         cache_dir: Optional cache directory for repositories
         force: If True, re-sample even if sample.json already exists
-        synthesize: If True, generate synthesized task instructions using LLM
-        synthesis_model: LiteLLM model identifier for synthesis
 
     Returns:
         Sample object if successful, None if failed
@@ -338,41 +269,8 @@ def sample_pr(
         )
         context_size_bytes, truncated = compute_context_size(git_repo, base_sha, head_sha)
 
-        # Create task instructions (uses synthesized prompts when available)
-        task_instructions = create_task_instructions(pr_metadata, pr_number=pr_number)
-
-        # Optionally synthesize task instructions using LLM
-        synthesized_instructions = None
-        synthesis_model_used = None
-        synthesis_ts = None
-
-        if synthesize:
-            console.print(f"  Synthesizing task instructions...")
-            # Get PR diff for synthesis
-            pr_diff = git_repo.git.diff(base_sha, head_sha)
-
-            # Choose synthesis method based on model
-            if synthesis_model.startswith("auggie/"):
-                # Use Auggie CLI for synthesis
-                auggie_model = synthesis_model.replace("auggie/", "")
-                synthesized_instructions = synthesize_with_auggie(
-                    pr_title=pr_metadata.get("title", ""),
-                    pr_body=pr_metadata.get("body") or "",
-                    pr_diff=pr_diff,
-                    model=auggie_model,
-                )
-            else:
-                # Use LiteLLM for synthesis
-                synthesized_instructions = synthesize_task_instructions(
-                    pr_title=pr_metadata.get("title", ""),
-                    pr_body=pr_metadata.get("body") or "",
-                    pr_diff=pr_diff,
-                    model=synthesis_model,
-                )
-
-            if synthesized_instructions:
-                synthesis_model_used = synthesis_model
-                synthesis_ts = get_synthesis_timestamp()
+        # Create task instructions using template-based approach
+        task_instructions = create_task_instructions(pr_metadata)
 
         # Create sample
         stats = SampleStats(
@@ -392,9 +290,6 @@ def sample_pr(
             head_commit=head_sha,
             task_instructions=task_instructions,
             stats=stats,
-            synthesized_task_instructions=synthesized_instructions,
-            synthesis_model=synthesis_model_used,
-            synthesis_timestamp=synthesis_ts,
         )
 
         # Write sample.json
@@ -407,7 +302,7 @@ def sample_pr(
 
         console.print(f"[green]✓ Sampled {pr_id}[/green]")
         return sample
-            
+
     except Exception as e:
         console.print(f"[red]✗ Failed to sample {pr_url}: {e}[/red]")
         return None
@@ -419,8 +314,6 @@ def run_sample_stage(
     dataset_version: str,
     github_token: Optional[str] = None,
     force: bool = False,
-    synthesize: bool = False,
-    synthesis_model: str = "claude-3-7-sonnet-20250219",
     cache_dir: Optional[Path] = None,
 ) -> None:
     """Run the sample stage.
@@ -431,15 +324,13 @@ def run_sample_stage(
         dataset_version: Dataset version
         github_token: Optional GitHub token
         force: If True, re-sample even if sample.json already exists
-        synthesize: If True, generate synthesized task instructions using LLM
-        synthesis_model: LiteLLM model identifier for synthesis
         cache_dir: Optional cache directory for repositories
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Determine input type
     pr_urls: List[str] = []
-    
+
     if input_path.startswith("http"):
         # Single PR URL
         pr_urls = [input_path]
@@ -450,12 +341,11 @@ def run_sample_stage(
     else:
         console.print(f"[red]Invalid input: {input_path}[/red]")
         return
-    
+
     console.print(f"[bold]Sampling {len(pr_urls)} PRs...[/bold]")
 
     successful = 0
     failed = 0
-    skipped = 0
 
     for pr_url in pr_urls:
         result = sample_pr(
@@ -465,16 +355,8 @@ def run_sample_stage(
             github_token,
             cache_dir=cache_dir,
             force=force,
-            synthesize=synthesize,
-            synthesis_model=synthesis_model,
         )
         if result:
-            # Check if it was skipped (file existed before)
-            owner, repo, pr_number = parse_pr_url(pr_url)
-            pr_id = get_pr_id(owner, repo, pr_number)
-            sample_file = output_dir / dataset_version / pr_id / "sample.json"
-            # If force=False and file existed, it was loaded (not re-sampled)
-            # We can't easily distinguish, so just count as successful
             successful += 1
         else:
             failed += 1
