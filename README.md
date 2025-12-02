@@ -11,7 +11,7 @@ Primary use case: **side-by-side agent comparison using test labels** for reprod
 **Key Features:**
 - 🏆 **Leaderboard Generation**: Rank multiple agents across standardized benchmarks
 - 🔬 **Agent Comparison**: Label runs and generate side-by-side performance comparisons
-- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~20K files per codebase)
+- 📊 **Standard v0 Dataset**: 40 Elasticsearch PRs with pre-synthesized prompts (~30K files per codebase)
 - 📊 **New v1 Dataset**: 100 Elasticsearch PRs aligned with the public prompt dataset
 - 🎯 **Pre-synthesized prompts**: LLM-generated natural task instructions (standard for v0 and v1 results)
 - 🔌 Agent-agnostic: pluggable adapters for different CLI agents (Auggie, Claude Code, Factory, Codex, Aider, etc.)
@@ -1128,7 +1128,7 @@ The v0 dataset evaluates agents on **recreating a PR given its description**:
 
 This tests an agent's ability to:
 1. Understand a developer's intended changes from a natural task description
-2. Navigate and modify a massive codebase (~20K files)
+2. Navigate and modify a massive codebase (~30K files)
 3. Produce changes that match the actual implementation
 
 ### Dataset Curation
